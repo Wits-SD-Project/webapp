@@ -8,3 +8,8 @@ Members
 - Ibram: 2552005
 - Wilfred: 2690284
 - Sachin: 2699183
+
+Frontend: HTML, CSS and JavaScript (vanilla)
+Backend: Node.JS, Express.JS
+Database: Firebase
+Deployment Platform: Azure
