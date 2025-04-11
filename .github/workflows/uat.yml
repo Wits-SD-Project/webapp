@@ -1,0 +1,67 @@
+name: User Acceptance Tests
+
+on:
+  push:
+    branches:
+      - staging
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  uat:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: ⬇️ Checkout code
+        uses: actions/checkout@v3
+
+      - name: ⚙️ Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: 📦 Install dependencies
+        run: npm install
+        working-directory: ./frontend
+
+      - name: 🧪 Run SignIn Jest tests only
+        run: |
+          echo "Running tests from SignIn.test.js..."
+          npm test src/pages/__tests__/SignIn.test.js -- --ci --coverage
+        working-directory: ./frontend
+
+      - name: 📂 Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage
+
+      - name: 📌 Create PR from staging to main
+        id: create-pr # Add this ID to reference this step
+        uses: repo-sync/pull-request@v2
+        with:
+          source_branch: staging
+          destination_branch: main
+          pr_title: "Auto PR: Merge staging → main"
+          pr_body: "✅ UAT passed. Auto-merging staging to main."
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 📝 Get PR number
+        id: get-pr-number
+        if: steps.create-pr.outputs.pr_url
+        run: |
+          PR_URL="${{ steps.create-pr.outputs.pr_url }}"
+          PR_NUMBER=$(echo $PR_URL | awk -F/ '{print $NF}')
+          echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
+          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+
+      - name: 🤖 Auto-merge PR
+        if: steps.get-pr-number.outputs.pr_number
+        uses: pascalgn/automerge-action@v0.15.5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PULL_REQUEST: ${{ steps.get-pr-number.outputs.pr_number }}
+          MERGE_METHOD: "squash"
+          MERGE_LABELS: ""
