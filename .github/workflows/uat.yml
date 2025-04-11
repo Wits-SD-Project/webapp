@@ -39,6 +39,7 @@ jobs:
           path: coverage
 
       - name: 📌 Create PR from staging to main
+        id: create-pr # Add this ID to reference this step
         uses: repo-sync/pull-request@v2
         with:
           source_branch: staging
@@ -47,7 +48,19 @@ jobs:
           pr_body: "✅ UAT passed. Auto-merging staging to main."
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: 📝 Get PR number
+        id: get-pr-number
+        if: steps.create-pr.outputs.pr_url
+        run: |
+          PR_URL="${{ steps.create-pr.outputs.pr_url }}"
+          PR_NUMBER=$(echo $PR_URL | awk -F/ '{print $NF}')
+          echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
+          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+
       - name: 🤖 Auto-merge PR
+        if: steps.get-pr-number.outputs.pr_number
         uses: pascalgn/automerge-action@v0.15.5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PULL_REQUEST: ${{ steps.get-pr-number.outputs.pr_number }}
+          MERGE_METHOD: "squash"
