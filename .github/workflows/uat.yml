@@ -46,6 +46,7 @@ jobs:
           destination_branch: main
           pr_title: "Auto PR: Merge staging → main"
           pr_body: "✅ UAT passed. Auto-merging staging to main."
+          pr_label: "automerge"
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 📝 Get PR number
@@ -57,13 +58,10 @@ jobs:
           echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
           echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
 
-      - name: 📌 Create PR from staging to main
-        id: create-pr
-        uses: repo-sync/pull-request@v2
-        with:
-          source_branch: staging
-          destination_branch: main
-          pr_title: "Auto PR: Merge staging → main"
-          pr_body: "✅ UAT passed. Auto-merging staging to main."
-          pr_label: "automerge"
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: 🤖 Auto-merge PR
+        if: steps.get-pr-number.outputs.pr_number
+        uses: pascalgn/automerge-action@v0.15.5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PULL_REQUEST: ${{ steps.get-pr-number.outputs.pr_number }}
+          MERGE_METHOD: "squash"
