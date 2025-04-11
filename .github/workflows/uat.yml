@@ -35,13 +35,14 @@ jobs:
           path: coverage
 
       - name: 📌 Create PR from staging to main
-        uses: repo-sync/pull-request@v2
+        uses: peter-evans/create-pull-request@v6
         with:
-          source_branch: staging
-          destination_branch: main
-          pr_title: "Auto PR: Merge staging → main"
-          pr_body: "✅ UAT passed. Auto-merging staging to main."
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          title: "Auto PR: Merge staging → main"
+          body: "✅ UAT passed. Auto-merging staging to main."
+          base: main
+          branch: staging
+          draft: false
 
       - name: 🤖 Auto-merge PR
         uses: pascalgn/automerge-action@v0.15.5
