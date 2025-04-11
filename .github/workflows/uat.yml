@@ -27,7 +27,8 @@ jobs:
           npm test src/pages/__tests__/SignIn.test.js -- --ci --coverage
 
       - name: 📂 Upload coverage report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v2
+
         with:
           name: coverage-report
           path: coverage
