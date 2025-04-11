@@ -1,22 +1,22 @@
-name: Auto PR to Main from Staging
+# name: Auto PR to Main from Staging
 
-on:
-  workflow_run:
-    workflows: ["User Acceptance Tests"]
-    types:
-      - completed
+# on:
+#   workflow_run:
+#     workflows: ["User Acceptance Tests"]
+#     types:
+#       - completed
 
-jobs:
-  create-pr:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
-    runs-on: ubuntu-latest
+# jobs:
+#   create-pr:
+#     if: ${{ github.event.workflow_run.conclusion == 'success' }}
+#     runs-on: ubuntu-latest
 
-    steps:
-      - name: Create Pull Request
-        uses: repo-sync/pull-request@v2
-        with:
-          source_branch: staging
-          destination_branch: main
-          pr_title: "Auto PR: Merge staging into main"
-          pr_body: "✅ Tests passed on staging. Auto-merging to main."
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+#     steps:
+#       - name: Create Pull Request
+#         uses: repo-sync/pull-request@v2
+#         with:
+#           source_branch: staging
+#           destination_branch: main
+#           pr_title: "Auto PR: Merge staging into main"
+#           pr_body: "✅ Tests passed on staging. Auto-merging to main."
+#           github_token: ${{ secrets.GITHUB_TOKEN }}
