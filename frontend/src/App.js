@@ -7,14 +7,18 @@ import Home from "./pages/Home";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 
-// Dummy dashboard pages for now
+// Dashboard pages
 import AdminDashboard from "./pages/dashboards/AdminDashboard";
 import StaffDashboard from "./pages/dashboards/StaffDashboard";
 import UserDashboard from "./pages/dashboards/UserDashboard";
 
-// Forgot Password page
+// Auth pages
 import ForgotPassword from "./ForgotPassword";
+import ResetPassword from "./pages/auth/ResetPassword";
+
+// Styles
 import "./forgot.css";
+import "./reset.css";
 
 function App() {
   return (
@@ -25,6 +29,7 @@ function App() {
           <Route path="/signin" element={<SignIn />} />
           <Route path="/signup" element={<SignUp />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
 
           <Route
             path="/admin-dashboard"
@@ -59,4 +64,3 @@ function App() {
 }
 
 export default App;
-
