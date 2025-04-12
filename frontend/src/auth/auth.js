@@ -1,24 +1,24 @@
 import {
-  createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
 } from "firebase/auth";
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 
 export const signUpUser = async ({ name, email, password, role }) => {
-  const userCred = await createUserWithEmailAndPassword(auth, email, password);
-
-  const userDoc = doc(db, "users", email); // <-- use email as the doc ID
-  await setDoc(userDoc, {
-    name,
-    email,
-    role,
-    approved: false,
-    createdAt: new Date(),
+  const res = await fetch("http://localhost:5000/api/auth/signup", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, email, password, role }),
   });
 
-  return userCred.user;
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.message || "Signup failed");
+  }
+
+  return await res.json();
 };
+
 
 export const signInUser = async ({ email, password }) => {
   const userCred = await signInWithEmailAndPassword(auth, email, password);
