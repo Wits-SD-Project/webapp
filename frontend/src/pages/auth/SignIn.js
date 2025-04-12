@@ -85,7 +85,7 @@ export default function SignIn() {
           </div>
 
           <p className="forgot-password">
-            <a href="#">Forgot password?</a>
+            <a href="/forgot-password">Forgot password?</a>
           </p>
 
           <button type="submit" className="btn primary" disabled={loading}>
