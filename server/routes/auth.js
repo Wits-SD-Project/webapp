@@ -44,8 +44,7 @@ router.post("/signin", async (req, res) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email,
-          password,
-          returnSecureToken: true,
+          password
         }),
       }
     );
@@ -73,8 +72,7 @@ router.post("/signin", async (req, res) => {
     res.json({
       email: userData.email,
       role: userData.role,
-      approved: userData.approved,
-      idToken: data.idToken,
+      approved: userData.approved
     });
   } catch (err) {
     console.error(err);
