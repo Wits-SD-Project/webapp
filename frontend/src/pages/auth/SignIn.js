@@ -59,15 +59,22 @@ export default function SignIn() {
     }
   }
 
-  const onGoogleSignIn = (e) => {
-    e.preventDefault()
-    if(!isSigningIn) {
-      setIsSigningIn(true)
-      doSignInWithGoogle().catch(err => {
-        setIsSigningIn(false)
-      })
+  const onGoogleSignIn = async (e) => {
+    e.preventDefault();
+    if (!isSigningIn) {
+      setIsSigningIn(true);
+      try {
+        const user = await doSignInWithGoogle();
+        setAuthUser(user);
+        toast.success("Welcome " + user.email);
+        navigate("/user-dashboard");
+      } catch (err) {
+        toast.error("Google sign-in failed: " + err.message);
+        setIsSigningIn(false);
+      }
     }
-  }
+  };
+  
 
 
   return (
@@ -125,9 +132,10 @@ export default function SignIn() {
           Or continue with
         </div>
 
-        <button className="btn secondary" type="button">
-          Google
+        <button className="btn secondary" type="button" onClick={onGoogleSignIn} disabled={isSigningIn}>
+          {isSigningIn ? <ClipLoader size={20} color="#000" /> : "Google"}
         </button>
+
 
         <p className="register-text">
           Don’t have an account?{" "}
