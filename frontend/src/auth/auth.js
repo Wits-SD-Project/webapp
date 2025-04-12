@@ -1,9 +1,3 @@
-import {
-  signInWithEmailAndPassword,
-} from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
-import { auth, db } from "../firebase";
-
 export const signUpUser = async ({ name, email, password, role }) => {
   const res = await fetch("http://localhost:5000/api/auth/signup", {
     method: "POST",
