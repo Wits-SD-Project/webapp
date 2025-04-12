@@ -6,6 +6,7 @@ import { MenuItem, Select, FormControl, InputLabel } from "@mui/material";
 import { signUpUser } from "../../auth/auth";
 import { ClipLoader } from "react-spinners";
 import { toast } from "react-toastify";
+import { useAuth } from "../../context/AuthContext"; 
 
 export default function SignUp() {
   const [role, setRole] = useState("");

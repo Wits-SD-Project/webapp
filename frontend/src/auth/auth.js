@@ -1,6 +1,9 @@
 import {
   createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
+  signInWithEmailAndPassword, GoogleAuthProvider,
+  signInWithPopup,
+  sendPasswordResetEmail,
+  sendEmailVerification
 } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
@@ -39,3 +42,33 @@ export const signInUser = async ({ email, password }) => {
     approved: userData.approved,
   };
 };
+
+export const doSignInWithGoogle = async () => {
+  const provider = new GoogleAuthProvider();
+  const result = await signInWithPopup(auth, provider);
+  //result.user ... used to store in firestore
+  return result;
+}
+
+//extra code for users to SignOut functionality
+export const doSignOut = () => {
+  return auth.signOut();
+};
+
+// //extra code for users to do a Password chnage
+// export const doPasswordReset = (email) => {
+//   return sendPasswordResetEmail(auth, email);
+// }
+
+// //extra code for Password Change
+// export const doPasswordChange = (password) => {
+//   return sendPasswordResetEmail(auth, password);
+// }
+
+// //extra code to send user a verification email
+// export const doSendEmailVerification = () => {
+//   return sendEmailVerification(auth.currentUser, {
+//     url: `${window.location.origin}/home`,
+//   });
+// };
+

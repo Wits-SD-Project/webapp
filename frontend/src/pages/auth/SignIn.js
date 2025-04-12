@@ -6,8 +6,16 @@ import { signInUser } from "../../auth/auth";
 import { ClipLoader } from "react-spinners";
 import { toast } from "react-toastify";
 import { useAuth } from "../../context/AuthContext";
+import { doSignInWithGoogle } from "../../auth/auth";
 
 export default function SignIn() {
+//Ibram's code
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [isSigningIn, setIsSigningIn] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
+
+  //Ibram: "signInUser is not in a global scope so I had to create the above ^"
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { setAuthUser } = useAuth();
@@ -41,6 +49,26 @@ export default function SignIn() {
       setLoading(false);
     }
   };
+
+  //Sigining in with Email and Password
+  const onSubmit = async (e) => {
+    e.preventDefault()
+    if(!isSigningIn){
+      setIsSigningIn(true)
+      await  signInUser(email, password)
+    }
+  }
+
+  const onGoogleSignIn = (e) => {
+    e.preventDefault()
+    if(!isSigningIn) {
+      setIsSigningIn(true)
+      doSignInWithGoogle().catch(err => {
+        setIsSigningIn(false)
+      })
+    }
+  }
+
 
   return (
     <main className="login-container">
