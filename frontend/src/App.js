@@ -12,6 +12,10 @@ import AdminDashboard from "./pages/dashboards/AdminDashboard";
 import StaffDashboard from "./pages/dashboards/StaffDashboard";
 import UserDashboard from "./pages/dashboards/UserDashboard";
 
+// Forgot Password page
+import ForgotPassword from "./ForgotPassword";
+import "./forgot.css";
+
 function App() {
   return (
     <AuthProvider>
@@ -20,6 +24,7 @@ function App() {
           <Route path="/" element={<SignIn />} />
           <Route path="/signin" element={<SignIn />} />
           <Route path="/signup" element={<SignUp />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
 
           <Route
             path="/admin-dashboard"
@@ -54,3 +59,4 @@ function App() {
 }
 
 export default App;
+
