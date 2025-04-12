@@ -21,21 +21,17 @@ export const signUpUser = async ({ name, email, password, role }) => {
 
 
 export const signInUser = async ({ email, password }) => {
-  const userCred = await signInWithEmailAndPassword(auth, email, password);
+  const res = await fetch("http://localhost:5000/api/auth/signin", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
 
-  const userDoc = await getDoc(doc(db, "users", email));
-  if (!userDoc.exists()) {
-    throw new Error("User profile not found in database.");
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.message || "Signin failed");
   }
 
-  const userData = userDoc.data();
-  if (!userData.approved) {
-    throw new Error("Account not yet approved by admin.");
-  }
-
-  return {
-    email: userData.email,
-    role: userData.role,
-    approved: userData.approved,
-  };
+  return await res.json();
 };
+
