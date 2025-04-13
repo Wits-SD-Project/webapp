@@ -8,6 +8,7 @@ import { toast } from "react-toastify";
 import { useAuth } from "../../context/AuthContext";
 import { doSignInWithGoogle } from "../../auth/auth";
 
+
 export default function SignIn() {
 //Ibram's code
   const [email, setEmail] = useState('')

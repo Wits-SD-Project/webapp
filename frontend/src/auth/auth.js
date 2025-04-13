@@ -6,22 +6,25 @@ import {
   sendEmailVerification
 } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
-import { auth, db } from "../firebase";
+import { auth} from "../firebase";
+import { db } from "../firebase";
 
-export const signUpUser = async ({ name, email, password, role }) => {
-  const userCred = await createUserWithEmailAndPassword(auth, email, password);
 
-  const userDoc = doc(db, "users", email); // <-- use email as the doc ID
-  await setDoc(userDoc, {
-    name,
+export const signUpUser = async ({ fullName, email, password, role }) => {
+  const { user } = await createUserWithEmailAndPassword(auth, email, password);
+
+  await setDoc(doc(db, "users", user.uid), {
+    fullName,
     email,
     role,
     approved: false,
     createdAt: new Date(),
   });
 
-  return userCred.user;
+  // return the info you need in the UI
+  return { fullName, email, role, uid: user.uid };
 };
+
 
 export const signInUser = async ({ email, password }) => {
   const userCred = await signInWithEmailAndPassword(auth, email, password);
@@ -37,6 +40,8 @@ export const signInUser = async ({ email, password }) => {
   }
 
   return {
+    //the user's name
+    name: userData.name,
     email: userData.email,
     role: userData.role,
     approved: userData.approved,

@@ -7,8 +7,16 @@ import { signUpUser } from "../../auth/auth";
 import { ClipLoader } from "react-spinners";
 import { toast } from "react-toastify";
 import { useAuth } from "../../context/AuthContext"; 
+import { setDoc,doc } from "firebase/firestore";
+import {auth, db} from "../../firebase"
+
 
 export default function SignUp() {
+//Ibram's code
+const { setAuthUser } = useAuth();
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [name, setName] = useState("");
   const [role, setRole] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -20,24 +28,27 @@ export default function SignUp() {
   const handleSignUp = async (e) => {
     e.preventDefault();
     setLoading(true);
+  
+    // grab the form so we can read its inputs
+    const form = e.target;
+  
     try {
-      const form = e.target;
       const user = await signUpUser({
-        name: form.name.value,
-        email: form.email.value,
+        fullName: form.fullName.value,
+        email:    form.email.value,
         password: form.password.value,
-        role,
+        role:     form.role.value,
       });
-
-      toast.success(
-        `Account created for ${user.email}. Awaiting admin approval.`
-      );
+      setAuthUser(user);
+      toast.success("Welcome, " + user.fullName);
+      navigate("/user-dashboard");
     } catch (err) {
       toast.error("Signup failed: " + err.message);
     } finally {
       setLoading(false);
     }
   };
+  
 
   return (
     <main className="login-container">
