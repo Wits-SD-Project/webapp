@@ -5,7 +5,6 @@ Sports Sphere is web-based platform for managing community sports facilities. De
 ## Table of Contents
 - [Demo Accounts](#demo-accounts)
 - [Prerequisites](#prerequisites)
-- [Setup](#setup)
 - [Installation and Running](#installation-and-running)
 
 ## Demo Accounts
@@ -31,7 +30,7 @@ Follow these steps to install the project dependencies and start the development
 
 1. Clone the repository:
 ```
-git clone https://github.com/danishx99/common-grounds-app.git
+git clone https://github.com/Wits-SD-Project/webapp.git
 ```
 2. After cloning, navigate to the frontend directory:
 ```
