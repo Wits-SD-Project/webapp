@@ -1,0 +1,53 @@
+.forgot-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #1a0c2a;
+    color: white;
+    text-align: center;
+    padding: 0 20px;
+  }
+  
+  .forgot-container h1 {
+    font-size: 32px;
+    margin-bottom: 20px;
+  }
+  
+  .forgot-container p {
+    font-size: 18px;
+    margin-bottom: 30px;
+  }
+  
+  .forgot-container form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 100%;
+    max-width: 400px;
+  }
+  
+  .forgot-container input[type='email'] {
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+  }
+  
+  .forgot-container button {
+    background-color: #00c2ed;
+    border: none;
+    color: white;
+    padding: 14px;
+    font-size: 16px;
+    border-radius: 30px;
+    cursor: pointer;
+  }
+  
+  .forgot-container a {
+    margin-top: 20px;
+    color: #00c2ed;
+    text-decoration: none;
+  }
+  
