@@ -23,6 +23,7 @@ export const signInUser = async ({ email, password }) => {
 
   if (!res.ok) {
     const err = await res.json();
+    console.log(err)
     throw new Error(err.message || "Signin failed");
   }
 
