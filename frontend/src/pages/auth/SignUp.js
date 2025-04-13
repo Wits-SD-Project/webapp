@@ -1,7 +1,7 @@
 import "../../styles/signin.css";
 import logo from "../../assets/logo.png";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+// import { useNavigate } from "react-router-dom";
 import { MenuItem, Select, FormControl, InputLabel } from "@mui/material";
 import { signUpUser } from "../../auth/auth";
 import { ClipLoader } from "react-spinners";
@@ -10,7 +10,7 @@ import { toast } from "react-toastify";
 export default function SignUp() {
   const [role, setRole] = useState("");
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
 
   const handleRoleChange = (event) => {
     setRole(event.target.value);
