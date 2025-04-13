@@ -1,6 +1,4 @@
 import { useEffect, useState } from "react";
-import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
-import { db } from "../../firebase";
 import { toast } from "react-toastify";
 import "./AdminDashboard.css";
 import Navbar from "../../components/Navbar";
@@ -11,41 +9,45 @@ export default function AdminDashboard() {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const snapshot = await getDocs(collection(db, "users"));
-        const data = snapshot.docs
-          .map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }))
-          .filter((user) => user.email !== "admin@gmail.com");
-
+        const res = await fetch("http://localhost:5000/api/admin/users");
+        const data = await res.json();
+  
+        if (!res.ok) throw new Error(data.message);
         setUsers(data);
       } catch (err) {
-        toast.error("Failed to load users.");
+        console.log(err);
+        toast.error("Failed to load users."+err);
       }
     };
-
+  
     fetchUsers();
   }, []);
+  
 
   const toggleApproval = async (user) => {
-    const userRef = doc(db, "users", user.email);
-    const newStatus = !user.approved;
-
     try {
-      await updateDoc(userRef, { approved: newStatus });
+      const res = await fetch("http://localhost:5000/api/admin/toggle-approval", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: user.email }),
+      });
+  
+      const data = await res.json();
+  
+      if (!res.ok) throw new Error(data.message);
+  
       setUsers((prev) =>
         prev.map((u) =>
-          u.email === user.email ? { ...u, approved: newStatus } : u
+          u.email === user.email ? { ...u, approved: data.approved } : u
         )
       );
-      toast.success(
-        `${user.email} has been ${newStatus ? "approved" : "revoked"}`
-      );
+  
+      toast.success(data.message);
     } catch (err) {
-      toast.error("Failed to update status.");
+      toast.error(err.message);
     }
   };
+  
 
   return (
     <main className="admin-dashboard">
