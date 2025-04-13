@@ -13,6 +13,20 @@ export const signUpUser = async ({ name, email, password, role }) => {
   return await res.json();
 };
 
+export const signUpWithThirdParty = async ({ idToken, provider, role }) => {
+  const res = await fetch("http://localhost:5000/api/auth/signup/thirdparty", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ idToken, provider, role }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.message || "Third-party signup failed");
+  }
+
+  return await res.json();
+};
 
 export const signInUser = async ({ email, password }) => {
   const res = await fetch("http://localhost:5000/api/auth/signin", {
@@ -30,3 +44,17 @@ export const signInUser = async ({ email, password }) => {
   return await res.json();
 };
 
+export const signInWithThirdParty = async ({ idToken}) => {
+  const res = await fetch("http://localhost:5000/api/auth/signin/thirdparty", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ idToken }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.message || "Third-party signin failed");
+  }
+
+  return await res.json();
+};
