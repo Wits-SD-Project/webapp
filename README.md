@@ -31,7 +31,7 @@ Follow these steps to install the project dependencies and start the development
 
 1. Clone the repository:
 ```
-git clone https://github.com/danishx99/common-grounds-app.git
+git clone https://github.com/Wits-SD-Project/webapp.git
 ```
 2. After cloning, navigate to the frontend directory:
 ```
