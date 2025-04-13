@@ -3,12 +3,18 @@ import logo from "../assets/logo.png";
 import "./Navbar.css";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "react-toastify";
+import { auth } from "../firebase";
 
 export default function Navbar() {
   const navigate = useNavigate();
   const { setAuthUser } = useAuth();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await auth.signOut(); // Sign out from Firebase
+    } catch (err) {
+      console.error("Firebase signout error:", err);
+    }
     setAuthUser(null); // remove auth context
     toast.success("Logged out");
     navigate("/signin");

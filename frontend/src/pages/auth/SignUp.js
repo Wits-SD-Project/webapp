@@ -1,16 +1,17 @@
 import "../../styles/signin.css";
 import logo from "../../assets/logo.png";
 import { useState } from "react";
-// import { useNavigate } from "react-router-dom";
 import { MenuItem, Select, FormControl, InputLabel } from "@mui/material";
-import { signUpUser } from "../../auth/auth";
+import { signUpUser, signUpWithThirdParty } from "../../auth/auth";
 import { ClipLoader } from "react-spinners";
 import { toast } from "react-toastify";
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { auth } from "../../firebase";
 
 export default function SignUp() {
   const [role, setRole] = useState("");
   const [loading, setLoading] = useState(false);
-  // const navigate = useNavigate();
+  const [providerLoading, setProviderLoading] = useState(null);
 
   const handleRoleChange = (event) => {
     setRole(event.target.value);
@@ -35,6 +36,42 @@ export default function SignUp() {
       toast.error("Signup failed: " + err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleThirdPartySignUp = async (provider) => {
+    if (!role) {
+      toast.error("Please select a role first");
+      return;
+    }
+
+    try {
+      setProviderLoading(provider);
+      let result;
+      
+      if (provider === 'google') {
+        result = await signInWithPopup(auth, new GoogleAuthProvider());
+        const credential = GoogleAuthProvider.credentialFromResult(result);
+        if (!credential) throw new Error("No credential returned");
+        
+        const idToken = await result.user.getIdToken();
+        const user = await signUpWithThirdParty({
+          idToken,
+          provider: 'google',
+          role: role
+        });
+        
+        toast.success(`Account created for ${user.email}. Awaiting admin approval.`);
+      }
+    } catch (err) {
+      console.error("Signup error:", err);
+      if (err.code === 'auth/popup-closed-by-user') {
+        toast.error("Signup canceled");
+      } else {
+        toast.error("Signup failed: " + (err.message || "Please try again"));
+      }
+    } finally {
+      setProviderLoading(null);
     }
   };
 
@@ -131,8 +168,17 @@ export default function SignUp() {
           Or continue with
         </div>
 
-        <button className="btn secondary" type="button">
-          Google
+        <button 
+          className="btn secondary" 
+          type="button"
+          onClick={() => handleThirdPartySignUp('google')}
+          disabled={!role || providerLoading === 'google'}
+        >
+          {providerLoading === 'google' ? (
+            <ClipLoader size={20} color="#000" />
+          ) : (
+            'Google'
+          )}
         </button>
 
         <p className="register-text">
