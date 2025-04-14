@@ -9,45 +9,48 @@ export default function AdminDashboard() {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/admin/users");
+        const res = await fetch(
+          "https://ssbackend-aka9gddqdxesexh5.canadacentral-01.azurewebsites.net/api/admin/users"
+        );
         const data = await res.json();
-  
+
         if (!res.ok) throw new Error(data.message);
         setUsers(data);
       } catch (err) {
         console.log(err);
-        toast.error("Failed to load users."+err);
+        toast.error("Failed to load users." + err);
       }
     };
-  
+
     fetchUsers();
   }, []);
-  
 
   const toggleApproval = async (user) => {
     try {
-      const res = await fetch("http://localhost:5000/api/admin/toggle-approval", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: user.email }),
-      });
-  
+      const res = await fetch(
+        "https://ssbackend-aka9gddqdxesexh5.canadacentral-01.azurewebsites.net/api/admin/toggle-approval",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: user.email }),
+        }
+      );
+
       const data = await res.json();
-  
+
       if (!res.ok) throw new Error(data.message);
-  
+
       setUsers((prev) =>
         prev.map((u) =>
           u.email === user.email ? { ...u, approved: data.approved } : u
         )
       );
-  
+
       toast.success(data.message);
     } catch (err) {
       toast.error(err.message);
     }
   };
-  
 
   return (
     <main className="admin-dashboard">
