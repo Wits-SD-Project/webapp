@@ -31,7 +31,7 @@ export default function SignIn() {
       } else if (user.role === "staff") {
         navigate("/staff-dashboard");
       } else {
-        navigate("/user-dashboard");
+        navigate("/resident-dashboard");
       }
     } catch (err) {
       if (err.message.includes("Account not yet approved")) {
@@ -72,7 +72,7 @@ const handleThirdPartySignIn = async (provider) => {
       } else if (user.role === "staff") {
         navigate("/staff-dashboard");
       } else {
-        navigate("/user-dashboard");
+        navigate("/resident-dashboard");
       }
     }
   } catch (err) {

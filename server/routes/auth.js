@@ -72,7 +72,7 @@ router.post("/signup/thirdparty", async (req, res) => {
     await setDoc(userDoc, {
       name,
       email,
-      role: role || 'user',
+      role: role,
       approved: false, 
       createdAt: new Date()
     });
@@ -106,7 +106,6 @@ router.post("/signin", async (req, res) => {
 
     if (!firebaseRes.ok) {
       const error = await firebaseRes.json();
-      console.log(error)
       return res.status(400).json({ message: error.error.message });
     }
 
@@ -131,7 +130,6 @@ router.post("/signin", async (req, res) => {
       approved: userData.approved
     });
   } catch (err) {
-    console.log(err)
     res.status(500).json({ message: err.message });
   }
 });
