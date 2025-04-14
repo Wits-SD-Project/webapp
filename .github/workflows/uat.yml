@@ -38,8 +38,19 @@ jobs:
           name: coverage-report
           path: coverage
 
+      - name: Check for differences between branches
+        id: check-diff
+        run: |
+          git fetch origin main:main
+          DIFF_COUNT=$(git rev-list --count main..staging)
+          echo "diff_count=$DIFF_COUNT" >> $GITHUB_OUTPUT
+          if [ "$DIFF_COUNT" -eq "0" ]; then
+            echo "No differences between branches, skipping PR"
+          fi
+
       - name: 📌 Create PR from staging to main
-        id: create-pr # Add this ID to reference this step
+        id: create-pr
+        if: steps.check-diff.outputs.diff_count != '0'
         uses: repo-sync/pull-request@v2
         with:
           source_branch: staging
