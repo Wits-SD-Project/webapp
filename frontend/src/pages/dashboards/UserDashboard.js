@@ -5,7 +5,7 @@ export default function UserDashboard() {
     <>
       <Navbar />
       <main style={{ padding: "2rem" }}>
-        <h1>Welcome User</h1>
+        <h1>Welcome Resident</h1>
       </main>
     </>
   );

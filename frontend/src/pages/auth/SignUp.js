@@ -7,8 +7,10 @@ import { ClipLoader } from "react-spinners";
 import { toast } from "react-toastify";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { auth } from "../../firebase";
+import { useNavigate } from "react-router-dom";
 
 export default function SignUp() {
+  const navigate = useNavigate();
   const [role, setRole] = useState("");
   const [loading, setLoading] = useState(false);
   const [providerLoading, setProviderLoading] = useState(null);
@@ -32,6 +34,8 @@ export default function SignUp() {
       toast.success(
         `Account created for ${user.email}. Awaiting admin approval.`
       );
+      navigate('/signin')
+
     } catch (err) {
       toast.error("Signup failed: " + err.message);
     } finally {
@@ -62,6 +66,7 @@ export default function SignUp() {
         });
         
         toast.success(`Account created for ${user.email}. Awaiting admin approval.`);
+        navigate('/signin');
       }
     } catch (err) {
       console.error("Signup error:", err);
@@ -154,7 +159,7 @@ export default function SignUp() {
               onChange={handleRoleChange}
               displayEmpty
             >
-              <MenuItem value="user">User</MenuItem>
+              <MenuItem value="resident">Resident</MenuItem>
               <MenuItem value="staff">Facility Staff</MenuItem>
             </Select>
           </FormControl>
@@ -172,7 +177,7 @@ export default function SignUp() {
           className="btn secondary" 
           type="button"
           onClick={() => handleThirdPartySignUp('google')}
-          disabled={!role || providerLoading === 'google'}
+          disabled={providerLoading === 'google'}
         >
           {providerLoading === 'google' ? (
             <ClipLoader size={20} color="#000" />

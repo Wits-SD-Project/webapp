@@ -42,9 +42,9 @@ function App() {
             }
           />
           <Route
-            path="/user-dashboard"
+            path="/resident-dashboard"
             element={
-              <ProtectedRoute requiredRole="user">
+              <ProtectedRoute requiredRole="resident">
                 <UserDashboard />
               </ProtectedRoute>
             }
