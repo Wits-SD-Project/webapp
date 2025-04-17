@@ -11,6 +11,7 @@ import AdminDashboard from "./pages/dashboards/AdminDashboard";
 import StaffDashboard from "./pages/dashboards/StaffDashboard";
 import UserDashboard from "./pages/dashboards/UserDashboard";
 import StaffViewBookings from "./pages/dashboards/StaffViewBookings";
+import StaffUpcomingBookings from "./pages/dashboards/StaffUpcomingBookings";
 
 // Auth pages
 import ForgotPassword from "./ForgotPassword";
@@ -20,6 +21,7 @@ import ResetPassword from "./pages/auth/ResetPassword";
 // Styles
 import "./forgot.css";
 import "./reset.css";
+
 
 
 
@@ -72,6 +74,14 @@ function App() {
             element={
               <ProtectedRoute requiredRole="staff">
                 <StaffDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/staff-upcoming-bookings"
+            element={
+              <ProtectedRoute requiredRole="staff">
+                <StaffUpcomingBookings />
               </ProtectedRoute>
             }
           />
