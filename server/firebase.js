@@ -1,19 +1,32 @@
-const { initializeApp } = require("firebase/app");
-const { getAuth } = require("firebase/auth");
-const { getFirestore } = require("firebase/firestore");
+const { getFirestore } = require("firebase-admin/firestore");
+require("dotenv").config();
+const admin = require("firebase-admin");
 
-const firebaseConfig = {
-  apiKey: "AIzaSyAhEqXvmStTF2_IA7-fAxT074w27ZTubmA",
-  authDomain: "sportssphere-58736.firebaseapp.com",
-  projectId: "sportssphere-58736",
-  storageBucket: "sportssphere-58736.firebasestorage.app",
-  messagingSenderId: "575568726090",
-  appId: "1:575568726090:web:6d92dbc812222646c3beb3"
-};
+let serviceAccount;
 
-const app = initializeApp(firebaseConfig);
+try {
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    // Production (Azure): Load from env
+    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+  } else if (process.env.FIREBASE_KEY_PATH) {
+    // Local dev: Load from file path in .env
+    serviceAccount = require(process.env.FIREBASE_KEY_PATH);
+  } else {
+    throw new Error("No Firebase service account credentials found.");
+  }
 
-const auth = getAuth(app);
-const db = getFirestore(app);
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    storageBucket: "sportssphere-58736.appspot.com" 
+  });
 
-module.exports = { auth, db };
+  console.log("Firebase Admin initialized.");
+} catch (error) {
+  console.error("Firebase Admin init failed:", error);
+}
+
+const db = getFirestore();
+const imgStorage = admin.storage().bucket(); // currently not available - We must upgrade our billing what what 
+const auth = admin.auth();
+
+module.exports = { admin, db, imgStorage, auth };
