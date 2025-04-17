@@ -10,14 +10,18 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import AdminDashboard from "./pages/dashboards/AdminDashboard";
 import StaffDashboard from "./pages/dashboards/StaffDashboard";
 import UserDashboard from "./pages/dashboards/UserDashboard";
+import StaffViewBookings from "./pages/dashboards/StaffViewBookings";
 
 // Auth pages
 import ForgotPassword from "./ForgotPassword";
 import ResetPassword from "./pages/auth/ResetPassword";
 
+
 // Styles
 import "./forgot.css";
 import "./reset.css";
+
+
 
 function App() {
   return (
@@ -29,6 +33,7 @@ function App() {
           <Route path="/signup" element={<SignUp />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          
 
           <Route
             path="/admin-dashboard"
@@ -54,7 +59,16 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/staff-view-bookings"
+            element={
+              <ProtectedRoute requiredRole="staff">
+                <StaffViewBookings />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
+        
 
         <ToastContainer position="top-center" autoClose={3000} />
       </Router>

@@ -29,7 +29,7 @@ export default function SignIn() {
       if (user.role === "admin") {
         navigate("/admin-dashboard");
       } else if (user.role === "staff") {
-        navigate("/staff-dashboard");
+        navigate("/staff-view-bookings");
       } else {
         navigate("/resident-dashboard");
       }
@@ -70,7 +70,7 @@ const handleThirdPartySignIn = async (provider) => {
       if (user.role === "admin") {
         navigate("/admin-dashboard");
       } else if (user.role === "staff") {
-        navigate("/staff-dashboard");
+        navigate("/staff-view-bookings");
       } else {
         navigate("/resident-dashboard");
       }

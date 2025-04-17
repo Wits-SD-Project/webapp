@@ -6,19 +6,20 @@ Sports Sphere is web-based platform for managing community sports facilities. De
 - [Demo Accounts](#demo-accounts)
 - [Prerequisites](#prerequisites)
 - [Installation and Running](#installation-and-running)
+- [Sprint 1 Completed Features](#sprint-1-completed-features)
 
 ## Demo Accounts
 - Admin account:
     - Email: admin@gmail.com
-    - Password:
+    - Password: test123
  
 - Facility Staff account:
-    - Email: 
-    - Password:
+    - Email: staff@gmail.com
+    - Password: test123
      
 - Resident account::
-    - Email: 
-    - Password:
+    - Email: resident@gmail.com
+    - Password: test123
       
 ## Prerequisites
 Before starting, ensure you meet the following requirements:
@@ -44,5 +45,10 @@ npm i
 ```
 npm start
 ```
-
+## Sprint 1 Completed Features
+- As an admin, I can approve or reject member signups to ensure only verified residents and facility staff can access the system.
+- As an admin, I can log in to an admin dashboard to efficiently manage users, facilities, and reports.
+- As a resident, I can sign up and receive confirmation that my request is pending, allowing secure access once approved.
+- As a facility staff member, I can sign up and receive confirmation that my request is pending, allowing secure access once approved.
+  
 ### Thank you for using Sports Sphere! Feel free to contact us if you have any questions or need assistance.
