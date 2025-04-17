@@ -46,7 +46,7 @@ export default function StaffDashboard() {
             <div className="card">
               <h3>Upcoming facility bookings</h3>
               <p>You have 10 upcoming bookings in the next 7 days</p>
-              <button className="view-all-btn">View all</button>
+              <button className="view-all-btn" onClick={() => navigate("/staff-upcoming-bookings")}>View all</button>
             </div>
             <div className="card">
               <h3>Pending Applications</h3>
