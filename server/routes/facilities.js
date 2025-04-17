@@ -1,11 +1,12 @@
 //Api endpoints for sports facility related logic
 const express = require("express");
 const router = express.Router();
+const { storage } = require('../config/cloudinary');
 const multer = require('multer');
 const authenticate = require('../authenticate')
-const { admin,imgStorage} = require("../firebase");
+const { admin } = require("../firebase");
 
-const upload = multer({storage: multer.memoryStorage()}); //stores image in RAM temporarily
+const upload = multer({storage}); //stores image in RAM temporarily
 
 // Upload facility on database
 router.post('/upload', upload.single('image'), authenticate, async (req, res) => {
@@ -14,21 +15,9 @@ router.post('/upload', upload.single('image'), authenticate, async (req, res) =>
 
     try {
 
-        // Store image in storage bucket - does not exist currently
-        const fileRef = imgStorage
-            .file(`facilities/${Date.now()}-${img.originalname}`);
-
-        await fileRef.save(img.buffer, {
-            metadata: {
-                contentType: img.mimetype
-            }
-        });
-
-        // Obtain image URL 
-        const [url] = await fileRef.getSignedUrl({
-            action: 'read',
-            expires: '03-09-2491' // Far future date
-        });
+        if (!img) {
+            return res.status(400).json({ message: 'No image uploaded' });
+          }
 
         //Add Facility entry onto Database
         await admin.firestore()
@@ -37,14 +26,15 @@ router.post('/upload', upload.single('image'), authenticate, async (req, res) =>
                 name,
                 description,
                 type,
-                imageUrl: url,
+                imageUrl: img.path,
                 created_by: req.user.uid,
                 created_at: admin.firestore.FieldValue.serverTimestamp()
             });
 
-        res.status(201).json({ message: "success" });
+        res.status(201).json({ message: "Facility uploaded successfully" });
     } catch (err) {
-        res.status(500).json({ message: err.message });
+        console.error('Upload error:', err);
+        res.status(500).json({ message: 'Failed to upload facility' });
     }
 });
 

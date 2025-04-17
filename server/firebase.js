@@ -16,8 +16,7 @@ try {
   }
 
   admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    storageBucket: "sportssphere-58736.appspot.com" 
+    credential: admin.credential.cert(serviceAccount)
   });
 
   console.log("Firebase Admin initialized.");
@@ -26,7 +25,6 @@ try {
 }
 
 const db = getFirestore();
-const imgStorage = admin.storage().bucket(); // currently not available - We must upgrade our billing what what 
 const auth = admin.auth();
 
-module.exports = { admin, db, imgStorage, auth };
+module.exports = { admin, db, auth };
