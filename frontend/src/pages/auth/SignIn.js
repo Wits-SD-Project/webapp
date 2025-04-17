@@ -70,7 +70,7 @@ const handleThirdPartySignIn = async (provider) => {
       if (user.role === "admin") {
         navigate("/admin-dashboard");
       } else if (user.role === "staff") {
-        navigate("/staff-view-bookings");
+        navigate("/staff-dashboard");
       } else {
         navigate("/resident-dashboard");
       }

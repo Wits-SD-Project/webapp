@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import logo from "../../assets/logo.png";
 import manageFacilitiesIcon from "../../assets/manage-facilities.png";
 import dashboardIcon from "../../assets/dashboard.png";
@@ -116,6 +117,7 @@ const dummyBookings = [
 ];
 
 export default function ViewBookings() {
+  const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
 
   useEffect(() => {
@@ -137,7 +139,7 @@ export default function ViewBookings() {
 
           <nav className="nav-menu">
             <ul>
-              <li><img src={dashboardIcon} alt="Dashboard" /> Dashboard</li>
+              <li onClick={() => navigate("/staff-dashboard")}><img src={dashboardIcon} alt="Dashboard" /> Dashboard</li>
               <li><img src={manageFacilitiesIcon} alt="Manage Facilities" /> Manage Facilities</li>
               <li className="active"><img src="/images/view-bookings.png" alt="View Bookings" /> View Bookings</li>
               <li><img src="/images/maintenance.png" alt="Maintenance" /> Maintenance</li>
