@@ -1,203 +1,128 @@
+
+
 * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
-  
-  body {
-    font-family: 'Segoe UI', sans-serif;
-    color: #2c003e;
-    background-color: #fff;
-    height: 100vh;
-    overflow: hidden;
-  }
-  
-  
-  
-  .container {
-    display: flex;
-    height: 100vh;
-    width: 100vw;
-    overflow: hidden;
-  }
-  
-  /* Sidebar */
-  .sidebar {
-    background-color: #00c0df;
-    padding: 1rem;
-    width: 250px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-  
-  .logo {
-    width: 80px;
-    margin-bottom: 2rem;
-    cursor: pointer;
-  }
-  
-  .nav-menu ul {
-    list-style: none;
-    width: 100%;
-  }
-  
-  .nav-menu li {
-    display: flex;
-    align-items: center;
-    padding: 0.75rem 1rem;
-    color: #fff;
-    font-weight: 600;
-    cursor: pointer;
-    gap: 10px;
-    transition: background-color 0.3s ease;
-  }
-  
-  .nav-menu li.active,
-  .nav-menu li:hover {
-    background-color: #05ABC4;
-    border-radius: 8px;
-  }
-  
-  .nav-menu img {
-    width: 24px; /* Adjust this value as needed */
-    height: 24px; /* Adjust this value as needed */
-    margin-right: 10px; /* Space between image and text */
-  }
-  
-  
-  /* Main Content */
-  .main-content {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    padding: 2rem;
-    overflow: hidden;
-  }
-  
-  .page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    margin-bottom: 1rem;
-  }
-  
-  .page-header h1 {
-    font-size: 1.8rem;
-  }
-  
-  .user-name {
-    font-size: 1.2rem;
-    font-weight: 600;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', sans-serif;
+  color: #2c003e;
+  background-color: #fff;
+  height: 100vh;
+  overflow: hidden;
+}
+
+
+
+.container {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+
+.logo {
+  width: 80%; /* Slightly smaller to fit nicely in the circle */
+  height: 80%;
+  object-fit: contain; /* Changed to contain for better logo scaling */
+}
+
+
+
+/* Main Content */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 2rem;
+  overflow: hidden;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.page-header h1 {
+  font-size: 1.8rem;
+}
+
+.user-name {
+  font-size: 1.2rem;
+  font-weight: 600;
 }
 
 .card-container {
-    display: flex;
-    gap: 1.5rem;
-    flex-wrap: wrap;
-    margin-top: 2rem;
-    width: 100%;
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  margin-top: 2rem;
+  width: 100%;
 }
 
 .card {
-    background-color: #fff;
-    border-radius: 12px;
-    padding: 1.5rem;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    flex: 1 1 0;
-    min-width: 250px;
-    transition: transform 0.2s ease;
-    display: flex;
-    flex-direction: column;
+  background-color: #fff;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  flex: 1 1 0;
+  min-width: 250px;
+  transition: transform 0.2s ease;
+  display: flex;
+  flex-direction: column;
 }
 
 .card:hover {
-    transform: translateY(-5px);
+  transform: translateY(-5px);
 }
 
 .card h3 {
-    font-size: 1.2rem;
-    margin-bottom: 0.5rem;
+  font-size: 1.2rem;
+  margin-bottom: 0.5rem;
 }
 
 .card p {
-    font-size: 0.9rem;
-    color: #666;
-    margin-bottom: 1rem;
-    margin-top: 1rem;
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 1rem;
+  margin-top: 1rem;
 }
 
 .view-all-btn {
-    background-color: transparent;
-    border: 1px solid #00c0df;
-    color: #00c0df;
-    padding: 0.5rem 1rem;
-    border-radius: 20px;
-    cursor: pointer;
-    font-weight: 600;
-    transition: background-color 0.3s ease, color 0.3s ease;
-    align-self: flex-end
+  background-color: transparent;
+  border: 1px solid #00c0df;
+  color: #00c0df;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  align-self: flex-end
 }
 
 .view-all-btn:hover {
-    background-color: #00c0df;
-    color: #fff;
+  background-color: #00c0df;
+  color: #fff;
 }
-  /* Responsive adjustments */
-  @media (max-width: 768px) {
-    .container {
-      flex-direction: column;
-    }
-  
-    .sidebar {
-      flex-direction: row;
-      justify-content: space-around;
-      width: 100%;
-      padding: 0.5rem;
-    }
-  
-    .nav-menu ul {
-      display: flex;
-      flex-direction: row;
-      gap: 1rem;
-    }
-  
-    .main-content {
-      padding: 1rem;
-    }
-  
-    .page-header {
-      flex-direction: column;
-      align-items: flex-start;
-    }
-  
-    .search-box {
-      width: 100%;
-      margin-top: 1rem;
-    }
-  
-    .bookings-table {
-      min-width: unset;
-    }
-  
-    .logo-wrapper {
-      background-color: transparent;
-      border-radius: 50%;
-      width: 100px; /* Size of the circle */
-      height: 100px; /* Size of the circle */
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 2rem;
-      overflow: hidden; /* Clips the image to the circle */
-    }
-  
-    .logo {
-      width: 100%; /* Stretch the image to fill the circle */
-      height: 100%; /* Stretch the image to fill the circle */
-      object-fit: cover; /* Ensures the image covers the circle */
-    }
-  
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .container {
+    flex-direction: column;
   }
-  
+
+  .main-content {
+    padding: 1rem;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+}
