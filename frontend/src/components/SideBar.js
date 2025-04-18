@@ -20,8 +20,8 @@ export default function Sidebar({ activeItem }) {
     { 
       name: "Manage Facilities", 
       icon: manageFacilitiesIcon, 
-      path: "/manage-facilities",
-      onClick: () => navigate("/manage-facilities")
+      path: "/staff-manage-facilities",
+      onClick: () => navigate("/staff-manage-facilities")
     },
     { 
       name: "View Bookings", 
@@ -45,7 +45,7 @@ export default function Sidebar({ activeItem }) {
 
   return (
     <aside className="sidebar">
-      <button className="logo-button" onClick={() => navigate("/")}>
+      <button className="logo-button" onClick={() => navigate("/staff-dashboard")}>
         <div className="logo-wrapper">
           <img src={logo} alt="Sports Sphere Logo" className="logo" />
         </div>
