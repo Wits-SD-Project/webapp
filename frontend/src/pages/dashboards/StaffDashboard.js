@@ -1,7 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import logo from "../../assets/logo.png";
-import manageFacilitiesIcon from "../../assets/manage-facilities.png";
-import dashboardIcon from "../../assets/dashboard.png";
+import Sidebar from "../../components/SideBar.js";
 import "../../styles/staffDashboard.css";
 
 
@@ -18,23 +16,7 @@ export default function StaffDashboard() {
      
 
       <div className="container">
-        <aside className="sidebar">
-          <button className="logo-button" onClick={() => (window.location.href = "/fkfkfkfk")}>
-            <div className="logo-wrapper">
-              <img src={logo} alt="Sports Sphere Logo" className="logo" />
-            </div>
-          </button>
-
-          <nav className="nav-menu">
-            <ul>
-              <li className="active"><img src={dashboardIcon} alt="Dashboard" /> Dashboard</li>
-              <li><img src={manageFacilitiesIcon} alt="Manage Facilities" /> Manage Facilities</li>
-              <li onClick={() => navigate("/staff-view-bookings")}><img src="/images/view-bookings.png" alt="View Bookings" /> View Bookings</li>
-              <li><img src="/images/maintenance.png" alt="Maintenance" /> Maintenance</li>
-              <li><img src="/images/logout.png" alt="Logout" /> Log Out</li>
-            </ul>
-          </nav>
-        </aside>
+      <Sidebar activeItem="dashboard" />
 
         <main className="main-content">
           <header className="page-header">
@@ -51,7 +33,7 @@ export default function StaffDashboard() {
             <div className="card">
               <h3>Pending Applications</h3>
               <p>5 booking requests awaiting your approval</p>
-              <button className="view-all-btn">View all</button>
+              <button className="view-all-btn" onClick={() => navigate("/staff-view-bookings")}>View all</button>
             </div>
           </div>
         </main>
