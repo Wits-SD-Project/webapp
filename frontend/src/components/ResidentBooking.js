@@ -1,22 +1,15 @@
-// src/components/ResidentBooking.js
 import React, { useState } from 'react';
 import '../styles/ResidentBooking.css';
 
 const facilities = [
-  { id: 1, name: "Basketball Court", slots: ["09:00-10:00", "10:00-11:00"] },
-  { id: 2, name: "Tennis Court", slots: ["11:00-12:00", "12:00-13:00"] },
+  { id: 1, name: "Basketball Court", slots: ["09:00 - 10:00", "10:00 - 11:00"] },
+  { id: 2, name: "Tennis Court", slots: ["11:00 - 12:00", "12:00 - 13:00"] },
 ];
-
-//The const facilities will change to : useEffect(() => {
-  //fetch('/api/facilities')
-  //.then(res => res.json())
-  //.then(data => setFacilities(data));
-//}, []);
-//once the backend and facility staff part is done so this page can fetch the data from facilities for user story 10
 
 const ResidentBooking = () => {
   const [selectedFacility, setSelectedFacility] = useState(null);
   const [selectedSlot, setSelectedSlot] = useState('');
+  const [selectedDate, setSelectedDate] = useState('');
   const [bookingStatus, setBookingStatus] = useState('');
 
   const handleFacilityChange = (e) => {
@@ -32,13 +25,13 @@ const ResidentBooking = () => {
 
   const handleBookingSubmit = (e) => {
     e.preventDefault();
-    // Backend will do this later
+    if (!selectedDate || !selectedSlot || !selectedFacility) return;
     setBookingStatus("Pending");
   };
 
   return (
     <div className="booking-container">
-      <h2>View & Book Sports Facility</h2>
+      <h2>Book a Sports Facility</h2>
 
       <div className="section">
         <label>Select Facility:</label>
@@ -51,26 +44,43 @@ const ResidentBooking = () => {
       </div>
 
       {selectedFacility && (
-        <div className="section">
-          <h3>Available Slots for {selectedFacility.name}</h3>
-          <div className="slots">
-            {selectedFacility.slots.map((slot, index) => (
-              <button
-                key={index}
-                className={`slot-button ${selectedSlot === slot ? 'selected' : ''}`}
-                onClick={() => handleSlotClick(slot)}
-              >
-                {slot}
-              </button>
-            ))}
+        <>
+          <div className="section">
+            <label>Select Date:</label>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              required
+            />
+            {selectedDate && (
+              <p><strong>Day:</strong> {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' })}</p>
+            )}
           </div>
-        </div>
+
+          <div className="section">
+            <h3>Available Slots for {selectedFacility.name}</h3>
+            <div className="slots">
+              {selectedFacility.slots.map((slot, index) => (
+                <button
+                  key={index}
+                  className={`slot-button ${selectedSlot === slot ? 'selected' : ''}`}
+                  onClick={() => handleSlotClick(slot)}
+                >
+                  {slot}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
       )}
 
-      {selectedSlot && (
+      {selectedFacility && selectedSlot && selectedDate && (
         <form onSubmit={handleBookingSubmit} className="section">
           <h3>Confirm Booking</h3>
           <p><strong>Facility:</strong> {selectedFacility.name}</p>
+          <p><strong>Date:</strong> {selectedDate}</p>
+          <p><strong>Day:</strong> {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' })}</p>
           <p><strong>Slot:</strong> {selectedSlot}</p>
           <button type="submit" className="confirm-button">Book Slot</button>
         </form>
@@ -79,7 +89,7 @@ const ResidentBooking = () => {
       {bookingStatus && (
         <div className="section">
           <h3>Booking Status</h3>
-          <p className="status-message">Your booking request is: <strong>{bookingStatus}</strong></p>
+          <p className="status-message">Your booking is <strong>{bookingStatus}</strong></p>
         </div>
       )}
     </div>
@@ -87,3 +97,4 @@ const ResidentBooking = () => {
 };
 
 export default ResidentBooking;
+
