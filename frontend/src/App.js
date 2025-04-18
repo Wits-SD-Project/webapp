@@ -21,6 +21,7 @@ import ResetPassword from "./pages/auth/ResetPassword";
 // Styles
 import "./forgot.css";
 import "./reset.css";
+import StaffManageFacilities from "./pages/dashboards/StaffManageFacilities";
 
 
 
@@ -82,6 +83,14 @@ function App() {
             element={
               <ProtectedRoute requiredRole="staff">
                 <StaffUpcomingBookings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/staff-manage-facilities"
+            element={
+              <ProtectedRoute requiredRole="staff">
+                <StaffManageFacilities />
               </ProtectedRoute>
             }
           />
