@@ -1,8 +1,6 @@
  import { useEffect, useState } from "react";
  import { useNavigate } from "react-router-dom";
- import logo from "../../assets/logo.png";
- import manageFacilitiesIcon from "../../assets/manage-facilities.png";
- import dashboardIcon from "../../assets/dashboard.png";
+ import Sidebar from "../../components/SideBar.js";
  import "../../styles/staffUpcomingBookings.css";
  
  
@@ -130,23 +128,7 @@
       
  
        <div className="container">
-         <aside className="sidebar">
-           <button className="logo-button" onClick={() => (window.location.href = "/dashboard")}>
-             <div className="logo-wrapper">
-               <img src={logo} alt="Sports Sphere Logo" className="logo" />
-             </div>
-           </button>
- 
-           <nav className="nav-menu">
-             <ul>
-               <li onClick={() => navigate("/staff-dashboard")}><img src={dashboardIcon} alt="Dashboard" /> Dashboard</li>
-               <li><img src={manageFacilitiesIcon} alt="Manage Facilities" /> Manage Facilities</li>
-               <li><img src="/images/view-bookings.png" alt="View Bookings" /> View Bookings</li>
-               <li><img src="/images/maintenance.png" alt="Maintenance" /> Maintenance</li>
-               <li><img src="/images/logout.png" alt="Logout" /> Log Out</li>
-             </ul>
-           </nav>
-         </aside>
+         <Sidebar activeItem="dashboard" />
  
          <main className="main-content">
            <header className="page-header">
