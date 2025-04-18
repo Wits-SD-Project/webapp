@@ -91,48 +91,6 @@ export default function SignUp() {
         <p>Join the Sports Sphere community</p>
 
         <form className="login-form" onSubmit={handleSignUp}>
-          <label htmlFor="name" className="visually-hidden">
-            Name
-          </label>
-          <input
-            type="text"
-            id="name"
-            name="name"
-            placeholder="Full Name"
-            required
-          />
-
-          <label htmlFor="email" className="visually-hidden">
-            Email
-          </label>
-          <input
-            type="email"
-            id="email"
-            name="email"
-            placeholder="Email"
-            required
-          />
-
-          <label htmlFor="password" className="visually-hidden">
-            Password
-          </label>
-          <div className="password-wrapper">
-            <input
-              type="password"
-              id="password"
-              name="password"
-              placeholder="Password"
-              required
-            />
-            <button
-              type="button"
-              className="eye-icon"
-              aria-label="Show password"
-            >
-              👁️
-            </button>
-          </div>
-
           <FormControl
             required
             fullWidth
@@ -163,10 +121,6 @@ export default function SignUp() {
               <MenuItem value="staff">Facility Staff</MenuItem>
             </Select>
           </FormControl>
-
-          <button type="submit" className="btn primary" disabled={loading}>
-            {loading ? <ClipLoader size={20} color="#fff" /> : "Sign up"}
-          </button>
         </form>
 
         <div className="divider-text" role="separator">
