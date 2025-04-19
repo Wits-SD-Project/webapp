@@ -12,6 +12,14 @@ export default function Navbar() {
   const handleLogout = async () => {
     try {
       await auth.signOut(); // Sign out from Firebase
+      const response = await fetch('http://localhost:5000/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include' // Necessary for cookies
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to clear server session');
+      }
     } catch (err) {
       console.error("Firebase signout error:", err);
     }
