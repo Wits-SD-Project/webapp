@@ -23,6 +23,7 @@ export const signUpWithThirdParty = async ({ idToken, provider, role }) => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ idToken, provider, role }),
+      credentials:'include'
     }
   );
 
