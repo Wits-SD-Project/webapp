@@ -99,7 +99,7 @@ const handleThirdPartySignIn = async (provider) => {
         <h1 id="signin-heading">Sign in now</h1>
         <p>Welcome to Sports Sphere</p>
 
-        <form className="login-form" onSubmit={handleSignIn}>
+        {/* <form className="login-form" onSubmit={handleSignIn}>
           <label htmlFor="email" className="visually-hidden">
             Email
           </label>
@@ -138,11 +138,11 @@ const handleThirdPartySignIn = async (provider) => {
           <button type="submit" className="btn primary" disabled={loading}>
             {loading ? <ClipLoader size={20} color="#fff" /> : "Sign in"}
           </button>
-        </form>
+        </form> */}
 
-        <div className="divider-text" role="separator">
+        {/* <div className="divider-text" role="separator">
           Or continue with
-        </div>
+        </div> */}
 
         <button 
           className="btn secondary" 
@@ -153,7 +153,7 @@ const handleThirdPartySignIn = async (provider) => {
           {providerLoading === 'google' ? (
             <ClipLoader size={20} color="#000" />
           ) : (
-            'Google'
+            'Sign in with Google'
           )}
         </button>
 
