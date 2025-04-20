@@ -4,6 +4,7 @@ import clockIcon from "../../assets/clock.png";
 import editIcon from "../../assets/edit.png";
 import binIcon from "../../assets/bin.png";
 import "../../styles/staffManageFacilities.css";
+import { uploadFacility} from "../../auth/auth";
 import { useNavigate } from "react-router-dom";
 import { getFirestore, collection, addDoc } from "firebase/firestore";
 import { getAuthToken } from "../../firebase"; // adjust path if needed

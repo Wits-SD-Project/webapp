@@ -23,7 +23,6 @@ export const signUpWithThirdParty = async ({ idToken, provider, role }) => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ idToken, provider, role }),
-      credentials:'include'
     }
   );
 
@@ -67,6 +66,26 @@ export const signInWithThirdParty = async ({ idToken }) => {
   if (!res.ok) {
     const err = await res.json();
     throw new Error(err.message || "Third-party signin failed");
+  }
+
+  return await res.json();
+};
+
+export const uploadFacility = async ({name,type,isOutdoors,availability}) =>{
+  const res = await fetch(
+    "http://localhost:5000/api/facilities/upload:",{
+      method: "POST",
+      headers:{
+        "Content-Type":"application/json"
+      },
+      body:JSON.stringify({name,type,isOutdoors,availability}),
+      credentials:'include'
+    }
+  );
+
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.message || "Facility Upload Failed");
   }
 
   return await res.json();
