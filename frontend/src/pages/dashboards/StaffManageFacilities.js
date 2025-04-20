@@ -149,7 +149,7 @@ export default function ManageFacilities() {
                         src={clockIcon}
                         alt="timeslots"
                         className="icon-btn"
-                        onClick={() => navigate("/edit-timeslots")}
+                        onClick={() => navigate(`/staff-edit-time-slots/${f.id}`, { state: { facilityName: f.name } })}
                       />
                       {f.isEditing ? (
                         <button
