@@ -301,4 +301,51 @@ router.get('/staff-facilities', authenticate, async (req, res) => {
     }
 });
 
+// DELETE /api/facilities/:id
+router.delete('/:id', authenticate, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const docRef = admin.firestore().collection("facilities-test").doc(id);
+      const snap = await docRef.get();
+      if (!snap.exists) return res.status(404).json({ message: "Not found" });
+  
+      // only creator can delete
+      if (snap.data().created_by !== req.user.uid) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+  
+      await docRef.delete();
+      res.json({ success: true });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Delete failed" });
+    }
+});
+  
+  // PUT /api/facilities/:id
+router.put('/:id', authenticate, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body; 
+      const docRef = admin.firestore().collection("facilities-test").doc(id);
+      const snap = await docRef.get();
+      if (!snap.exists) return res.status(404).json({ message: "Not found" });
+      if (snap.data().created_by !== req.user.uid) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+  
+      // you may want to whitelist allowed fields:
+      const allowed = ["name","type","isOutdoors","availability"];
+      const data = {};
+      for (let k of allowed) if (k in updates) data[k] = updates[k];
+      
+      await docRef.update(data);
+      res.json({ success: true, updated: data });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Update failed" });
+    }
+});
+  
+
 module.exports = router

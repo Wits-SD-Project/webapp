@@ -5,24 +5,12 @@ import editIcon from "../../assets/edit.png";
 import binIcon from "../../assets/bin.png";
 import "../../styles/staffManageFacilities.css";
 import { useNavigate } from "react-router-dom";
-import { getFirestore, collection, addDoc } from "firebase/firestore";
-import { getAuthToken } from "../../firebase"; // adjust path if needed
+import { getFirestore, collection, addDoc, deleteDoc, doc } from "firebase/firestore";
+import { getAuthToken } from "../../firebase";
 import { auth } from "../../firebase";
-import { deleteDoc, doc } from "firebase/firestore";
-
-const initialFacilities = Array.from({ length: 15 }, (_, i) => ({
-  id: i + 1,
-  name: `Facility ${i + 1}`,
-  type: "Sport Type",
-  isOutdoors: "Yes",
-  availability: "Available",
-  isEditing: false,
-}));
-
-
 
 export default function ManageFacilities() {
-  const [facilities, setFacilities] = useState(initialFacilities);
+  const [facilities, setFacilities] = useState([]);
   const [facilityName, setFacilityName] = useState("");
   const [facilityType, setFacilityType] = useState("");
   const [facilityDescription, setFacilityDescription] = useState("");
@@ -38,50 +26,62 @@ export default function ManageFacilities() {
       return;
     }
 
-    const handleDelete = async (id) => {
-      try {
-        const db = getFirestore();
-        const docRef = doc(db, "facilities", id);
-        await deleteDoc(docRef);  // This deletes the document from Firestore
-        setFacilities((prev) => prev.filter((f) => f.id !== id)); // Also remove from local state
-        console.log("Facility successfully deleted!");
-      } catch (error) {
-        console.error("Error deleting facility:", error);
-      }
-    };
-    
     const newFacility = {
-      name: facilityName, // state values from inputs
+      name: facilityName,
       description: facilityDescription,
       type: facilityType,
       createdAt: new Date(),
       createdBy: auth.currentUser?.email || "Unknown",
     };
-  
+
     handleCreateFacility(newFacility);
   };
 
   const handleCreateFacility = async (facilityData) => {
     try {
       const token = await getAuthToken();
-      const db = getFirestore();
+      const res = await fetch("https://ssbackend-aka9gddqdxesexh5.canadacentral-01.azurewebsites.net/api/facilities/upload", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer ${token}"
+        },
+        body: JSON.stringify({
+          name: facilityData.name,
+          type: facilityData.type,
+          isOutdoors: facilityData.isOutdoors === "Yes",
+          availability: facilityData.availability
+        })
+      });
   
-      // Add facility to Firestore
-      const docRef = await addDoc(collection(db, "facilities"), facilityData);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
   
-      setFacilities((prevFacilities) => [
-        ...prevFacilities,
-        { id: docRef.id, ...facilityData },  // Include the Firestore-generated ID
-      ]);
-  
-      console.log("Facility successfully added!");
-      // Optional: show a toast/snackbar here
-    } catch (error) {
-      console.error("Error adding facility:", error);
-      // Optional: show an error toast/snackbar
+      setFacilities((prev) => [...prev, { ...data.facility, isEditing: false }]);
+    } catch (err) {
+      console.error("Error adding facility:", err);
+      alert(err.message);
     }
   };
   
+  
+  const handleDelete = async (id) => {
+  try {
+    const token = await getAuthToken();
+    const res = await fetch("https://ssbackend-aka9gddqdxesexh5.canadacentral-01.azurewebsites.net/api/facilities/${id}", {
+      method: "DELETE",
+      headers: { 
+        "Authorization": "Bearer ${token}"
+    }});
+
+    if (!res.ok) throw new Error("Delete failed");
+
+    setFacilities((prev) => prev.filter((f) => f.id !== id));
+    console.log("Facility deleted");
+  } catch (error) {
+    console.error("Error deleting facility:", error);
+  }
+};
 
   const handleEditToggle = (id) => {
     setFacilities((prev) =>
@@ -91,30 +91,25 @@ export default function ManageFacilities() {
 
   const handleFieldChange = (id, field, value) => {
     setFacilities((prev) =>
-      prev.map((f) => 
-        f.id === id ? { ...f, [field]: value } : f // Update the specific field for the specific facility
+      prev.map((f) =>
+        f.id === id ? { ...f, [field]: value } : f
       )
     );
-  };
-
-  const handleDelete = (id) => {
-    setFacilities((prev) => prev.filter((f) => f.id !== id));
   };
 
   const handleAddFacility = () => {
     setFacilities((prev) => [
       ...prev,
       {
-        id: Date.now(),
-        name: "", // Empty initially to allow user to type
-        type: "", // Empty initially to allow user to type
+        id: Date.now().toString(),
+        name: "",
+        type: "",
         isOutdoors: "Yes",
         availability: "Available",
         isEditing: true,
       },
     ]);
 
-    // Scroll to the bottom
     setTimeout(() => {
       tableRef.current?.scrollTo({ top: tableRef.current.scrollHeight, behavior: "smooth" });
     }, 100);
@@ -122,14 +117,10 @@ export default function ManageFacilities() {
 
   const getAvailabilityClass = (status) => {
     switch (status) {
-      case "Available":
-        return "status available";
-      case "Closed":
-        return "status closed";
-      case "Under Maintenance":
-        return "status maintenance";
-      default:
-        return "status";
+      case "Available": return "status available";
+      case "Closed": return "status closed";
+      case "Under Maintenance": return "status maintenance";
+      default: return "status";
     }
   };
 
@@ -137,7 +128,6 @@ export default function ManageFacilities() {
     <main className="manage-facilities">
       <div className="container">
         <Sidebar activeItem="manage facilities" />
-
         <main className="main-content">
           <header className="page-header">
             <h1>Manage Facilities</h1>
@@ -162,25 +152,21 @@ export default function ManageFacilities() {
                       {f.isEditing ? (
                         <input
                           type="text"
-                          value={f.name} // Bind to the name value for editing
-                          onChange={(e) => handleFieldChange(f.id, "name", e.target.value)} // Update name when changed
+                          value={f.name}
+                          onChange={(e) => handleFieldChange(f.id, "name", e.target.value)}
                           placeholder="Facility Name"
                         />
-                      ) : (
-                        f.name
-                      )}
+                      ) : f.name}
                     </td>
                     <td>
                       {f.isEditing ? (
                         <input
                           type="text"
-                          value={f.type} // Bind to the type value for editing
-                          onChange={(e) => handleFieldChange(f.id, "type", e.target.value)} // Update type when changed
+                          value={f.type}
+                          onChange={(e) => handleFieldChange(f.id, "type", e.target.value)}
                           placeholder="Type"
                         />
-                      ) : (
-                        f.type
-                      )}
+                      ) : f.type}
                     </td>
                     <td>
                       {f.isEditing ? (
@@ -191,9 +177,7 @@ export default function ManageFacilities() {
                           <option value="Yes">Yes</option>
                           <option value="No">No</option>
                         </select>
-                      ) : (
-                        f.isOutdoors
-                      )}
+                      ) : f.isOutdoors}
                     </td>
                     <td>
                       {f.isEditing ? (
@@ -217,12 +201,7 @@ export default function ManageFacilities() {
                         onClick={() => navigate(`/staff-edit-time-slots/${f.id}`, { state: { facilityName: f.name } })}
                       />
                       {f.isEditing ? (
-                        <button
-                          className="save-btn"
-                          onClick={() => handleEditToggle(f.id)}
-                        >
-                          Save
-                        </button>
+                        <button className="save-btn" onClick={() => handleEditToggle(f.id)}>Save</button>
                       ) : (
                         <img
                           src={editIcon}
