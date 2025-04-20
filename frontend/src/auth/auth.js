@@ -1,3 +1,12 @@
+import { getAuth } from "firebase/auth";
+
+export const getAuthToken = async () => {
+  const user = getAuth().currentUser;
+  if (!user) throw new Error("User not authenticated");
+  return user.getIdToken();
+};
+
+
 export const signUpUser = async ({ name, email, password, role }) => {
   const res = await fetch(
     "https://ssbackend-aka9gddqdxesexh5.canadacentral-01.azurewebsites.net/api/auth/signup",

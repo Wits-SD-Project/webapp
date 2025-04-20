@@ -12,6 +12,7 @@ import StaffDashboard from "./pages/dashboards/StaffDashboard";
 import UserDashboard from "./pages/dashboards/UserDashboard";
 import StaffViewBookings from "./pages/dashboards/StaffViewBookings";
 import StaffUpcomingBookings from "./pages/dashboards/StaffUpcomingBookings";
+import StaffEditTimeSlots from "./pages/dashboards/StaffEditTimeSlots";
 
 // Auth pages
 import ForgotPassword from "./ForgotPassword";
@@ -94,7 +95,16 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/staff-edit-time-slots/:id"
+            element={
+              <ProtectedRoute requiredRole="staff">
+                <StaffEditTimeSlots />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
+
         
 
         <ToastContainer position="top-center" autoClose={3000} />
