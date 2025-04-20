@@ -4,10 +4,12 @@ import clockIcon from "../../assets/clock.png";
 import editIcon from "../../assets/edit.png";
 import binIcon from "../../assets/bin.png";
 import "../../styles/staffManageFacilities.css";
+import { uploadFacility} from "../../auth/auth";
 import { useNavigate } from "react-router-dom";
 import { getFirestore, collection, addDoc, deleteDoc, doc } from "firebase/firestore";
 import { getAuthToken } from "../../firebase";
 import { auth } from "../../firebase";
+import { toast } from "react-toastify";
 
 export default function ManageFacilities() {
   const [facilities, setFacilities] = useState([]);
@@ -40,11 +42,11 @@ export default function ManageFacilities() {
   const handleCreateFacility = async (facilityData) => {
     try {
       const token = await getAuthToken();
-      const res = await fetch("https://ssbackend-aka9gddqdxesexh5.canadacentral-01.azurewebsites.net/api/facilities/upload", {
+      const res = await fetch("http://localhost:5000/api/facilities/upload", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": "Bearer ${token}"
+          "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({
           name: facilityData.name,
@@ -57,31 +59,67 @@ export default function ManageFacilities() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);
   
-      setFacilities((prev) => [...prev, { ...data.facility, isEditing: false }]);
+      // Replace temporary facility with the one from the server
+      setFacilities((prev) =>
+        prev.map(f =>
+          f.id === facilityData.id ? { ...data.facility, isEditing: false } : f
+        )
+      );
+
+      toast(data.message)
     } catch (err) {
-      console.error("Error adding facility:", err);
-      alert(err.message);
+      toast(err.message);
     }
   };
-  
-  
+
+  const handleUpdateFacility = async (facility) => {
+    try {
+      const token = await getAuthToken();
+      const res = await fetch(`https://ssbackend-aka9gddqdxesexh5.canadacentral-01.azurewebsites.net/api/facilities/${facility.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: facility.name,
+          type: facility.type,
+          isOutdoors: facility.isOutdoors === "Yes",
+          availability: facility.availability
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+
+      // Update the facility and exit edit mode
+      setFacilities((prev) =>
+        prev.map(f =>
+          f.id === facility.id ? { ...facility, isEditing: false } : f
+        )
+      );
+    } catch (err) {
+      toast("Error update facility:", err.message);
+    }
+  };
+
   const handleDelete = async (id) => {
-  try {
-    const token = await getAuthToken();
-    const res = await fetch("https://ssbackend-aka9gddqdxesexh5.canadacentral-01.azurewebsites.net/api/facilities/${id}", {
-      method: "DELETE",
-      headers: { 
-        "Authorization": "Bearer ${token}"
-    }});
+    try {
+      const token = await getAuthToken();
+      const res = await fetch(`https://ssbackend-aka9gddqdxesexh5.canadacentral-01.azurewebsites.net/api/facilities/${id}`, {
+        method: "DELETE",
+        headers: { 
+          "Authorization": `Bearer ${token}`
+      }});
 
-    if (!res.ok) throw new Error("Delete failed");
+      if (!res.ok) throw new Error("Delete failed");
 
-    setFacilities((prev) => prev.filter((f) => f.id !== id));
-    console.log("Facility deleted");
-  } catch (error) {
-    console.error("Error deleting facility:", error);
-  }
-};
+      setFacilities((prev) => prev.filter((f) => f.id !== id));
+      console.log("Facility deleted");
+    } catch (error) {
+      console.error("Error deleting facility:", error);
+    }
+  };
 
   const handleEditToggle = (id) => {
     setFacilities((prev) =>
@@ -107,6 +145,7 @@ export default function ManageFacilities() {
         isOutdoors: "Yes",
         availability: "Available",
         isEditing: true,
+        isNew: true,
       },
     ]);
 
@@ -201,7 +240,18 @@ export default function ManageFacilities() {
                         onClick={() => navigate(`/staff-edit-time-slots/${f.id}`, { state: { facilityName: f.name } })}
                       />
                       {f.isEditing ? (
-                        <button className="save-btn" onClick={() => handleEditToggle(f.id)}>Save</button>
+                        <button 
+                          className="save-btn" 
+                          onClick={() => {
+                            if (f.isNew) {
+                              handleCreateFacility(f);
+                            } else {
+                              handleUpdateFacility(f);
+                            }
+                          }}
+                        >
+                          Save
+                        </button>
                       ) : (
                         <img
                           src={editIcon}
