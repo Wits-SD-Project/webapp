@@ -5,7 +5,9 @@ import editIcon from "../../assets/edit.png";
 import binIcon from "../../assets/bin.png";
 import "../../styles/staffManageFacilities.css";
 import { useNavigate } from "react-router-dom";
-
+import { getFirestore, collection, addDoc } from "firebase/firestore";
+import { getAuthToken } from "../../firebase"; // adjust path if needed
+import { auth } from "../../firebase";
 
 const initialFacilities = Array.from({ length: 15 }, (_, i) => ({
   id: i + 1,
@@ -18,8 +20,41 @@ const initialFacilities = Array.from({ length: 15 }, (_, i) => ({
 
 export default function ManageFacilities() {
   const [facilities, setFacilities] = useState(initialFacilities);
+  const [facilityName, setFacilityName] = useState("");
+  const [facilityType, setFacilityType] = useState("");
+  const [facilityDescription, setFacilityDescription] = useState("");
+
   const navigate = useNavigate();
   const tableRef = useRef(null);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    
+    const newFacility = {
+      name: facilityName, // state values from inputs
+      description: facilityDescription,
+      type: facilityType,
+      createdAt: new Date(),
+      createdBy: auth.currentUser?.email || "Unknown",
+    };
+  
+    handleCreateFacility(newFacility);
+  };
+
+  const handleCreateFacility = async (facilityData) => {
+    try {
+      const token = await getAuthToken();
+      const db = getFirestore();
+  
+      await addDoc(collection(db, "facilities"), facilityData);
+  
+      console.log("Facility successfully added!");
+      // Optional: show a toast/snackbar here
+    } catch (error) {
+      console.error("Error adding facility:", error);
+      // Optional: show an error toast/snackbar
+    }
+  };
 
   const handleEditToggle = (id) => {
     setFacilities((prev) =>
@@ -29,7 +64,9 @@ export default function ManageFacilities() {
 
   const handleFieldChange = (id, field, value) => {
     setFacilities((prev) =>
-      prev.map((f) => (f.id === id ? { ...f, [field]: value } : f))
+      prev.map((f) => 
+        f.id === id ? { ...f, [field]: value } : f // Update the specific field for the specific facility
+      )
     );
   };
 
@@ -38,20 +75,19 @@ export default function ManageFacilities() {
   };
 
   const handleAddFacility = () => {
-    const newId = Date.now();
     setFacilities((prev) => [
       ...prev,
       {
-        id: newId,
-        name: "",
-        type: "",
+        id: Date.now(),
+        name: "", // Empty initially to allow user to type
+        type: "", // Empty initially to allow user to type
         isOutdoors: "Yes",
         availability: "Available",
         isEditing: true,
       },
     ]);
 
-    // scroll to bottom
+    // Scroll to the bottom
     setTimeout(() => {
       tableRef.current?.scrollTo({ top: tableRef.current.scrollHeight, behavior: "smooth" });
     }, 100);
@@ -99,8 +135,9 @@ export default function ManageFacilities() {
                       {f.isEditing ? (
                         <input
                           type="text"
-                          value={f.name}
-                          onChange={(e) => handleFieldChange(f.id, "name", e.target.value)}
+                          value={f.name} // Bind to the name value for editing
+                          onChange={(e) => handleFieldChange(f.id, "name", e.target.value)} // Update name when changed
+                          placeholder="Facility Name"
                         />
                       ) : (
                         f.name
@@ -110,8 +147,9 @@ export default function ManageFacilities() {
                       {f.isEditing ? (
                         <input
                           type="text"
-                          value={f.type}
-                          onChange={(e) => handleFieldChange(f.id, "type", e.target.value)}
+                          value={f.type} // Bind to the type value for editing
+                          onChange={(e) => handleFieldChange(f.id, "type", e.target.value)} // Update type when changed
+                          placeholder="Type"
                         />
                       ) : (
                         f.type
