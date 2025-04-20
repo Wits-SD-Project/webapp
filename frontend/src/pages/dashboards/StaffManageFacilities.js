@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { getFirestore, collection, addDoc } from "firebase/firestore";
 import { getAuthToken } from "../../firebase"; // adjust path if needed
 import { auth } from "../../firebase";
+import { deleteDoc, doc } from "firebase/firestore";
 
 const initialFacilities = Array.from({ length: 15 }, (_, i) => ({
   id: i + 1,
@@ -17,6 +18,8 @@ const initialFacilities = Array.from({ length: 15 }, (_, i) => ({
   availability: "Available",
   isEditing: false,
 }));
+
+
 
 export default function ManageFacilities() {
   const [facilities, setFacilities] = useState(initialFacilities);
@@ -29,6 +32,23 @@ export default function ManageFacilities() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    if (!facilityName || !facilityType) {
+      alert("Please fill in the facility name and type.");
+      return;
+    }
+
+    const handleDelete = async (id) => {
+      try {
+        const db = getFirestore();
+        const docRef = doc(db, "facilities", id);
+        await deleteDoc(docRef);  // This deletes the document from Firestore
+        setFacilities((prev) => prev.filter((f) => f.id !== id)); // Also remove from local state
+        console.log("Facility successfully deleted!");
+      } catch (error) {
+        console.error("Error deleting facility:", error);
+      }
+    };
     
     const newFacility = {
       name: facilityName, // state values from inputs
@@ -46,7 +66,13 @@ export default function ManageFacilities() {
       const token = await getAuthToken();
       const db = getFirestore();
   
-      await addDoc(collection(db, "facilities"), facilityData);
+      // Add facility to Firestore
+      const docRef = await addDoc(collection(db, "facilities"), facilityData);
+  
+      setFacilities((prevFacilities) => [
+        ...prevFacilities,
+        { id: docRef.id, ...facilityData },  // Include the Firestore-generated ID
+      ]);
   
       console.log("Facility successfully added!");
       // Optional: show a toast/snackbar here
@@ -55,6 +81,7 @@ export default function ManageFacilities() {
       // Optional: show an error toast/snackbar
     }
   };
+  
 
   const handleEditToggle = (id) => {
     setFacilities((prev) =>
