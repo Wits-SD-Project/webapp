@@ -1,7 +1,7 @@
 /* Sidebar */
 .sidebar {
     background-color: #00c0df;
-    padding: 1rem;
+    padding: 0rem;
     width: 250px;
     display: flex;
     flex-direction: column;
@@ -26,13 +26,15 @@
     align-items: center;
     justify-content: center;
     overflow: hidden;
+    margin-top: 20px;
   }
   
   .logo {
     width: auto;  /* Maintain aspect ratio */
-    height: 80%;  /* Fill 80% of container height */
-    max-width: 90%; /* Prevent touching edges */
+    height: 100%;  /* Fill 80% of container height */
+    max-width: 100%; /* Prevent touching edges */
     object-fit: contain; /* Show entire logo without distortion */
+    transform: translateY(3px);
   }
 
   .logo-button:hover {

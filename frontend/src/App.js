@@ -16,6 +16,8 @@ import StaffDashboard from "./pages/dashboards/StaffDashboard";
 import UserDashboard from "./pages/dashboards/UserDashboard";
 import StaffViewBookings from "./pages/dashboards/StaffViewBookings";
 import StaffUpcomingBookings from "./pages/dashboards/StaffUpcomingBookings";
+import StaffEditTimeSlots from "./pages/dashboards/StaffEditTimeSlots";
+import StaffManageFacilities from "./pages/dashboards/StaffManageFacilities";
 
 // Resident Feature
 import ResidentBooking from "./components/ResidentBooking";
@@ -82,6 +84,22 @@ function App() {
             element={
               <ProtectedRoute requiredRole="staff">
                 <StaffUpcomingBookings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/staff-manage-facilities"
+            element={
+              <ProtectedRoute requiredRole="staff">
+                <StaffManageFacilities />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/staff-edit-time-slots/:id"
+            element={
+              <ProtectedRoute requiredRole="staff">
+                <StaffEditTimeSlots />
               </ProtectedRoute>
             }
           />
