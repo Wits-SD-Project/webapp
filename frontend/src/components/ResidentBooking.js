@@ -2,25 +2,43 @@
 import React, { useState } from 'react';
 import '../styles/ResidentBooking.css';
 
+// Mock facility data structured according to database schema
 const facilities = [
-  { id: 1, name: "Basketball Court", slots: ["09:00-10:00", "10:00-11:00"] },
-  { id: 2, name: "Tennis Court", slots: ["11:00-12:00", "12:00-13:00"] },
+  {
+    facility_id: 1,
+    name: "Marks Cricket Ground",
+    type: "Cricket Ground",
+    is_outdoor: true,
+    status: "active",
+    slots: ["09:00 - 10:00", "10:00 - 11:00"]
+  },
+  {
+    facility_id: 2,
+    name: "Wanderers",
+    type: "Cricket Ground",
+    is_outdoor: true,
+    status: "active",
+    slots: ["11:00 - 12:00", "12:00 - 13:00"]
+  },
+  {
+    facility_id: 3,
+    name: "Tennis Court A",
+    type: "Tennis Court",
+    is_outdoor: false,
+    status: "active",
+    slots: ["14:00 - 15:00", "15:00 - 16:00"]
+  }
 ];
-
-//The const facilities will change to : useEffect(() => {
-  //fetch('/api/facilities')
-  //.then(res => res.json())
-  //.then(data => setFacilities(data));
-//}, []);
-//once the backend and facility staff part is done so this page can fetch the data from facilities for user story 10
 
 const ResidentBooking = () => {
   const [selectedFacility, setSelectedFacility] = useState(null);
   const [selectedSlot, setSelectedSlot] = useState('');
+  const [selectedDate, setSelectedDate] = useState('');
   const [bookingStatus, setBookingStatus] = useState('');
 
+  // Handles change in dropdown selection
   const handleFacilityChange = (e) => {
-    const facility = facilities.find(f => f.id === parseInt(e.target.value));
+    const facility = facilities.find(f => f.facility_id === parseInt(e.target.value));
     setSelectedFacility(facility);
     setSelectedSlot('');
     setBookingStatus('');
@@ -32,27 +50,56 @@ const ResidentBooking = () => {
 
   const handleBookingSubmit = (e) => {
     e.preventDefault();
-    // Backend will do this later
+    if (!selectedDate || !selectedSlot || !selectedFacility) return;
+    // Set booking status as pending (backend will handle approval)
     setBookingStatus("Pending");
   };
 
   return (
     <div className="booking-container">
-      <h2>View & Book Sports Facility</h2>
+      <h2>Book a Sports Facility</h2>
 
+      {/* Dropdown to select a facility (type + name) */}
       <div className="section">
         <label>Select Facility:</label>
         <select onChange={handleFacilityChange} defaultValue="">
           <option value="" disabled>Select a facility</option>
           {facilities.map(f => (
-            <option key={f.id} value={f.id}>{f.name}</option>
+            <option key={f.facility_id} value={f.facility_id}>{`${f.type} - ${f.name}`}</option>
           ))}
         </select>
       </div>
 
+      {/* Show additional facility details when one is selected */}
       {selectedFacility && (
         <div className="section">
-          <h3>Available Slots for {selectedFacility.name}</h3>
+          <h4>Facility Details</h4>
+          <p><strong>Facility Name:</strong> {selectedFacility.name}</p>
+          <p><strong>Type:</strong> {selectedFacility.type}</p>
+          <p><strong>Outdoor:</strong> {selectedFacility.is_outdoor ? "Yes" : "No"}</p>
+        </div>
+      )}
+
+      {/* Date selection */}
+      {selectedFacility && (
+        <div className="section">
+          <label>Select Date:</label>
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            required
+          />
+          {selectedDate && (
+            <p><strong>Day:</strong> {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' })}</p>
+          )}
+        </div>
+      )}
+
+      {/* Time slot selection */}
+      {selectedFacility && (
+        <div className="section">
+          <h3>Available Time Slots</h3>
           <div className="slots">
             {selectedFacility.slots.map((slot, index) => (
               <button
@@ -67,19 +114,25 @@ const ResidentBooking = () => {
         </div>
       )}
 
-      {selectedSlot && (
+      {/* Booking confirmation summary */}
+      {selectedFacility && selectedSlot && selectedDate && (
         <form onSubmit={handleBookingSubmit} className="section">
           <h3>Confirm Booking</h3>
-          <p><strong>Facility:</strong> {selectedFacility.name}</p>
+          <p><strong>Facility Name:</strong> {selectedFacility.name}</p>
+          <p><strong>Type:</strong> {selectedFacility.type}</p>
+          <p><strong>Outdoor:</strong> {selectedFacility.is_outdoor ? "Yes" : "No"}</p>
+          <p><strong>Date:</strong> {selectedDate}</p>
+          <p><strong>Day:</strong> {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' })}</p>
           <p><strong>Slot:</strong> {selectedSlot}</p>
           <button type="submit" className="confirm-button">Book Slot</button>
         </form>
       )}
 
+      {/* Booking status output */}
       {bookingStatus && (
         <div className="section">
           <h3>Booking Status</h3>
-          <p className="status-message">Your booking request is: <strong>{bookingStatus}</strong></p>
+          <p className="status-message">Your booking is <strong>{bookingStatus}</strong></p>
         </div>
       )}
     </div>
