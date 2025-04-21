@@ -2,45 +2,74 @@ const express = require("express");
 const router = express.Router();
 const { admin } = require("../firebase"); // Changed to import admin
 
-// Toggle user approval - now using Admin SDK
 router.post("/toggle-approval", async (req, res) => {
   const { email } = req.body;
-
   if (!email || email === "admin@gmail.com") {
     return res.status(400).json({ message: "Invalid email." });
   }
 
   try {
     const userRef = admin.firestore().collection("users").doc(email);
-    const snapshot = await userRef.get();
-
-    if (!snapshot.exists) {
+    const snap = await userRef.get();
+    if (!snap.exists) {
       return res.status(404).json({ message: "User not found." });
     }
 
-    const currentStatus = snapshot.data().approved;
-    const newStatus = !currentStatus;
+    const current = snap.data().approved || false;
+    const next = !current;
+    // Update the Firestore document
+    await userRef.update({ approved: next });
 
-    await userRef.update({ approved: newStatus });
-
-    // Optional: Update custom claims if needed
-    if (newStatus) {
-      const uid = snapshot.data().uid; // Assuming you store uid in user document
-      if (uid) {
-        await admin.auth().setCustomUserClaims(uid, { approved: true });
-      }
+    // Update custom claims so your security rules can see it
+    const uid = snap.data().uid;
+    if (uid) {
+      await admin.auth().setCustomUserClaims(uid, {
+        accepted: snap.data().accepted || false,
+        approved: next,
+      });
     }
 
     res.json({
-      message: `${email} has been ${newStatus ? "approved" : "revoked"}`,
-      approved: newStatus,
+      message: `${email} has been ${next ? "approved" : "revoked"}`,
+      approved: next,
+    });
+  } catch (err) {
+    console.error("toggle-approval error:", err);
+    res.status(500).json({ message: "Failed to update approval status." });
+  }
+});
+
+router.post("/toggle-accepted", async (req, res) => {
+  const { email } = req.body;
+  if (!email || email === "admin@gmail.com") {
+    return res.status(400).json({ message: "Invalid email." });
+  }
+  try {
+    const userRef = admin.firestore().collection("users").doc(email);
+    const snap = await userRef.get();
+    if (!snap.exists)
+      return res.status(404).json({ message: "User not found." });
+
+    const current = snap.data().accepted || false;
+    const next = !current;
+    await userRef.update({ accepted: next });
+
+    // update custom claim if you use it
+    const uid = snap.data().uid;
+    if (uid) {
+      await admin.auth().setCustomUserClaims(uid, {
+        ...(snap.data().approved && { approved: true }),
+        accepted: next,
+      });
+    }
+
+    res.json({
+      message: `${email} has been ${next ? "granted" : "revoked"} access`,
+      accepted: next,
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ 
-      message: "Failed to update approval status.",
-      error: process.env.NODE_ENV === 'development' ? err.message : undefined
-    });
+    res.status(500).json({ message: "Failed to update accepted status." });
   }
 });
 
@@ -48,23 +77,23 @@ router.post("/toggle-approval", async (req, res) => {
 router.get("/users", async (req, res) => {
   try {
     const snapshot = await admin.firestore().collection("users").get();
-    
+
     const users = snapshot.docs
-      .map((doc) => ({ 
-        id: doc.id, 
+      .map((doc) => ({
+        id: doc.id,
         ...doc.data(),
         // Add metadata if needed
         createdAt: doc.createTime?.toDate(),
-        updatedAt: doc.updateTime?.toDate()
+        updatedAt: doc.updateTime?.toDate(),
       }))
       .filter((user) => user.email !== "admin@gmail.com");
 
     res.json(users);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ 
+    res.status(500).json({
       message: "Failed to fetch users.",
-      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+      error: process.env.NODE_ENV === "development" ? err.message : undefined,
     });
   }
 });

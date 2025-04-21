@@ -1,10 +1,8 @@
 const express = require("express");
 const router = express.Router();
-const { admin ,auth, db } = require("../firebase");
+const { admin, auth, db } = require("../firebase");
 
-const {
-  createUserWithEmailAndPassword
-} = require("firebase/auth");
+const { createUserWithEmailAndPassword } = require("firebase/auth");
 
 const { doc, setDoc, getDoc } = require("firebase/firestore");
 
@@ -12,14 +10,19 @@ router.post("/signup", async (req, res) => {
   const { name, email, password, role } = req.body;
   const trimmedPassword = password.trim();
   try {
-    const userCred = await createUserWithEmailAndPassword(auth, email,trimmedPassword);
+    const userCred = await createUserWithEmailAndPassword(
+      auth,
+      email,
+      trimmedPassword
+    );
     const userDoc = doc(db, "users", email);
-    
+
     await setDoc(userDoc, {
       name,
       email,
       role,
       approved: false,
+      accepted: false,
       createdAt: new Date(),
     });
 
@@ -39,11 +42,11 @@ router.post("/signup/thirdparty", async (req, res) => {
     const decodedToken = await admin.auth().verifyIdToken(idToken);
     const uid = decodedToken.uid;
     const email = decodedToken.email;
-    const name = decodedToken.name || email.split('@')[0];
+    const name = decodedToken.name || email.split("@")[0];
 
     // Get the document reference
     const userRef = admin.firestore().collection("users").doc(email);
-    
+
     // Check if user already exists
     const userDoc = await userRef.get();
 
@@ -57,28 +60,28 @@ router.post("/signup/thirdparty", async (req, res) => {
       email,
       uid, // Store the Firebase UID for future reference
       role: role,
-      approved: false, 
-      createdAt: admin.firestore.FieldValue.serverTimestamp()
+      approved: false,
+      accepted: false,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
     // Set custom claims
-    await admin.auth().setCustomUserClaims(uid, { 
+    await admin.auth().setCustomUserClaims(uid, {
       role,
-      approved: false
+      approved: false,
     });
 
-    res.json({ 
+    res.json({
       success: true,
       email: email,
-      uid: uid
+      uid: uid,
     });
-
   } catch (err) {
     console.error("Signup error:", err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
       message: "Signup failed",
-      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+      error: process.env.NODE_ENV === "development" ? err.message : undefined,
     });
   }
 });
@@ -95,9 +98,9 @@ router.post("/signin", async (req, res) => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email:email,
-          password:password,
-          returnSecureToken: true
+          email: email,
+          password: password,
+          returnSecureToken: true,
         }),
       }
     );
@@ -113,27 +116,31 @@ router.post("/signin", async (req, res) => {
     const snapshot = await getDoc(userDoc);
 
     if (!snapshot.exists()) {
-      return res.status(404).json({ message: "User profile not found in database." });
+      return res
+        .status(404)
+        .json({ message: "User profile not found in database." });
     }
 
     const userData = snapshot.data();
 
     if (!userData.approved) {
-      return res.status(403).json({ message: "Account not yet approved by admin." });
+      return res
+        .status(403)
+        .json({ message: "Account not yet approved by admin." });
     }
-
+    if (!userData.accepted) {
+      return res.status(403).json({ message: "Access denied." });
+    }
 
     res.json({
       email: userData.email,
       role: userData.role,
-      approved: userData.approved
+      approved: userData.approved,
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
-
-
 
 router.post("/signin/thirdparty", async (req, res) => {
   const { idToken } = req.body;
@@ -144,7 +151,11 @@ router.post("/signin/thirdparty", async (req, res) => {
     const email = decodedToken.email;
 
     // Check if user exists in your database
-    const userDoc = await admin.firestore().collection("users").doc(email).get();
+    const userDoc = await admin
+      .firestore()
+      .collection("users")
+      .doc(email)
+      .get();
 
     if (!userDoc.exists) {
       return res.status(404).json({ message: "User not registered." });
@@ -158,42 +169,40 @@ router.post("/signin/thirdparty", async (req, res) => {
 
     // Create a session cookie
     const expiresIn = 60 * 60 * 1000; // 1 hour
-    const sessionCookie = await admin.auth().createSessionCookie(idToken, { 
-      expiresIn 
+    const sessionCookie = await admin.auth().createSessionCookie(idToken, {
+      expiresIn,
     });
 
-    res.cookie('authToken', sessionCookie, {
+    res.cookie("authToken", sessionCookie, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', 
+      secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
-      maxAge: expiresIn, 
-      path: '/',
+      maxAge: expiresIn,
+      path: "/",
     });
 
     res.json({
       email: userData.email,
       role: userData.role,
       approved: userData.approved,
-      name: userData.name || ''
+      name: userData.name || "",
     });
-
   } catch (err) {
     console.error("Auth error:", err);
-    
+
     // Handle specific Firebase errors
     let errorMessage = "Authentication failed";
-    if (err.code === 'auth/id-token-expired') {
+    if (err.code === "auth/id-token-expired") {
       errorMessage = "Token expired - please refresh";
-    } else if (err.code === 'auth/argument-error') {
+    } else if (err.code === "auth/argument-error") {
       errorMessage = "Invalid token format";
     }
 
-    res.status(500).json({ 
+    res.status(500).json({
       message: errorMessage,
-      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+      error: process.env.NODE_ENV === "development" ? err.message : undefined,
     });
   }
 });
 
 module.exports = router;
-
