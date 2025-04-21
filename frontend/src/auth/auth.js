@@ -1,5 +1,7 @@
 import { getAuth } from "firebase/auth";
 
+//This is useed to get a token that can be used to track our inputs
+//Dont touch
 export const getAuthToken = async () => {
   const user = getAuth().currentUser;
   if (!user) throw new Error("User not authenticated");

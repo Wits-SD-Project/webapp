@@ -337,21 +337,55 @@ router.get('/staff-facilities', authenticate, async (req, res) => {
 // DELETE /api/facilities/:id
 router.delete('/:id', authenticate, async (req, res) => {
     try {
-      const { id } = req.params;
-      const docRef = admin.firestore().collection("facilities-test").doc(id);
-      const snap = await docRef.get();
-      if (!snap.exists) return res.status(404).json({ message: "Not found" });
-  
-      // only creator can delete
-      if (snap.data().created_by !== req.user.uid) {
-        return res.status(403).json({ message: "Unauthorized" });
-      }
-  
-      await docRef.delete();
-      res.json({ success: true });
+        const { id } = req.params;
+        const docRef = admin.firestore().collection("facilities-test").doc(id);
+        const snap = await docRef.get();
+
+        if (!snap.exists) {
+            return res.status(404).json({ 
+                success: false,
+                message: "Facility not found",
+                errorCode: "FACILITY_NOT_FOUND"
+            });
+        }
+
+        // Verify ownership
+        if (snap.data().created_by !== req.user.uid) {
+            return res.status(403).json({
+                success: false,
+                message: "Unauthorized: You don't own this facility",
+                errorCode: "OWNERSHIP_MISMATCH"
+            });
+        }
+
+        // Delete facility and its timeslots
+        const batch = admin.firestore().batch();
+        
+        // 1. Delete facility
+        batch.delete(docRef);
+
+        // 2. Delete associated timeslots
+        const timeslotsQuery = admin.firestore().collection("timeslots-test")
+            .where("facilityId", "==", id);
+        
+        const timeslotsSnapshot = await timeslotsQuery.get();
+        timeslotsSnapshot.forEach(doc => batch.delete(doc.ref));
+
+        await batch.commit();
+
+        res.json({ 
+            success: true,
+            message: "Facility and associated timeslots deleted"
+        });
+
     } catch (err) {
-      console.error(err);
-      res.status(500).json({ message: "Delete failed" });
+        console.error('Delete error:', err);
+        res.status(500).json({
+            success: false,
+            message: "Delete failed",
+            errorCode: "SERVER_ERROR",
+            error: process.env.NODE_ENV === 'development' ? err.message : undefined
+        });
     }
 });
   

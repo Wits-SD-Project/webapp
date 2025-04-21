@@ -16,6 +16,7 @@ export default function ManageFacilities() {
   const [facilityName, setFacilityName] = useState("");
   const [facilityType, setFacilityType] = useState("");
   const [facilityDescription, setFacilityDescription] = useState("");
+  // const [isDeleting, setIsDeleting] = useState(false);
 
   const navigate = useNavigate();
   const tableRef = useRef(null);
@@ -131,23 +132,36 @@ export default function ManageFacilities() {
         console.error("Update facility error:", err);
         toast.error(err.message || "Failed to update facility");
     }
-};
+  };
   
   const handleDelete = async (id) => {
     try {
-      const token = await getAuthToken();
-      const res = await fetch(`https://ssbackend-aka9gddqdxesexh5.canadacentral-01.azurewebsites.net/api/facilities/${id}`, {
-        method: "DELETE",
-        headers: { 
-          "Authorization": `Bearer ${token}`
-      }});
+        const token = await getAuthToken();
+        const response = await fetch(`http://localhost:5000/api/facilities/${id}`, {
+            method: "DELETE",
+            headers: { 
+                "Authorization": `Bearer ${token}`
+            }
+        });
 
-      if (!res.ok) throw new Error("Delete failed");
+        const result = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(result.message || "Delete failed");
+        }
 
-      setFacilities((prev) => prev.filter((f) => f.id !== id));
-      console.log("Facility deleted");
+        setFacilities(prev => prev.filter(f => f.id !== id));
+        toast.success("Facility deleted successfully");
+        
     } catch (error) {
-      console.error("Error deleting facility:", error);
+        console.error("Delete error:", error);
+        toast.error(error.message || "Failed to delete facility");
+    }
+  };
+
+  const confirmDelete = (id) => {
+    if (window.confirm("Are you sure you want to delete this facility?")) {
+        handleDelete(id);
     }
   };
 
@@ -294,7 +308,7 @@ export default function ManageFacilities() {
                         src={binIcon}
                         alt="delete"
                         className="icon-btn"
-                        onClick={() => handleDelete(f.id)}
+                        onClick={() => confirmDelete(f.id)}
                       />
                     </td>
                   </tr>
