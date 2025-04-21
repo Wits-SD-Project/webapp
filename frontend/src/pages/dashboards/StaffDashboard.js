@@ -2,16 +2,8 @@ import { useNavigate } from "react-router-dom";
 import Sidebar from "../../components/SideBar.js";
 import "../../styles/staffDashboard.css";
 
-
-
-
-
-
-
 export default function StaffDashboard() {
   const navigate = useNavigate();
-
-
 
   return (
     <main className="dashboard">

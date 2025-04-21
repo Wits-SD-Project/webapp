@@ -30,29 +30,39 @@ export default function EditTimeSlots() {
       try {
         const token = await getAuthToken();
         
-        // Fetch facility details
-        const facilityRes = await fetch(`http://localhost:5000/api/facilities/${id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const facilityData = await facilityRes.json();
-        if (!facilityRes.ok) throw new Error(facilityData.message);
-        setFacilityName(facilityData.name);
+        // // Fetch facility details
+        // const facilityRes = await fetch(`http://localhost:5000/api/facilities/${id}`, {
+        //   headers: { Authorization: `Bearer ${token}` }
+        // });
+        // const facilityData = await facilityRes.json();
+        // if (!facilityRes.ok) throw new Error(facilityData.message);
+        // setFacilityName(facilityData.name);
 
         // Fetch timeslots
-        const slotsRes = await fetch(`http://localhost:5000/api/facilities/${id}/timeslots`, {
-          headers: { Authorization: `Bearer ${token}` }
+        const slotsRes = await fetch(`http://localhost:5000/api/facilities/timeslots`, {
+          method:"POST",
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            "Content-Type":'application/json'
+
+         },
+          body: JSON.stringify({facilityId:id})
         });
         const slotsData = await slotsRes.json();
         if (!slotsRes.ok) throw new Error(slotsData.message);
 
-        // Initialize slots structure
-        const initializedSlots = daysOfWeek.reduce((acc, day) => ({
-          ...acc,
-          [day]: slotsData.timeslots[day] || []
-        }), {});
-        
-        setSlotsByDay(initializedSlots);
+        // Group timeslots by day
+        const groupedSlots = daysOfWeek.reduce((acc, day) => {
+          acc[day] = slotsData.timeslots
+            .filter(slot => slot.day === day)
+            .map(slot => `${slot.start} - ${slot.end}`);
+          return acc;
+        }, {});
+
+        setSlotsByDay(groupedSlots);
+        toast.success(slotsData.message)
       } catch (err) {
+        console.log(err)
         toast.error(err.message);
       }
     };
@@ -96,10 +106,41 @@ export default function EditTimeSlots() {
       return;
     }
   
-    const newSlot = `${startTime} - ${endTime}`;
+    const newSlotStr = `${startTime} - ${endTime}`;
+    const existingSlots = slotsByDay[selectedDay] || [];
+  
+    // Prevent duplicates
+    if (existingSlots.includes(newSlotStr)) {
+      toast.error("This slot already exists");
+      return;
+    }
+  
+    // Helper: convert "HH:MM" to minutes
+    const toMinutes = (t) => {
+      const [h, m] = t.split(":").map(Number);
+      return h * 60 + m;
+    };
+  
+    const newStart = toMinutes(startTime);
+    const newEnd = toMinutes(endTime);
+  
+    // Prevent overlaps
+    for (const slot of existingSlots) {
+      const [existingStart, existingEnd] = slot.split(" - ").map(s => s.trim());
+      const exStart = toMinutes(existingStart);
+      const exEnd = toMinutes(existingEnd);
+  
+      const overlap = newStart < exEnd && newEnd > exStart;
+      if (overlap) {
+        toast.error(`Overlaps with existing slot: ${slot}`);
+        return;
+      }
+    }
+  
+    // All validations passed, update state and backend
     const newSlots = {
       ...slotsByDay,
-      [selectedDay]: [...(slotsByDay[selectedDay] || []), newSlot] // Safe array spread
+      [selectedDay]: [...existingSlots, newSlotStr]
     };
   
     setSlotsByDay(newSlots);
@@ -108,7 +149,7 @@ export default function EditTimeSlots() {
     setStartTime("");
     setEndTime("");
   };
-
+  
   const handleDeleteSlot = (day, slot) => {
     const newSlots = {
       ...slotsByDay,

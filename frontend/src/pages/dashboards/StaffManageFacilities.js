@@ -20,6 +20,30 @@ export default function ManageFacilities() {
   const navigate = useNavigate();
   const tableRef = useRef(null);
 
+  useEffect(() => {
+    const fetchFacilities = async () => {
+      try {
+        const token = await getAuthToken();
+        const res = await fetch("http://localhost:5000/api/facilities/staff-facilities", {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+
+        if (!res.ok) throw new Error("Failed to fetch facilities");
+        
+        const data = await res.json();
+        // Add isEditing flag to all facilities
+        setFacilities(data.facilities.map(f => ({ ...f, isEditing: false })));
+      } catch (err) {
+        console.log(err);
+        toast.error("Failed to load facilities: "+ err.message);
+      }
+    };
+
+    fetchFacilities();
+  }, []);
   const handleSubmit = (e) => {
     e.preventDefault();
 
@@ -74,35 +98,41 @@ export default function ManageFacilities() {
 
   const handleUpdateFacility = async (facility) => {
     try {
-      const token = await getAuthToken();
-      const res = await fetch(`https://ssbackend-aka9gddqdxesexh5.canadacentral-01.azurewebsites.net/api/facilities/${facility.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          name: facility.name,
-          type: facility.type,
-          isOutdoors: facility.isOutdoors === "Yes",
-          availability: facility.availability
-        })
-      });
+        const token = await getAuthToken();
+        const res = await fetch(
+            `http://localhost:5000/api/facilities/updateFacility/${facility.id}`,
+            {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    name: facility.name,
+                    type: facility.type,
+                    isOutdoors: facility.isOutdoors === "Yes",
+                    availability: facility.availability
+                })
+            }
+        );
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Update failed");
 
-      // Update the facility and exit edit mode
-      setFacilities((prev) =>
-        prev.map(f =>
-          f.id === facility.id ? { ...facility, isEditing: false } : f
-        )
-      );
+        // Update local state with modified facility
+        setFacilities((prev) =>
+          prev.map(f =>
+            f.id === facility.id ? { ...data.facility, isEditing: false } : f
+          )
+        );
+        
+        toast.success(data.message)
     } catch (err) {
-      toast("Error update facility:", err.message);
+        console.error("Update facility error:", err);
+        toast.error(err.message || "Failed to update facility");
     }
-  };
-
+};
+  
   const handleDelete = async (id) => {
     try {
       const token = await getAuthToken();

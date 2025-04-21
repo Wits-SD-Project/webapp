@@ -6,6 +6,7 @@ const { storage } = require('../config/cloudinary');
 const multer = require('multer');
 const authenticate = require('../authenticate')
 const { admin } = require("../firebase");
+const { messaging } = require("firebase-admin");
 
 const upload = multer({storage}); //stores image in RAM temporarily
 
@@ -79,6 +80,7 @@ router.post('/upload', authenticate, async (req, res) => {
             type_lower: sanitizedType.toLowerCase(), // For case-insensitive search
             isOutdoors: Boolean(isOutdoors),
             availability:sanitizedAvailability,
+            timeslots:[],
             created_by: req.user.uid,
             created_at: admin.firestore.FieldValue.serverTimestamp()
         };
@@ -124,7 +126,7 @@ router.post('/upload', authenticate, async (req, res) => {
                 id: docRef.id,
                 name: data.name,
                 type: data.type,
-                isOutdoors: data.isOutdoors,
+                isOutdoors: (data.isOutdoors)?"Yes":"No",
                 availability: data.availability,
             }
         });
@@ -253,6 +255,37 @@ router.post('/slots', authenticate, async (req, res) => {
     }
 });
 
+// Get timeslots for a facility
+router.post('/timeslots', authenticate, async (req, res) => {
+    try {
+        const {facilityId} = req.body;
+        const facilityRef = admin.firestore().collection('facilities-test').doc(facilityId);
+        const doc = await facilityRef.get();
+
+        if (!doc.exists) {
+            return res.status(404).json({
+                success: false,
+                message: "Facility not found"
+            });
+        }
+
+        const facilityData = doc.data();
+        res.json({
+            success: true,
+            timeslots: facilityData.timeslots || {},
+            message: "Timeslots fetch succesful"
+        });
+
+    } catch (err) {
+        console.error('Failed to fetch timeslots:', err);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch timeslots",
+            error: process.env.NODE_ENV === 'development' ? err.message : undefined
+        });
+    }
+});
+
 // Fetch all facilities created by Facility staff
 router.get('/staff-facilities', authenticate, async (req, res) => {
     try {
@@ -269,7 +302,7 @@ router.get('/staff-facilities', authenticate, async (req, res) => {
                 id: doc.id,
                 name: data.name,
                 type: data.type,
-                isOutdoors: data.isOutdoors,
+                isOutdoors: (data.isOutdoors)?"Yes":"No",
                 availability: data.availability
             };
         });
@@ -322,30 +355,176 @@ router.delete('/:id', authenticate, async (req, res) => {
     }
 });
   
-  // PUT /api/facilities/:id
-router.put('/:id', authenticate, async (req, res) => {
-    try {
-      const { id } = req.params;
-      const updates = req.body; 
-      const docRef = admin.firestore().collection("facilities-test").doc(id);
-      const snap = await docRef.get();
-      if (!snap.exists) return res.status(404).json({ message: "Not found" });
-      if (snap.data().created_by !== req.user.uid) {
-        return res.status(403).json({ message: "Unauthorized" });
-      }
+//   // PUT /api/facilities/:id
+// router.put('/:id', authenticate, async (req, res) => {
+//     try {
+//       const { id } = req.params;
+//       const updates = req.body; 
+//       const docRef = admin.firestore().collection("facilities-test").doc(id);
+//       const snap = await docRef.get();
+//       if (!snap.exists) return res.status(404).json({ message: "Not found" });
+//       if (snap.data().created_by !== req.user.uid) {
+//         return res.status(403).json({ message: "Unauthorized" });
+//       }
   
-      // you may want to whitelist allowed fields:
-      const allowed = ["name","type","isOutdoors","availability"];
-      const data = {};
-      for (let k of allowed) if (k in updates) data[k] = updates[k];
+//       // you may want to whitelist allowed fields:
+//       const allowed = ["name","type","isOutdoors","availability"];
+//       const data = {};
+//       for (let k of allowed) if (k in updates) data[k] = updates[k];
       
-      await docRef.update(data);
-      res.json({ success: true, updated: data });
+//       await docRef.update(data);
+//       res.json({ success: true, updated: data });
+//     } catch (err) {
+//       console.error(err);
+//       res.status(500).json({ message: "Update failed" });
+//     }
+// });
+
+// Update a facility (staff only)
+router.put('/updateFacility/:id', authenticate, async (req, res) => {
+    try {
+        const facilityId = req.params.id;
+        const { name, type, isOutdoors, availability } = req.body;
+        
+        // 1. Get reference to the facility
+        const facilityRef = admin.firestore()
+            .collection('facilities-test')
+            .doc(facilityId);
+
+        // 2. Verify facility exists and belongs to user
+        const doc = await facilityRef.get();
+        if (!doc.exists || doc.data().created_by !== req.user.uid) {
+            return res.status(404).json({
+                success: false,
+                message: "Facility not found or unauthorized"
+            });
+        }
+
+        // 3. Prepare update data
+        const updateData = {
+            name,
+            type,
+            isOutdoors: Boolean(isOutdoors),
+            availability,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        };
+
+        // 4. Perform update
+        await facilityRef.update(updateData);
+
+        // 5. Return updated facility
+        const updatedDoc = await facilityRef.get();
+        const data = updatedDoc.data();
+        
+        res.json({
+            success: true,
+            facility: {
+                id: facilityId,
+                name: data.name,
+                type: data.type,
+                isOutdoors: data.isOutdoors ? "Yes" : "No",
+                availability: data.availability
+            },
+            message: "Facility updated successfully"
+        });
+        
+
     } catch (err) {
-      console.error(err);
-      res.status(500).json({ message: "Update failed" });
+        console.error('Failed to update facility:', err);
+        res.status(500).json({
+            success: false,
+            message: "Failed to update facility",
+            error: process.env.NODE_ENV === 'development' ? err.message : undefined
+        });
     }
 });
   
+router.put("/:id/timeslots", async (req, res) => {
+    try {
+      const facilityId = req.params.id;
+      const { timeslots } = req.body;
+  
+      if (!timeslots || typeof timeslots !== "object") {
+        return res.status(400).json({ message: "Invalid or missing timeslots object" });
+      }
+  
+      const isValidTime = (str) => /^\d{2}:\d{2}$/.test(str);
+      const timeToMinutes = (time) => {
+        const [h, m] = time.split(":").map(Number);
+        return h * 60 + m;
+      };
+  
+      const seenSlots = new Set();
+      const formattedSlots = [];
+  
+      for (const [day, slots] of Object.entries(timeslots)) {
+        if (!Array.isArray(slots)) {
+          return res.status(400).json({ message: `Invalid slot list for ${day}` });
+        }
+  
+        const daySlots = [];
+  
+        for (const slotStr of slots) {
+          const [start, end] = slotStr.split(" - ").map(t => t.trim());
+  
+          if (!isValidTime(start) || !isValidTime(end)) {
+            return res.status(400).json({ message: `Invalid time format in slot: "${slotStr}"` });
+          }
+  
+          const startMin = timeToMinutes(start);
+          const endMin = timeToMinutes(end);
+  
+          if (startMin >= endMin) {
+            return res.status(400).json({ message: `Start time must be before end time in slot: "${slotStr}"` });
+          }
+  
+          const slotKey = `${day}-${start}-${end}`;
+          if (seenSlots.has(slotKey)) {
+            return res.status(400).json({ message: `Duplicate slot detected: "${slotStr}" on ${day}` });
+          }
+  
+          // Check overlap with existing slots on the same day
+          for (const existing of daySlots) {
+            const eStart = timeToMinutes(existing.start);
+            const eEnd = timeToMinutes(existing.end);
+            const overlap = startMin < eEnd && endMin > eStart;
+  
+            if (overlap) {
+              return res.status(400).json({ message: `Overlapping slot detected on ${day}: "${slotStr}" conflicts with "${existing.start} - ${existing.end}"` });
+            }
+          }
+  
+          const newSlot = {
+            day,
+            start,
+            end,
+            isBooked: false,
+            bookedBy: null,
+          };
+  
+          daySlots.push(newSlot);
+          formattedSlots.push(newSlot);
+          seenSlots.add(slotKey);
+        }
+      }
+  
+      const facilityRef = admin.firestore().collection("facilities-test").doc(facilityId);
+      const facilitySnap = await facilityRef.get();
+  
+      if (!facilitySnap.exists) {
+        return res.status(404).json({ message: "Facility not found" });
+      }
+  
+      await facilityRef.update({ timeslots: formattedSlots });
+  
+      return res.status(200).json({ message: "Timeslots updated successfully" });
+    } catch (err) {
+      console.error("Error updating timeslots:", err);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  
+
 
 module.exports = router
