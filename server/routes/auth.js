@@ -166,6 +166,9 @@ router.post("/signin/thirdparty", async (req, res) => {
     if (!userData.approved) {
       return res.status(403).json({ message: "Account not yet approved." });
     }
+    if (!userData.accepted) {
+      return res.status(403).json({ message: "Access denied." });
+    }
 
     // Create a session cookie
     const expiresIn = 60 * 60 * 1000; // 1 hour
@@ -185,6 +188,7 @@ router.post("/signin/thirdparty", async (req, res) => {
       email: userData.email,
       role: userData.role,
       approved: userData.approved,
+      accepted: userData.accepted,
       name: userData.name || "",
     });
   } catch (err) {
