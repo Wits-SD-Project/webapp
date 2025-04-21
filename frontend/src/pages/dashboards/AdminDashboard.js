@@ -1,7 +1,19 @@
+// src/pages/admin/AdminDashboard.js
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import "./AdminDashboard.css";
 import Navbar from "../../components/Navbar";
+import {
+  Box,
+  Typography,
+  Paper,
+  TableContainer,
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
+  Button,
+} from "@mui/material";
 
 export default function AdminDashboard() {
   const [users, setUsers] = useState([]);
@@ -12,23 +24,30 @@ export default function AdminDashboard() {
         const res = await fetch(
           "https://ssbackend-aka9gddqdxesexh5.canadacentral-01.azurewebsites.net/api/admin/users"
         );
-        const data = await res.json();
+        const text = await res.text();
+        if (!res.ok) throw new Error(text || res.statusText);
+        const data = JSON.parse(text);
 
-        if (!res.ok) throw new Error(data.message);
-        setUsers(data);
+        setUsers(
+          data.map((u) => ({
+            ...u,
+            approved: !!u.approved,
+            accepted: !!u.accepted,
+          }))
+        );
       } catch (err) {
-        console.log(err);
-        toast.error("Failed to load users." + err);
+        console.error("fetchUsers error:", err);
+        toast.error("Failed to load users: " + err.message);
       }
     };
 
     fetchUsers();
   }, []);
 
-  const toggleApproval = async (user) => {
+  const handleToggle = async (user, endpoint, flagKey) => {
     try {
       const res = await fetch(
-        "https://ssbackend-aka9gddqdxesexh5.canadacentral-01.azurewebsites.net/api/admin/toggle-approval",
+        `https://ssbackend-aka9gddqdxesexh5.canadacentral-01.azurewebsites.net/api/admin/${endpoint}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -36,53 +55,93 @@ export default function AdminDashboard() {
         }
       );
 
-      const data = await res.json();
+      // read raw text first
+      const text = await res.text();
+      if (!res.ok) throw new Error(text || res.statusText);
 
-      if (!res.ok) throw new Error(data.message);
+      // parse json
+      const data = JSON.parse(text);
 
       setUsers((prev) =>
         prev.map((u) =>
-          u.email === user.email ? { ...u, approved: data.approved } : u
+          u.email !== user.email ? u : { ...u, [flagKey]: data[flagKey] }
         )
       );
 
       toast.success(data.message);
     } catch (err) {
+      console.error(`${endpoint} error:`, err);
       toast.error(err.message);
     }
   };
 
+  const toggleApproval = (u) => handleToggle(u, "toggle-approval", "approved");
+  const toggleAccepted = (u) => handleToggle(u, "toggle-accepted", "accepted");
+
   return (
-    <main className="admin-dashboard">
+    <Box component="main" sx={{ p: 2 }}>
       <Navbar />
-      <h1>Admin Dashboard</h1>
-      <table className="user-table">
-        <thead>
-          <tr>
-            <th>Email</th>
-            <th>Role</th>
-            <th>Approved</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.map((user) => (
-            <tr key={user.email}>
-              <td>{user.email}</td>
-              <td>{user.role}</td>
-              <td>{user.approved ? "Yes" : "No"}</td>
-              <td>
-                <button
-                  className={`btn ${user.approved ? "revoke" : "approve"}`}
-                  onClick={() => toggleApproval(user)}
-                >
-                  {user.approved ? "Revoke" : "Approve"}
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </main>
+
+      <Typography variant="h4" gutterBottom>
+        Admin Dashboard
+      </Typography>
+
+      <TableContainer
+        component={Paper}
+        sx={{ maxHeight: "calc(100vh - 200px)" }}
+      >
+        <Table stickyHeader>
+          <TableHead>
+            <TableRow>
+              <TableCell>Email</TableCell>
+              <TableCell>Role</TableCell>
+              <TableCell>Approved?</TableCell>
+              <TableCell>Access Granted?</TableCell>
+              <TableCell align="center">Actions</TableCell>
+            </TableRow>
+          </TableHead>
+
+          <TableBody>
+            {users.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={5} align="center">
+                  No users found.
+                </TableCell>
+              </TableRow>
+            )}
+
+            {users.map((user) => (
+              <TableRow key={user.email} hover>
+                <TableCell>{user.email}</TableCell>
+                <TableCell>{user.role}</TableCell>
+                <TableCell>{user.approved ? "Yes" : "No"}</TableCell>
+                <TableCell>{user.accepted ? "Yes" : "No"}</TableCell>
+                <TableCell align="center">
+                  <Button
+                    variant="contained"
+                    size="small"
+                    color={user.approved ? "error" : "success"}
+                    onClick={() => toggleApproval(user)}
+                  >
+                    {user.approved ? "Revoke" : "Approve"}
+                  </Button>
+
+                  <Button
+                    sx={{ ml: 1 }}
+                    variant="contained"
+                    size="small"
+                    color={user.accepted ? "error" : "primary"}
+                    disabled={!user.approved}
+                    onClick={() => toggleAccepted(user)}
+                  >
+                    {user.accepted ? "Revoke Access" : "Grant Access"}
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Box>
   );
 }
