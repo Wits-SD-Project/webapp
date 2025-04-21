@@ -557,8 +557,74 @@ router.put("/:id/timeslots", async (req, res) => {
       return res.status(500).json({ message: "Internal server error" });
     }
   });
+
+// DELETE Timeslot
+router.delete('/:id/timeslots', authenticate, async (req, res) => {
+    try {
+      const facilityId = req.params.id;
+      const { day, start, end } = req.query;
   
+      // Validate input
+      if (!day || !start || !end) {
+        return res.status(400).json({
+          success: false,
+          message: "Missing required parameters: day, start, end",
+          errorCode: "MISSING_PARAMETERS"
+        });
+      }
   
+      const facilityRef = admin.firestore().collection("facilities-test").doc(facilityId);
+      const doc = await facilityRef.get();
+  
+      if (!doc.exists) {
+        return res.status(404).json({
+          success: false,
+          message: "Facility not found",
+          errorCode: "FACILITY_NOT_FOUND"
+        });
+      }
+  
+      if (doc.data().created_by !== req.user.uid) {
+        return res.status(403).json({
+          success: false,
+          message: "Unauthorized access",
+          errorCode: "UNAUTHORIZED"
+        });
+      }
+      const currentTimeslots = doc.data().timeslots || [];
+      const initialCount = currentTimeslots.length;
+      
+      const updatedTimeslots = currentTimeslots.filter(slot => 
+        !(slot.day === day && slot.start === start && slot.end === end)
+      );
+  
+      if (initialCount === updatedTimeslots.length) {
+        return res.status(404).json({
+          success: false,
+          message: "Timeslot not found",
+          errorCode: "TIMESLOT_NOT_FOUND"
+        });
+      }
+  
+      await facilityRef.update({ timeslots: updatedTimeslots });
+  
+      res.json({
+        success: true,
+        message: "Timeslot deleted successfully",
+        removedSlot: { day, start, end },
+        remainingCount: updatedTimeslots.length
+      });
+  
+    } catch (err) {
+      console.error('Delete timeslot error:', err);
+      res.status(500).json({
+        success: false,
+        message: "Server error",
+        errorCode: "SERVER_ERROR",
+        error: process.env.NODE_ENV === 'development' ? err.message : undefined
+      });
+    }
+});
 
 
 module.exports = router

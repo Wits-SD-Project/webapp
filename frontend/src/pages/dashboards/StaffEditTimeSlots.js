@@ -150,14 +150,48 @@ export default function EditTimeSlots() {
     setEndTime("");
   };
   
-  const handleDeleteSlot = (day, slot) => {
-    const newSlots = {
-      ...slotsByDay,
-      [day]: slotsByDay[day].filter(s => s !== slot)
-    };
-    setSlotsByDay(newSlots);
-    updateBackend(newSlots);
+  //Deleting a specific Timeslot
+  const handleDeleteSlot = async (day, slot) => {
+    try {
+      const token = await getAuthToken();
+      
+      // Convert slot string to start/end times
+      const [start, end] = slot.split(" - ");
+      
+      const response = await fetch(`http://localhost:5000/api/facilities/${id}/timeslots`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          day,
+          start,
+          end
+        })
+      });
+  
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.message || "Failed to delete timeslot");
+      }
+  
+      // Update local state
+      setSlotsByDay(prev => ({
+        ...prev,
+        [day]: prev[day].filter(s => s !== slot)
+      }));
+      
+      toast.success("Timeslot deleted successfully");
+      
+    } catch (error) {
+      console.error("Delete error:", error);
+      toast.error(error.message || "Failed to delete timeslot");
+    }
   };
+
+
 
   return (
     <main className="edit-timeslots-page">
