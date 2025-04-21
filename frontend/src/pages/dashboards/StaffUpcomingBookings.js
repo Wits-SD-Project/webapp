@@ -4,7 +4,6 @@
  import "../../styles/staffUpcomingBookings.css";
  
  
- 
  //import data from db - dummy data for now
  const dummyBookings = [
      {

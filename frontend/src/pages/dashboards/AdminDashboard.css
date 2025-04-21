@@ -1,40 +1,60 @@
 .admin-dashboard {
-  padding: 2rem;
-  text-align: center;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
 }
 
+.table-container {
+  /* limit height and enable internal scrolling */
+  max-height: calc(
+    100vh - 200px
+  ); /* adjust 200px to leave room for header/footer */
+  overflow-y: auto;
+  margin-top: 1rem;
+}
+
+/* full-width table, no overflow outside container */
 .user-table {
   width: 100%;
-  max-width: 800px;
-  margin: 2rem auto;
   border-collapse: collapse;
 }
 
+/* header stays visible when scrolling */
+.user-table thead th {
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 1;
+  border-bottom: 2px solid #ccc;
+  padding: 0.75rem;
+}
+
+/* cell styling */
 .user-table th,
 .user-table td {
-  padding: 0.75rem 1rem;
+  padding: 0.5rem;
   border: 1px solid #ddd;
+  text-align: left;
 }
 
-.user-table th {
-  background-color: #f2f2f2;
-  font-weight: 600;
+/* striped rows */
+.user-table tr:nth-child(even) {
+  background-color: #f8f8f8;
 }
 
+/* action buttons */
 .btn {
-  padding: 0.5rem 1rem;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.9rem;
   border: none;
-  border-radius: 999px;
-  font-weight: bold;
+  border-radius: 4px;
   cursor: pointer;
 }
-
-.approve {
-  background-color: #0cc0df;
+.btn.approve {
+  background-color: #28a745;
   color: white;
 }
-
-.revoke {
-  background-color: #ff4d4d;
+.btn.revoke {
+  background-color: #dc3545;
   color: white;
 }

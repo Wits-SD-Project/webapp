@@ -6,7 +6,7 @@ import { signInUser, signInWithThirdParty } from "../../auth/auth";
 import { ClipLoader } from "react-spinners";
 import { toast } from "react-toastify";
 import { useAuth } from "../../context/AuthContext";
-import { signInWithPopup ,GoogleAuthProvider} from "firebase/auth";
+import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "../../firebase";
 
 export default function SignIn() {
@@ -44,50 +44,50 @@ export default function SignIn() {
     }
   };
 
-const handleThirdPartySignIn = async (provider) => {
-  try {
-    setProviderLoading(provider);
-    let result;
-    
-    if (provider === 'google') {
-      result = await signInWithPopup(auth,new GoogleAuthProvider());
-      
-      // Get the credential from the result
-      const credential = GoogleAuthProvider.credentialFromResult(result);
-      if (!credential) {
-        throw new Error("No credential returned from Google sign-in");
+  const handleThirdPartySignIn = async (provider) => {
+    try {
+      setProviderLoading(provider);
+      let result;
+
+      if (provider === "google") {
+        result = await signInWithPopup(auth, new GoogleAuthProvider());
+
+        // Get the credential from the result
+        const credential = GoogleAuthProvider.credentialFromResult(result);
+        if (!credential) {
+          throw new Error("No credential returned from Google sign-in");
+        }
+
+        // Send the ID token to your backend
+        const idToken = await result.user.getIdToken();
+        const user = await signInWithThirdParty({
+          idToken,
+        });
+
+        setAuthUser(user);
+        toast.success("Welcome back, " + user.email);
+
+        if (user.role === "admin") {
+          navigate("/admin-dashboard");
+        } else if (user.role === "staff") {
+          navigate("/staff-dashboard");
+        } else {
+          navigate("/resident-dashboard");
+        }
       }
-      
-      // Send the ID token to your backend
-      const idToken = await result.user.getIdToken();
-      const user = await signInWithThirdParty({ 
-        idToken
-      });
-      
-      setAuthUser(user);
-      toast.success("Welcome back, " + user.email);
-      
-      if (user.role === "admin") {
-        navigate("/admin-dashboard");
-      } else if (user.role === "staff") {
-        navigate("/staff-dashboard");
+    } catch (err) {
+      console.error("Third-party sign in error:", err);
+      if (err.message.includes("not yet approved")) {
+        toast.error("⏳ Waiting for admin approval.");
+      } else if (err.message.includes("Access denied")) {
+        toast.error("⛔ Access denied.");
       } else {
-        navigate("/resident-dashboard");
+        toast.error("Sign in failed: " + (err.message || "Please try again"));
       }
+    } finally {
+      setProviderLoading(null);
     }
-  } catch (err) {
-    console.error("Third-party sign in error:", err);
-    if (err.message.includes("Account not yet approved")) {
-      toast.error("⏳ Waiting for Admin approval.");
-    } else if (err.code === 'auth/popup-closed-by-user') {
-      toast.error("Sign in canceled");
-    } else {
-      toast.error("Sign in failed: " + (err.message || "Please try again"));
-    }
-  } finally {
-    setProviderLoading(null);
-  }
-};
+  };
 
   return (
     <main className="login-container">
@@ -99,7 +99,7 @@ const handleThirdPartySignIn = async (provider) => {
         <h1 id="signin-heading">Sign in now</h1>
         <p>Welcome to Sports Sphere</p>
 
-        <form className="login-form" onSubmit={handleSignIn}>
+        {/* <form className="login-form" onSubmit={handleSignIn}>
           <label htmlFor="email" className="visually-hidden">
             Email
           </label>
@@ -138,22 +138,22 @@ const handleThirdPartySignIn = async (provider) => {
           <button type="submit" className="btn primary" disabled={loading}>
             {loading ? <ClipLoader size={20} color="#fff" /> : "Sign in"}
           </button>
-        </form>
+        </form> */}
 
-        <div className="divider-text" role="separator">
+        {/* <div className="divider-text" role="separator">
           Or continue with
-        </div>
+        </div> */}
 
-        <button 
-          className="btn secondary" 
-          onClick={() => handleThirdPartySignIn('google')} 
+        <button
+          className="btn secondary"
+          onClick={() => handleThirdPartySignIn("google")}
           type="button"
-          disabled={providerLoading === 'google'}
+          disabled={providerLoading === "google"}
         >
-          {providerLoading === 'google' ? (
+          {providerLoading === "google" ? (
             <ClipLoader size={20} color="#000" />
           ) : (
-            'Google'
+            "Sign in with Google"
           )}
         </button>
 

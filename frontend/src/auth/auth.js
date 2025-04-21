@@ -1,3 +1,14 @@
+import { getAuth } from "firebase/auth";
+
+//This is useed to get a token that can be used to track our inputs
+//Dont touch
+export const getAuthToken = async () => {
+  const user = getAuth().currentUser;
+  if (!user) throw new Error("User not authenticated");
+  return user.getIdToken();
+};
+
+
 export const signUpUser = async ({ name, email, password, role }) => {
   const res = await fetch(
     "https://ssbackend-aka9gddqdxesexh5.canadacentral-01.azurewebsites.net/api/auth/signup",
@@ -66,6 +77,26 @@ export const signInWithThirdParty = async ({ idToken }) => {
   if (!res.ok) {
     const err = await res.json();
     throw new Error(err.message || "Third-party signin failed");
+  }
+
+  return await res.json();
+};
+
+export const uploadFacility = async ({name,type,isOutdoors,availability}) =>{
+  const res = await fetch(
+    "http://localhost:5000/api/facilities/upload:",{
+      method: "POST",
+      headers:{
+        "Content-Type":"application/json"
+      },
+      body:JSON.stringify({name,type,isOutdoors,availability}),
+      credentials:'include'
+    }
+  );
+
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.message || "Facility Upload Failed");
   }
 
   return await res.json();

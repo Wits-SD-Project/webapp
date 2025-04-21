@@ -4,22 +4,166 @@ import clockIcon from "../../assets/clock.png";
 import editIcon from "../../assets/edit.png";
 import binIcon from "../../assets/bin.png";
 import "../../styles/staffManageFacilities.css";
+import { uploadFacility} from "../../auth/auth";
 import { useNavigate } from "react-router-dom";
-
-
-const initialFacilities = Array.from({ length: 15 }, (_, i) => ({
-  id: i + 1,
-  name: `Facility ${i + 1}`,
-  type: "Sport Type",
-  isOutdoors: "Yes",
-  availability: "Available",
-  isEditing: false,
-}));
+import { getFirestore, collection, addDoc, deleteDoc, doc } from "firebase/firestore";
+import { getAuthToken } from "../../firebase";
+import { auth } from "../../firebase";
+import { toast } from "react-toastify";
 
 export default function ManageFacilities() {
-  const [facilities, setFacilities] = useState(initialFacilities);
+  const [facilities, setFacilities] = useState([]);
+  const [facilityName, setFacilityName] = useState("");
+  const [facilityType, setFacilityType] = useState("");
+  const [facilityDescription, setFacilityDescription] = useState("");
+  // const [isDeleting, setIsDeleting] = useState(false);
+
   const navigate = useNavigate();
   const tableRef = useRef(null);
+
+  useEffect(() => {
+    const fetchFacilities = async () => {
+      try {
+        const token = await getAuthToken();
+        const res = await fetch("http://localhost:5000/api/facilities/staff-facilities", {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+
+        if (!res.ok) throw new Error("Failed to fetch facilities");
+        
+        const data = await res.json();
+        // Add isEditing flag to all facilities
+        setFacilities(data.facilities.map(f => ({ ...f, isEditing: false })));
+      } catch (err) {
+        console.log(err);
+        toast.error("Failed to load facilities: "+ err.message);
+      }
+    };
+
+    fetchFacilities();
+  }, []);
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    if (!facilityName || !facilityType) {
+      alert("Please fill in the facility name and type.");
+      return;
+    }
+
+    const newFacility = {
+      name: facilityName,
+      description: facilityDescription,
+      type: facilityType,
+      createdAt: new Date(),
+      createdBy: auth.currentUser?.email || "Unknown",
+    };
+
+    handleCreateFacility(newFacility);
+  };
+
+  const handleCreateFacility = async (facilityData) => {
+    try {
+      const token = await getAuthToken();
+      const res = await fetch("http://localhost:5000/api/facilities/upload", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: facilityData.name,
+          type: facilityData.type,
+          isOutdoors: facilityData.isOutdoors === "Yes",
+          availability: facilityData.availability
+        })
+      });
+  
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+  
+      // Replace temporary facility with the one from the server
+      setFacilities((prev) =>
+        prev.map(f =>
+          f.id === facilityData.id ? { ...data.facility, isEditing: false } : f
+        )
+      );
+
+      toast(data.message)
+    } catch (err) {
+      toast(err.message);
+    }
+  };
+
+  const handleUpdateFacility = async (facility) => {
+    try {
+        const token = await getAuthToken();
+        const res = await fetch(
+            `http://localhost:5000/api/facilities/updateFacility/${facility.id}`,
+            {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    name: facility.name,
+                    type: facility.type,
+                    isOutdoors: facility.isOutdoors === "Yes",
+                    availability: facility.availability
+                })
+            }
+        );
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Update failed");
+
+        // Update local state with modified facility
+        setFacilities((prev) =>
+          prev.map(f =>
+            f.id === facility.id ? { ...data.facility, isEditing: false } : f
+          )
+        );
+        
+        toast.success(data.message)
+    } catch (err) {
+        console.error("Update facility error:", err);
+        toast.error(err.message || "Failed to update facility");
+    }
+  };
+  
+  const handleDelete = async (id) => {
+    try {
+        const token = await getAuthToken();
+        const response = await fetch(`http://localhost:5000/api/facilities/${id}`, {
+            method: "DELETE",
+            headers: { 
+                "Authorization": `Bearer ${token}`
+            }
+        });
+
+        const result = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(result.message || "Delete failed");
+        }
+
+        setFacilities(prev => prev.filter(f => f.id !== id));
+        toast.success("Facility deleted successfully");
+        
+    } catch (error) {
+        console.error("Delete error:", error);
+        toast.error(error.message || "Failed to delete facility");
+    }
+  };
+
+  const confirmDelete = (id) => {
+    if (window.confirm("Are you sure you want to delete this facility?")) {
+        handleDelete(id);
+    }
+  };
 
   const handleEditToggle = (id) => {
     setFacilities((prev) =>
@@ -29,29 +173,26 @@ export default function ManageFacilities() {
 
   const handleFieldChange = (id, field, value) => {
     setFacilities((prev) =>
-      prev.map((f) => (f.id === id ? { ...f, [field]: value } : f))
+      prev.map((f) =>
+        f.id === id ? { ...f, [field]: value } : f
+      )
     );
   };
 
-  const handleDelete = (id) => {
-    setFacilities((prev) => prev.filter((f) => f.id !== id));
-  };
-
   const handleAddFacility = () => {
-    const newId = Date.now();
     setFacilities((prev) => [
       ...prev,
       {
-        id: newId,
+        id: Date.now().toString(),
         name: "",
         type: "",
         isOutdoors: "Yes",
         availability: "Available",
         isEditing: true,
+        isNew: true,
       },
     ]);
 
-    // scroll to bottom
     setTimeout(() => {
       tableRef.current?.scrollTo({ top: tableRef.current.scrollHeight, behavior: "smooth" });
     }, 100);
@@ -59,14 +200,10 @@ export default function ManageFacilities() {
 
   const getAvailabilityClass = (status) => {
     switch (status) {
-      case "Available":
-        return "status available";
-      case "Closed":
-        return "status closed";
-      case "Under Maintenance":
-        return "status maintenance";
-      default:
-        return "status";
+      case "Available": return "status available";
+      case "Closed": return "status closed";
+      case "Under Maintenance": return "status maintenance";
+      default: return "status";
     }
   };
 
@@ -74,7 +211,6 @@ export default function ManageFacilities() {
     <main className="manage-facilities">
       <div className="container">
         <Sidebar activeItem="manage facilities" />
-
         <main className="main-content">
           <header className="page-header">
             <h1>Manage Facilities</h1>
@@ -101,10 +237,9 @@ export default function ManageFacilities() {
                           type="text"
                           value={f.name}
                           onChange={(e) => handleFieldChange(f.id, "name", e.target.value)}
+                          placeholder="Facility Name"
                         />
-                      ) : (
-                        f.name
-                      )}
+                      ) : f.name}
                     </td>
                     <td>
                       {f.isEditing ? (
@@ -112,10 +247,9 @@ export default function ManageFacilities() {
                           type="text"
                           value={f.type}
                           onChange={(e) => handleFieldChange(f.id, "type", e.target.value)}
+                          placeholder="Type"
                         />
-                      ) : (
-                        f.type
-                      )}
+                      ) : f.type}
                     </td>
                     <td>
                       {f.isEditing ? (
@@ -126,9 +260,7 @@ export default function ManageFacilities() {
                           <option value="Yes">Yes</option>
                           <option value="No">No</option>
                         </select>
-                      ) : (
-                        f.isOutdoors
-                      )}
+                      ) : f.isOutdoors}
                     </td>
                     <td>
                       {f.isEditing ? (
@@ -149,12 +281,18 @@ export default function ManageFacilities() {
                         src={clockIcon}
                         alt="timeslots"
                         className="icon-btn"
-                        onClick={() => navigate("/edit-timeslots")}
+                        onClick={() => navigate(`/staff-edit-time-slots/${f.id}`, { state: { facilityName: f.name } })}
                       />
                       {f.isEditing ? (
-                        <button
-                          className="save-btn"
-                          onClick={() => handleEditToggle(f.id)}
+                        <button 
+                          className="save-btn" 
+                          onClick={() => {
+                            if (f.isNew) {
+                              handleCreateFacility(f);
+                            } else {
+                              handleUpdateFacility(f);
+                            }
+                          }}
                         >
                           Save
                         </button>
@@ -170,7 +308,7 @@ export default function ManageFacilities() {
                         src={binIcon}
                         alt="delete"
                         className="icon-btn"
-                        onClick={() => handleDelete(f.id)}
+                        onClick={() => confirmDelete(f.id)}
                       />
                     </td>
                   </tr>
