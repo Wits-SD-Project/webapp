@@ -1,43 +1,43 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+
+// Auth & Context
 import SignIn from "./pages/auth/SignIn";
 import SignUp from "./pages/auth/SignUp";
+import ForgotPassword from "./ForgotPassword";
+import ResetPassword from "./pages/auth/ResetPassword";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 
-// Dashboard pages
+// Dashboard Pages
 import AdminDashboard from "./pages/dashboards/AdminDashboard";
 import StaffDashboard from "./pages/dashboards/StaffDashboard";
 import UserDashboard from "./pages/dashboards/UserDashboard";
 import StaffViewBookings from "./pages/dashboards/StaffViewBookings";
 import StaffUpcomingBookings from "./pages/dashboards/StaffUpcomingBookings";
 
-// Auth pages
-import ForgotPassword from "./ForgotPassword";
-import ResetPassword from "./pages/auth/ResetPassword";
-
+// Resident Feature
+import ResidentBooking from "./components/ResidentBooking";
 
 // Styles
 import "./forgot.css";
 import "./reset.css";
 import StaffManageFacilities from "./pages/dashboards/StaffManageFacilities";
 
-
-
-
 function App() {
   return (
     <AuthProvider>
       <Router>
         <Routes>
+          {/* Public Routes */}
           <Route path="/" element={<SignIn />} />
           <Route path="/signin" element={<SignIn />} />
           <Route path="/signup" element={<SignUp />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-          
 
+          {/* Protected Routes */}
           <Route
             path="/admin-dashboard"
             element={
@@ -63,18 +63,18 @@ function App() {
             }
           />
           <Route
-            path="/staff-view-bookings"
+            path="/resident-booking"
             element={
-              <ProtectedRoute requiredRole="staff">
-                <StaffViewBookings />
+              <ProtectedRoute requiredRole="resident">
+                <ResidentBooking />
               </ProtectedRoute>
             }
           />
           <Route
-            path="/staff-dashboard"
+            path="/staff-view-bookings"
             element={
               <ProtectedRoute requiredRole="staff">
-                <StaffDashboard />
+                <StaffViewBookings />
               </ProtectedRoute>
             }
           />
@@ -95,7 +95,6 @@ function App() {
             }
           />
         </Routes>
-        
 
         <ToastContainer position="top-center" autoClose={3000} />
       </Router>
