@@ -4,15 +4,14 @@ import clockIcon from "../../assets/clock.png";
 import editIcon from "../../assets/edit.png";
 import binIcon from "../../assets/bin.png";
 import "../../styles/staffManageFacilities.css";
-import { uploadFacility} from "../../auth/auth";
 import { useNavigate } from "react-router-dom";
-import { getFirestore, collection, addDoc, deleteDoc, doc } from "firebase/firestore";
 import { getAuthToken } from "../../firebase";
 import { auth } from "../../firebase";
 import { toast } from "react-toastify";
 
 export default function ManageFacilities() {
   const [facilities, setFacilities] = useState([]);
+  const [originalFacilities, setOriginalFacilities] = useState({});
   const [facilityName, setFacilityName] = useState("");
   const [facilityType, setFacilityType] = useState("");
   const [facilityDescription, setFacilityDescription] = useState("");
@@ -167,10 +166,42 @@ export default function ManageFacilities() {
 
   const handleEditToggle = (id) => {
     setFacilities((prev) =>
-      prev.map((f) => (f.id === id ? { ...f, isEditing: !f.isEditing } : f))
+      prev.map((f) => (f.id === id ? { ...f, isEditing: true } : f))
     );
+  
+    // Store a backup only if not already stored
+    setOriginalFacilities((prev) => {
+      const alreadyStored = prev[id];
+      if (alreadyStored) return prev;
+      const original = facilities.find((f) => f.id === id);
+      return { ...prev, [id]: { ...original } };
+    });
   };
 
+
+  const handleCancelEdit = (id) => {
+    const facility = facilities.find((f) => f.id === id);
+  
+    if (facility.isNew) {
+      // Remove unsaved new facility
+      setFacilities((prev) => prev.filter((f) => f.id !== id));
+    } else {
+      // Restore backup and exit edit mode
+      setFacilities((prev) =>
+        prev.map((f) =>
+          f.id === id ? { ...originalFacilities[id], isEditing: false } : f
+        )
+      );
+  
+      // Remove backup from memory
+      setOriginalFacilities((prev) => {
+        const updated = { ...prev };
+        delete updated[id];
+        return updated;
+      });
+    }
+  };
+  
   const handleFieldChange = (id, field, value) => {
     setFacilities((prev) =>
       prev.map((f) =>
@@ -283,19 +314,27 @@ export default function ManageFacilities() {
                         className="icon-btn"
                         onClick={() => navigate(`/staff-edit-time-slots/${f.id}`, { state: { facilityName: f.name } })}
                       />
-                      {f.isEditing ? (
-                        <button 
-                          className="save-btn" 
-                          onClick={() => {
-                            if (f.isNew) {
-                              handleCreateFacility(f);
-                            } else {
-                              handleUpdateFacility(f);
-                            }
-                          }}
-                        >
-                          Save
-                        </button>
+                     {f.isEditing ? (
+                        <>
+                          <button 
+                            className="save-btn" 
+                            onClick={() => {
+                              if (f.isNew) {
+                                handleCreateFacility(f);
+                              } else {
+                                handleUpdateFacility(f);
+                              }
+                            }}
+                          >
+                            Save
+                          </button>
+                          <button
+                            className="cancel-btn"
+                            onClick={() => handleCancelEdit(f.id)}
+                          >
+                            Cancel
+                          </button>
+                        </>
                       ) : (
                         <img
                           src={editIcon}

@@ -2,7 +2,7 @@ import "../../styles/signin.css";
 import logo from "../../assets/logo.png";
 import { useState } from "react";
 import { MenuItem, Select, FormControl, InputLabel } from "@mui/material";
-import { signUpUser, signUpWithThirdParty } from "../../auth/auth";
+import { signUpWithThirdParty } from "../../auth/auth";
 import { ClipLoader } from "react-spinners";
 import { toast } from "react-toastify";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
@@ -17,30 +17,6 @@ export default function SignUp() {
 
   const handleRoleChange = (event) => {
     setRole(event.target.value);
-  };
-
-  const handleSignUp = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const form = e.target;
-      const user = await signUpUser({
-        name: form.name.value,
-        email: form.email.value,
-        password: form.password.value,
-        role,
-      });
-
-      toast.success(
-        `Account created for ${user.email}. Awaiting admin approval.`
-      );
-      navigate('/signin')
-
-    } catch (err) {
-      toast.error("Signup failed: " + err.message);
-    } finally {
-      setLoading(false);
-    }
   };
 
   const handleThirdPartySignUp = async (provider) => {
