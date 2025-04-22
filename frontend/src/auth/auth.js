@@ -9,7 +9,7 @@ export const getAuthToken = async () => {
 export const signUpUser = async ({ name, email, password, role }) => {
   const res = await fetch(
     // "https://ssbackend-aka9gddqdxesexh5.canadacentral-01.azurewebsites.net/api/auth/signup",
-    "http://localhost:5000/api/auth/signup",
+    "http://localhost:8080/api/auth/signup",
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -28,7 +28,7 @@ export const signUpUser = async ({ name, email, password, role }) => {
 export const signUpWithThirdParty = async ({ idToken, provider, role }) => {
   const res = await fetch(
     // "https://ssbackend-aka9gddqdxesexh5.canadacentral-01.azurewebsites.net/api/auth/signup/thirdparty",
-    "http://localhost:5000/api/auth/signup/thirdparty",
+    "http://localhost:8080/api/auth/signup/thirdparty",
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -47,7 +47,7 @@ export const signUpWithThirdParty = async ({ idToken, provider, role }) => {
 export const signInUser = async ({ email, password }) => {
   const res = await fetch(
     // "https://ssbackend-aka9gddqdxesexh5.canadacentral-01.azurewebsites.net/api/auth/signin",
-    "http://localhost:5000/api/auth/signin",
+    "http://localhost:8080/api/auth/signin",
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -67,7 +67,7 @@ export const signInUser = async ({ email, password }) => {
 export const signInWithThirdParty = async ({ idToken }) => {
   const res = await fetch(
     // "https://ssbackend-aka9gddqdxesexh5.canadacentral-01.azurewebsites.net/api/auth/signin/thirdparty",
-    "http://localhost:5000/api/auth/signin/thirdparty",
+    "http://localhost:8080/api/auth/signin/thirdparty",
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -89,7 +89,7 @@ export const uploadFacility = async ({
   isOutdoors,
   availability,
 }) => {
-  const res = await fetch("http://localhost:5000/api/facilities/upload:", {
+  const res = await fetch("http://localhost:8080/api/facilities/upload:", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
