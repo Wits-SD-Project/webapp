@@ -88,18 +88,19 @@ router.post('/upload', authenticate, async (req, res) => {
         let docRef;
         try {
             docRef = await admin.firestore().runTransaction(async (transaction) => {
-                // Re-check for duplicates in transaction
-                const duplicateCheck = await transaction.get(
-                    facilitiesRef
-                        .where("name_lower", "==", facilityData.name_lower)
-                        .where("type_lower", "==", facilityData.type_lower)
-                        .limit(1)
-                );
-
+                const duplicateCheck = await transaction.get({
+                    collection: "facilities-test",
+                    where: [
+                      ["name_lower", "==", facilityData.name_lower],
+                      ["type_lower", "==", facilityData.type_lower]
+                    ]
+                  });
+                  
+        
                 if (!duplicateCheck.empty) {
                     throw new Error("DUPLICATE_FACILITY");
                 }
-
+        
                 const newDocRef = facilitiesRef.doc();
                 transaction.create(newDocRef, facilityData);
                 return newDocRef;
@@ -108,8 +109,8 @@ router.post('/upload', authenticate, async (req, res) => {
             if (transactionError.message === "DUPLICATE_FACILITY") {
                 return res.status(409).json({
                     success: false,
-                    message: "Facility was just created by another user",
-                    errorCode: "CONCURRENT_DUPLICATE"
+                    message: "Facility already exists",
+                    errorCode: "DUPLICATE_FACILITY"
                 });
             }
             throw transactionError;
@@ -136,126 +137,127 @@ router.post('/upload', authenticate, async (req, res) => {
     }
 });
 
-// Add time slots for a specific facility
-router.post('/slots', authenticate, async (req, res) => {  
+// // Add time slots for a specific facility
+// router.post('/slots', authenticate, async (req, res) => {  
 
-    // Validate request body exists
-    if (!req.body || Object.keys(req.body).length === 0) {
-        return res.status(400).json({ 
-            message: 'Request body is required',
-            errorCode: 'MISSING_BODY'
-        });
-    }
+//     // Validate request body exists
+//     if (!req.body || Object.keys(req.body).length === 0) {
+//         return res.status(400).json({ 
+//             message: 'Request body is required',
+//             errorCode: 'MISSING_BODY'
+//         });
+//     }
 
-    // Destructure with default values
-    const { 
-        facilityId = null, 
-        timeslots = null, 
-        isAvailable = true, 
-        max_capacity = 1 
-    } = req.body;
+//     // Destructure with default values
+//     const { 
+//         facilityId = null, 
+//         timeslots = null, 
+//         isAvailable = true, 
+//         max_capacity = 1 
+//     } = req.body;
 
-    // Validate required fields
-    if (!facilityId || !timeslots) {
-        return res.status(400).json({ 
-            message: 'facilityId and timeslots are required',
-            errorCode: 'MISSING_REQUIRED_FIELDS',
-            required: ['facilityId', 'timeslots']
-        });
-    }
+//     // Validate required fields
+//     if (!facilityId || !timeslots) {
+//         return res.status(400).json({ 
+//             message: 'facilityId and timeslots are required',
+//             errorCode: 'MISSING_REQUIRED_FIELDS',
+//             required: ['facilityId', 'timeslots']
+//         });
+//     }
 
-    // Validate timeslots is an array
-    if (!Array.isArray(timeslots)) {
-        return res.status(400).json({ 
-            message: 'timeslots must be an array',
-            errorCode: 'INVALID_TIMESLOTS_FORMAT'
-        });
-    }
+//     // Validate timeslots is an array
+//     if (!Array.isArray(timeslots)) {
+//         return res.status(400).json({ 
+//             message: 'timeslots must be an array',
+//             errorCode: 'INVALID_TIMESLOTS_FORMAT'
+//         });
+//     }
 
-    try {
-        const batch = admin.firestore().batch();// Helps create multiple entries at the same time
+//     try {
+//         const batch = admin.firestore().batch();// Helps create multiple entries at the same time
 
-        // Checking if given Facility exists in database
-        const facilityRef = admin.firestore().collection("facilities-test").doc(facilityId); 
-        const facilitySnap = await facilityRef.get();
+//         // Checking if given Facility exists in database
+//         const facilityRef = admin.firestore().collection("facilities-test").doc(facilityId); 
+//         const facilitySnap = await facilityRef.get();
         
-        if (!facilitySnap.exists) {
-            return res.status(404).json({ 
-                message: 'Facility not found',
-                errorCode: 'FACILITY_NOT_FOUND'
-            });
-        }
+//         if (!facilitySnap.exists) {
+//             return res.status(404).json({ 
+//                 message: 'Facility not found',
+//                 errorCode: 'FACILITY_NOT_FOUND'
+//             });
+//         }
 
-        // Validate timeslot creator
-        if (facilitySnap.data().created_by !== req.user.uid) {
-            return res.status(403).json({ 
-                message: 'Unauthorized: Only the facility creator can add timeslots',
-                errorCode: 'UNAUTHORIZED_ACCESS'
-            });
-        }
+//         // Validate timeslot creator
+//         if (facilitySnap.data().created_by !== req.user.uid) {
+//             return res.status(403).json({ 
+//                 message: 'Unauthorized: Only the facility creator can add timeslots',
+//                 errorCode: 'UNAUTHORIZED_ACCESS'
+//             });
+//         }
 
-        // Process timeslots
-        for (const [index, slot] of timeslots.entries()) {
-            const [start_time, end_time] = slot || [];
+//         // Process timeslots
+//         for (const [index, slot] of timeslots.entries()) {
+//             const [start_time, end_time] = slot || [];
 
-            if (!start_time || !end_time) {
-                return res.status(400).json({ 
-                    message: `Timeslot at index ${index} is missing start_time or end_time`,
-                    errorCode: 'INVALID_TIMESLOT',
-                    index
-                });
-            }
+//             if (!start_time || !end_time) {
+//                 return res.status(400).json({ 
+//                     message: `Timeslot at index ${index} is missing start_time or end_time`,
+//                     errorCode: 'INVALID_TIMESLOT',
+//                     index
+//                 });
+//             }
 
-            const startDate = new Date(start_time);
-            const endDate = new Date(end_time);
+//             const startDate = new Date(start_time);
+//             const endDate = new Date(end_time);
 
-            if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-                return res.status(400).json({ 
-                    message: `Invalid date format at index ${index}`,
-                    errorCode: 'INVALID_DATE_FORMAT',
-                    index
-                });
-            }
+//             if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+//                 return res.status(400).json({ 
+//                     message: `Invalid date format at index ${index}`,
+//                     errorCode: 'INVALID_DATE_FORMAT',
+//                     index
+//                 });
+//             }
 
-            if (startDate >= endDate) {
-                return res.status(400).json({ 
-                    message: `Start time must be before end time at index ${index}`,
-                    errorCode: 'INVALID_TIME_RANGE',
-                    index
-                });
-            }
+//             if (startDate >= endDate) {
+//                 return res.status(400).json({ 
+//                     message: `Start time must be before end time at index ${index}`,
+//                     errorCode: 'INVALID_TIME_RANGE',
+//                     index
+//                 });
+//             }
 
-            const slotId = `${facilityId}_${startDate.getTime()}_${endDate.getTime()}`;
-            const slotRef = admin.firestore().collection("timeslots-test").doc(slotId);
+//             const slotId = `${facilityId}_${startDate.getTime()}_${endDate.getTime()}`;
+//             const slotRef = admin.firestore().collection("timeslots-test").doc(slotId);
             
-            batch.set(slotRef, {
-                facilityId,
-                start_time: startDate,
-                end_time: endDate,
-                isAvailable: Boolean(isAvailable),
-                max_capacity: Number(max_capacity),
-                created_by: req.user.uid,
-                created_at: admin.firestore.FieldValue.serverTimestamp()
-            });
-        }
+//             batch.set(slotRef, {
+//                 facilityId,
+//                 start_time: startDate,
+//                 end_time: endDate,
+//                 isAvailable: Boolean(isAvailable),
+//                 max_capacity: Number(max_capacity),
+//                 created_by: req.user.uid,
+//                 created_at: admin.firestore.FieldValue.serverTimestamp()
+//             });
+//         }
 
-        await batch.commit();
-        res.status(201).json({ 
-            message: "Timeslots created successfully",
-            count: timeslots.length
-        });
+//         await batch.commit();
+//         res.status(201).json({ 
+//             message: "Timeslots created successfully",
+//             count: timeslots.length
+//         });
 
-    } catch (error) {
-        console.error('Timeslot creation error:', error);
-        res.status(500).json({ 
-            message: 'Failed to create timeslots',
-            errorCode: 'SERVER_ERROR',
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined
-        });
-    }
-});
+//     } catch (error) {
+//         console.error('Timeslot creation error:', error);
+//         res.status(500).json({ 
+//             message: 'Failed to create timeslots',
+//             errorCode: 'SERVER_ERROR',
+//             error: process.env.NODE_ENV === 'development' ? error.message : undefined
+//         });
+//     }
+// });
 
 // Get timeslots for a facility
+// In your facilities routes file
 router.post('/timeslots', authenticate, async (req, res) => {
     try {
         const {facilityId} = req.body;
@@ -272,8 +274,8 @@ router.post('/timeslots', authenticate, async (req, res) => {
         const facilityData = doc.data();
         res.json({
             success: true,
-            timeslots: facilityData.timeslots || {},
-            message: "Timeslots fetch succesful"
+            timeslots: facilityData.timeslots || [], // Return array instead of object
+            message: "Timeslots fetch successful"
         });
 
     } catch (err) {
@@ -562,7 +564,7 @@ router.put("/:id/timeslots", async (req, res) => {
 router.delete('/:id/timeslots', authenticate, async (req, res) => {
     try {
       const facilityId = req.params.id;
-      const { day, start, end } = req.query;
+      const { day, start, end } = req.body;
   
       // Validate input
       if (!day || !start || !end) {

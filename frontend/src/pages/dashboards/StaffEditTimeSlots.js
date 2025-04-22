@@ -60,7 +60,6 @@ export default function EditTimeSlots() {
         }, {});
 
         setSlotsByDay(groupedSlots);
-        toast.success(slotsData.message)
       } catch (err) {
         console.log(err)
         toast.error(err.message);

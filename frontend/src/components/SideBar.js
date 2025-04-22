@@ -6,9 +6,34 @@ import viewBookingsIcon from "../assets/view-bookings.png";
 import maintenanceIcon from "../assets/maintenance.png";
 import logOutIcon from "../assets/log-out.png";
 import "./sideBar.css"; 
+import { toast } from "react-toastify";
+import { auth } from "../firebase";
+import { useAuth } from "../context/AuthContext";
+
+
 
 export default function Sidebar({ activeItem }) {
   const navigate = useNavigate();
+  const { setAuthUser } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await auth.signOut(); // Sign out from Firebase
+      const response = await fetch('http://localhost:8080/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include' // Necessary for cookies
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to clear server session');
+      }
+    } catch (err) {
+      console.error("Firebase signout error:", err);
+    }
+    setAuthUser(null); // remove auth context
+    toast.success("Logged out");
+    navigate("/signin");
+  }
 
   const menuItems = [
     { 
@@ -39,7 +64,7 @@ export default function Sidebar({ activeItem }) {
       name: "Log Out", 
       icon: logOutIcon, 
       path: "/logout",
-      onClick: () => { /* handle logout logic */ }
+      onClick: () => handleLogout()
     }
   ];
 
