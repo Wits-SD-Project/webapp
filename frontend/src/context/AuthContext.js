@@ -16,7 +16,7 @@ export const AuthProvider = ({ children }) => {
           if (firebaseUser) {
             // If Firebase has a user, verify with our backend
             const idToken = await firebaseUser.getIdToken();
-            const response = await fetch("http://localhost:5000/api/auth/verify-session", {
+            const response = await fetch("http://localhost:8080/api/auth/verify-session", {
               method: "POST", // or "GET" if your backend supports it
               headers: {
                 "Content-Type": "application/json",
