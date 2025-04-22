@@ -19,7 +19,7 @@ export default function Sidebar({ activeItem }) {
   const handleLogout = async () => {
     try {
       await auth.signOut(); // Sign out from Firebase
-      const response = await fetch('http://localhost:5000/api/auth/logout', {
+      const response = await fetch('http://localhost:8080/api/auth/logout', {
         method: 'POST',
         credentials: 'include' // Necessary for cookies
       });
