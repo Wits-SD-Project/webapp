@@ -31,7 +31,7 @@ export default function EditTimeSlots() {
         const token = await getAuthToken();
         
         // // Fetch facility details
-        // const facilityRes = await fetch(`http://localhost:5000/api/facilities/${id}`, {
+        // const facilityRes = await fetch(`http://localhost:8080/api/facilities/${id}`, {
         //   headers: { Authorization: `Bearer ${token}` }
         // });
         // const facilityData = await facilityRes.json();
@@ -39,7 +39,7 @@ export default function EditTimeSlots() {
         // setFacilityName(facilityData.name);
 
         // Fetch timeslots
-        const slotsRes = await fetch(`http://localhost:5000/api/facilities/timeslots`, {
+        const slotsRes = await fetch(`http://localhost:8080/api/facilities/timeslots`, {
           method:"POST",
           headers: { 
             Authorization: `Bearer ${token}`,
@@ -73,7 +73,7 @@ export default function EditTimeSlots() {
   const updateBackend = async (updatedSlots) => {
     try {
       const token = await getAuthToken();
-      const res = await fetch(`http://localhost:5000/api/facilities/${id}/timeslots`, {
+      const res = await fetch(`http://localhost:8080/api/facilities/${id}/timeslots`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -158,7 +158,7 @@ export default function EditTimeSlots() {
       // Convert slot string to start/end times
       const [start, end] = slot.split(" - ");
       
-      const response = await fetch(`http://localhost:5000/api/facilities/${id}/timeslots`, {
+      const response = await fetch(`http://localhost:8080/api/facilities/${id}/timeslots`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",

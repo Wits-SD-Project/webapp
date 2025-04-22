@@ -16,9 +16,9 @@ export default function StaffUpcomingBookings() {
         const bookingsData = querySnapshot.docs.map(doc => doc.data());
 
         const today = new Date().toISOString().split("T")[0];
-        const filtered = bookingsData.filter(
-          b => b.status === "approved" && b.date >= today
-        );
+        const filtered = bookingsData
+          .filter(b => b.status === "approved" && b.date >= today)
+          .sort((a, b) => new Date(a.date) - new Date(b.date));
 
         setBookings(filtered);
       } catch (error) {

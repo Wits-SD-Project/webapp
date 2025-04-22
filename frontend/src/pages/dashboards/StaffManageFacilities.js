@@ -25,7 +25,7 @@ export default function ManageFacilities() {
     const fetchFacilities = async () => {
       try {
         const token = await getAuthToken();
-        const res = await fetch("http://localhost:5000/api/facilities/staff-facilities", {
+        const res = await fetch("http://localhost:8080/api/facilities/staff-facilities", {
           method: "GET",
           headers: {
             "Authorization": `Bearer ${token}`
@@ -67,7 +67,7 @@ export default function ManageFacilities() {
   const handleCreateFacility = async (facilityData) => {
     try {
       const token = await getAuthToken();
-      const res = await fetch("http://localhost:5000/api/facilities/upload", {
+      const res = await fetch("http://localhost:8080/api/facilities/upload", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -101,7 +101,7 @@ export default function ManageFacilities() {
     try {
         const token = await getAuthToken();
         const res = await fetch(
-            `http://localhost:5000/api/facilities/updateFacility/${facility.id}`,
+            `http://localhost:8080/api/facilities/updateFacility/${facility.id}`,
             {
                 method: "PUT",
                 headers: {
@@ -137,7 +137,7 @@ export default function ManageFacilities() {
   const handleDelete = async (id) => {
     try {
         const token = await getAuthToken();
-        const response = await fetch(`http://localhost:5000/api/facilities/${id}`, {
+        const response = await fetch(`http://localhost:8080/api/facilities/${id}`, {
             method: "DELETE",
             headers: { 
                 "Authorization": `Bearer ${token}`

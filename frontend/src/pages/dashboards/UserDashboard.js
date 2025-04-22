@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { db } from "../../firebase"; // Firestore config
-import { doc, updateDoc } from "firebase/firestore";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { db, auth } from "../../firebase"; // Firestore config and auth
+import { doc, updateDoc, addDoc, collection, getDocs, query, where } from "firebase/firestore";
 import Navbar from "../../components/Navbar";
 
 export default function UserDashboard() {
@@ -37,18 +36,33 @@ export default function UserDashboard() {
 
   const handleBooking = async (facility, slot) => {
     try {
-      // Update the slot to mark it as booked
-      const updatedTimeslots = (facility.timeslots || []).map(s =>
-        s.day === slot.day && s.start === slot.start && s.end === slot.end
-          ? { ...s, isBooked: true, bookedBy: "test-user-id" } // Replace with actual user ID if available
-          : s
-      );
+      const user = auth.currentUser;
+      if (!user) throw new Error("User not logged in");
 
-      // Update the facility document in Firestore
-      const facilityRef = doc(db, "facilities-test", facility.id);
-      await updateDoc(facilityRef, { timeslots: updatedTimeslots });
+      const parseTime = (timeStr) => {
+        const [hours, minutes] = timeStr.split(":").map(Number);
+        return hours * 60 + minutes;
+      };
 
-      alert(`Booking confirmed for ${facility.name} on ${slot.day} at ${slot.start}.`);
+      const startMins = parseTime(slot.start);
+      const endMins = parseTime(slot.end);
+      const diff = endMins - startMins;
+
+      const duration =
+        diff % 60 === 0 ? `${diff / 60} hr${diff > 60 ? "s" : ""}` : `${(diff / 60).toFixed(1)} hrs`;
+
+      // Add to bookings collection only (do not modify facility directly)
+      await addDoc(collection(db, "bookings"), {
+        facilityName: facility.name,
+        userName: user.displayName || user.email,
+        date: new Date().toISOString().split("T")[0],
+        slot: `${slot.start} - ${slot.end}`,
+        duration: duration,
+        status: "pending",
+        createdAt: new Date().toISOString()
+      });
+
+      alert(`Booking request submitted for ${facility.name} on ${slot.day} at ${slot.start}.`);
     } catch (error) {
       console.error("Error booking timeslot:", error);
       alert("Failed to book the timeslot.");
