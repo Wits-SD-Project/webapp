@@ -218,14 +218,12 @@ useEffect(() => {
                     <td>{b.duration}</td>
                     <td className={`status ${b.status.toLowerCase()}`}>{b.status}</td>
                     <td className="actions">
-                      {b.status === "pending" ? (
+                      
                         <>
                           <button className="approve" onClick={() => updateBookingStatus(index, "approved")}>Approve</button>
                           <button className="reject" onClick={() => updateBookingStatus(index, "rejected")}>Reject</button>
                         </>
-                      ) : (
-                        <button className="view">View</button>
-                      )}
+
                     </td>
                   </tr>
                 ))}
