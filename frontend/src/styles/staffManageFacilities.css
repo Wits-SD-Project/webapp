@@ -5,14 +5,12 @@
 }
 
 body {
-  font-family: 'Segoe UI', sans-serif;
+  font-family: "Segoe UI", sans-serif;
   color: #2c003e;
   background-color: #fff;
   height: 100vh;
   overflow: hidden;
 }
-
-
 
 .container {
   display: flex;
@@ -20,9 +18,8 @@ body {
   overflow: hidden;
   margin: 0; /* Explicitly reset */
   padding: 0; /* Explicitly reset */
-
+  width: 100vw;
 }
-
 
 /* Main Content */
 .main-content {
@@ -32,6 +29,7 @@ body {
   padding: 2rem;
   overflow: hidden;
   width: 100%;
+  max-width: none;
 }
 
 .page-header {
@@ -199,20 +197,19 @@ body {
   }
 
   .add-btn {
-      background-color: transparent;
-      border: 1px solid #00c0df;
-      color: #00c0df;
-      padding: 0.5rem 1rem;
-      border-radius: 20px;
-      cursor: pointer;
-      font-weight: 600;
-      transition: background-color 0.3s ease, color 0.3s ease;
-      align-self: flex-end
+    background-color: transparent;
+    border: 1px solid #00c0df;
+    color: #00c0df;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    align-self: flex-end;
   }
 
   .add-btn:hover {
-      background-color: #00c0df;
-      color: #fff;
+    background-color: #00c0df;
+    color: #fff;
   }
-
 }
