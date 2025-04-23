@@ -31,7 +31,7 @@ export default function EditTimeSlots() {
         const token = await getAuthToken();
         
         // // Fetch facility details
-        // const facilityRes = await fetch(`http://localhost:5000/api/facilities/${id}`, {
+        // const facilityRes = await fetch(`http://localhost:8080/api/facilities/${id}`, {
         //   headers: { Authorization: `Bearer ${token}` }
         // });
         // const facilityData = await facilityRes.json();
