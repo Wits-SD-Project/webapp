@@ -28,25 +28,27 @@ export default function SignUp() {
     try {
       setProviderLoading(provider);
       let result;
-      
-      if (provider === 'google') {
+
+      if (provider === "google") {
         result = await signInWithPopup(auth, new GoogleAuthProvider());
         const credential = GoogleAuthProvider.credentialFromResult(result);
         if (!credential) throw new Error("No credential returned");
-        
+
         const idToken = await result.user.getIdToken();
         const user = await signUpWithThirdParty({
           idToken,
-          provider: 'google',
-          role: role
+          provider: "google",
+          role: role,
         });
-        
-        toast.success(`Account created for ${user.email}. Awaiting admin approval.`);
-        navigate('/signin');
+
+        toast.success(
+          `Account created for ${user.email}. Awaiting admin approval.`
+        );
+        navigate("/signin");
       }
     } catch (err) {
       console.error("Signup error:", err);
-      if (err.code === 'auth/popup-closed-by-user') {
+      if (err.code === "auth/popup-closed-by-user") {
         toast.error("Signup canceled");
       } else {
         toast.error("Signup failed: " + (err.message || "Please try again"));
@@ -66,7 +68,7 @@ export default function SignUp() {
         <h1 id="signup-heading">Create your account</h1>
         <p>Join the Sports Sphere community</p>
 
-        <form className="login-form" onSubmit={handleSignUp}>
+        <form className="login-form" onSubmit={handleThirdPartySignUp}>
           <FormControl
             required
             fullWidth
@@ -103,16 +105,16 @@ export default function SignUp() {
           Or continue with
         </div>
 
-        <button 
-          className="btn secondary" 
+        <button
+          className="btn secondary"
           type="button"
-          onClick={() => handleThirdPartySignUp('google')}
-          disabled={providerLoading === 'google'}
+          onClick={() => handleThirdPartySignUp("google")}
+          disabled={providerLoading === "google"}
         >
-          {providerLoading === 'google' ? (
+          {providerLoading === "google" ? (
             <ClipLoader size={20} color="#000" />
           ) : (
-            'Google'
+            "Google"
           )}
         </button>
 
