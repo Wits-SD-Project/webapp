@@ -66,7 +66,7 @@ export default function SignUp() {
         <h1 id="signup-heading">Create your account</h1>
         <p>Join the Sports Sphere community</p>
 
-        <form className="login-form" onSubmit={handleSignUp}>
+        <form className="login-form"s>
           <FormControl
             required
             fullWidth
