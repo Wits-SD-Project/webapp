@@ -4,6 +4,7 @@ export default {
   },
   moduleNameMapper: {
     "\\.(css|less|scss|sass)$": "identity-obj-proxy",
+    "^firebase/(.*)$": "<rootDir>/__mocks__/firebase.js",
   },
   testEnvironment: "jsdom",
   transformIgnorePatterns: [

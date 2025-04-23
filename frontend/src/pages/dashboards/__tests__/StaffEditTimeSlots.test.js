@@ -1,421 +1,198 @@
-// frontend/src/pages/dashboards/__tests__/StaffEditTimeSlots.test.js
+/**
+ * @jest-environment jsdom
+ */
 import React from "react";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom";
-import { MemoryRouter, Routes, Route } from "react-router-dom";
-import StaffEditTimeSlots from "../StaffEditTimeSlots"; // Adjust path
-import { toast } from "react-toastify";
-import { getAuthToken } from "../../../firebase"; // Use mocked getAuthToken
 
-// Mock dependencies
-jest.mock("../../../components/SideBar", () => () => <div>Mock Sidebar</div>);
-jest.mock("../../../firebase"); // Mocks getAuthToken
-jest.mock("react-toastify");
+/* ────────────────  mocks come first!  ───────────────── */
 
-// Mock react-router-dom hooks used
+/* 🔸 toast -------------------------------------------------- */
+const mockToast = { success: jest.fn(), error: jest.fn() }; // ① create it
+jest.mock("react-toastify", () => {
+  return {
+    toast: {
+      success: jest.fn(),
+      error: jest.fn(),
+    },
+  };
+});
+
+/* 🔸 router ------------------------------------------------- */
 const mockNavigate = jest.fn();
 jest.mock("react-router-dom", () => ({
-  ...jest.requireActual("react-router-dom"),
+  /* only the hooks we use */
+  useParams: () => ({ id: "fac-123" }),
   useNavigate: () => mockNavigate,
-  useParams: () => ({ id: "facility123" }), // Mock facility ID from URL
 }));
 
-// Mock global fetch
-global.fetch = jest.fn();
+/* 🔸 sidebar ------------------------------------------------ */
+jest.mock("../../../components/SideBar", () => () => (
+  <aside data-testid="sidebar" />
+));
 
-describe("StaffEditTimeSlots Component", () => {
-  const facilityId = "facility123";
-  const mockToken = "mock-staff-token";
+/* 🔸 firebase wrapper -------------------------------------- */
+jest.mock("../../../firebase", () => ({
+  getAuthToken: jest.fn(() => Promise.resolve("FAKE_TOKEN")),
+}));
 
-  const mockInitialSlotsData = {
-    timeslots: [
-      { day: "Monday", start: "09:00", end: "10:00" },
-      { day: "Wednesday", start: "14:00", end: "15:00" },
-      { day: "Wednesday", start: "16:00", end: "17:00" },
-    ],
-  };
+/* 🔸 static assets ----------------------------------------- */
+jest.mock("../../../assets/add.png", () => "add-icon");
+jest.mock("../../../assets/bin.png", () => "bin-icon");
 
-  const renderComponent = () => {
-    // Wrap in Routes to provide context for useParams
-    render(
-      <MemoryRouter initialEntries={[`/staff-edit-time-slots/${facilityId}`]}>
-        <Routes>
-          <Route
-            path="/staff-edit-time-slots/:id"
-            element={<StaffEditTimeSlots />}
-          />
-        </Routes>
-      </MemoryRouter>
-    );
-  };
+/* ────────────────  now import the component  ────────────── */
+import EditTimeSlots from "../StaffEditTimeSlots";
 
-  beforeEach(() => {
-    fetch.mockClear();
-    toast.success.mockClear();
-    toast.error.mockClear();
-    getAuthToken.mockResolvedValue(mockToken); // Mock token retrieval
-    // Mock initial fetch for timeslots
-    fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockInitialSlotsData,
-    });
-  });
+/* ────────────────  helpers & set-up  ────────────────────── */
 
-  test("renders sidebar, header, and fetches initial timeslots", async () => {
-    renderComponent();
-    expect(screen.getByText("Mock Sidebar")).toBeInTheDocument();
-    // Facility name fetch is commented out in the component, so header might be just "Time Slots" initially
-    expect(
-      screen.getByRole("heading", { name: /time slots/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /back to facilities/i })
-    ).toBeInTheDocument();
-    expect(screen.getByRole("table")).toBeInTheDocument();
+const mockFetch = (impl) =>
+  jest.spyOn(global, "fetch").mockImplementation(impl);
 
-    // Check initial fetch call
-    await waitFor(() => {
-      expect(fetch).toHaveBeenCalledTimes(1);
-      expect(fetch).toHaveBeenCalledWith(
-        `http://localhost:8080/api/facilities/timeslots`,
-        expect.objectContaining({
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${mockToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ facilityId: facilityId }),
+const flushPromises = () => new Promise(setImmediate);
+
+let serverSlots;
+beforeEach(() => {
+  jest.clearAllMocks();
+
+  serverSlots = [
+    { day: "Monday", start: "10:00", end: "11:00" },
+    { day: "Wednesday", start: "12:00", end: "13:00" },
+  ];
+
+  mockFetch((url, opts = {}) => {
+    if (url.endsWith("/timeslots") && opts.method === "POST") {
+      return Promise.resolve(
+        new Response(JSON.stringify({ timeslots: serverSlots }), {
+          status: 200,
         })
       );
-    });
-
-    // Check if initial slots are rendered
-    await waitFor(() => {
-      expect(screen.getByText("09:00 - 10:00")).toBeInTheDocument(); // Monday slot
-      expect(screen.getByText("14:00 - 15:00")).toBeInTheDocument(); // Wednesday slot 1
-      expect(screen.getByText("16:00 - 17:00")).toBeInTheDocument(); // Wednesday slot 2
-    });
-  });
-
-  test("handles error during initial timeslot fetch", async () => {
-    getAuthToken.mockResolvedValueOnce(mockToken);
-    const errorMsg = "Failed to load timeslots";
-    // Reset fetch mock for error scenario
-    fetch.mockReset();
-    fetch.mockResolvedValueOnce({
-      ok: false,
-      json: async () => ({ message: errorMsg }),
-    });
-
-    // Spy on console.error
-    const consoleSpy = jest
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-
-    renderComponent();
-
-    await waitFor(() => {
-      expect(fetch).toHaveBeenCalledTimes(1);
-    });
-
-    await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith(errorMsg);
-    });
-    expect(consoleSpy).toHaveBeenCalledWith(expect.any(Error));
-    consoleSpy.mockRestore();
-  });
-
-  test("opens and closes the time picker modal", async () => {
-    renderComponent();
-    const user = userEvent.setup();
-
-    // Wait for initial load
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
-
-    // Find the 'Add' icon for Monday (assuming it's identifiable, maybe by row)
-    const mondayRow = screen.getByRole("row", { name: /monday/i });
-    const addButton = within(mondayRow).getByAltText(/add slot/i);
-
-    // Modal should not be visible initially
-    expect(
-      screen.queryByRole("heading", { name: /add time slot for monday/i })
-    ).not.toBeInTheDocument();
-
-    // Click add button
-    await user.click(addButton);
-
-    // Modal should now be visible
-    expect(
-      await screen.findByRole("heading", { name: /add time slot for monday/i })
-    ).toBeInTheDocument();
-    expect(screen.getByLabelText(/start time/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/end time/i)).toBeInTheDocument();
-
-    // Click cancel button
-    const cancelButton = screen.getByRole("button", { name: /cancel/i });
-    await user.click(cancelButton);
-
-    // Modal should be closed
-    await waitFor(() => {
-      expect(
-        screen.queryByRole("heading", { name: /add time slot for monday/i })
-      ).not.toBeInTheDocument();
-    });
-  });
-
-  test("adds a new valid timeslot", async () => {
-    renderComponent();
-    const user = userEvent.setup();
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1)); // Wait for initial load
-
-    // --- Open modal for Tuesday ---
-    const tuesdayRow = screen.getByRole("row", { name: /tuesday/i });
-    const addTuesdayButton = within(tuesdayRow).getByAltText(/add slot/i);
-    await user.click(addTuesdayButton);
-    const modalTitle = await screen.findByRole("heading", {
-      name: /add time slot for tuesday/i,
-    });
-    expect(modalTitle).toBeInTheDocument();
-
-    // --- Enter times ---
-    // Using fireEvent for time inputs as userEvent can be tricky with them
-    fireEvent.change(screen.getByLabelText(/start time/i), {
-      target: { value: "10:00" },
-    });
-    fireEvent.change(screen.getByLabelText(/end time/i), {
-      target: { value: "11:00" },
-    });
-
-    // Mock the backend update call (fetch no. 2)
-    const updateResponse = { success: true };
-    fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => updateResponse,
-    });
-
-    // --- Click Save ---
-    const saveButton = screen.getByRole("button", { name: /save slot/i });
-    await user.click(saveButton);
-
-    // Check backend update call
-    await waitFor(() => {
-      expect(fetch).toHaveBeenCalledTimes(2); // Initial load + update
-      expect(fetch).toHaveBeenCalledWith(
-        `http://localhost:8080/api/facilities/${facilityId}/timeslots`,
-        expect.objectContaining({
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${mockToken}`,
-            "Content-Type": "application/json",
-          },
-          // Verify the body contains the new structure including the added slot
-          body: expect.stringContaining('"Tuesday":["10:00 - 11:00"]'),
+    }
+    if (opts.method === "PUT") {
+      const body = JSON.parse(opts.body);
+      serverSlots = Object.entries(body.timeslots).flatMap(([day, arr]) =>
+        arr.map((s) => {
+          const [start, end] = s.split(" - ");
+          return { day, start, end };
         })
       );
-    });
-
-    // Check toast message
-    await waitFor(() => {
-      expect(toast.success).toHaveBeenCalledWith(
-        "Timeslots updated successfully"
+      return Promise.resolve(new Response("{}", { status: 200 }));
+    }
+    if (opts.method === "DELETE") {
+      const { day, start, end } = JSON.parse(opts.body);
+      serverSlots = serverSlots.filter(
+        (s) => !(s.day === day && s.start === start && s.end === end)
       );
-    });
+      return Promise.resolve(new Response("{}", { status: 200 }));
+    }
+    return Promise.reject(new Error("unhandled fetch"));
+  });
+});
 
-    // Check if new slot is rendered in the table for Tuesday
-    await waitFor(() => {
-      expect(within(tuesdayRow).getByText("10:00 - 11:00")).toBeInTheDocument();
-    });
+afterEach(() => global.fetch.mockRestore());
 
-    // Check if modal is closed
-    expect(
-      screen.queryByRole("heading", { name: /add time slot for tuesday/i })
-    ).not.toBeInTheDocument();
+const renderPage = () => render(<EditTimeSlots />);
+
+/* ─────────────────────────── tests ─────────────────────────── */
+
+describe("Staff – EditTimeSlots page", () => {
+  test("initial fetch fills Monday & Wednesday rows", async () => {
+    renderPage();
+    expect(await screen.findByText("10:00 - 11:00")).toBeInTheDocument();
+    expect(screen.getByText("12:00 - 13:00")).toBeInTheDocument();
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(global.fetch.mock.calls[0][0]).toMatch("/timeslots");
   });
 
-  test("shows error if start time is after end time", async () => {
-    renderComponent();
+  test("adding a valid slot calls PUT & updates UI", async () => {
     const user = userEvent.setup();
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    renderPage();
 
-    const mondayRow = screen.getByRole("row", { name: /monday/i });
-    const addButton = within(mondayRow).getByAltText(/add slot/i);
-    await user.click(addButton);
-    await screen.findByRole("heading", { name: /add time slot for monday/i });
-
-    fireEvent.change(screen.getByLabelText(/start time/i), {
-      target: { value: "11:00" },
-    });
-    fireEvent.change(screen.getByLabelText(/end time/i), {
-      target: { value: "10:00" },
-    }); // End before start
-
-    const saveButton = screen.getByRole("button", { name: /save slot/i });
-    await user.click(saveButton);
-
-    expect(toast.error).toHaveBeenCalledWith(
-      "End time must be after start time"
+    await user.click(
+      within(screen.getByText("Tuesday").closest("tr")).getByRole("img", {
+        name: /add slot/i,
+      })
     );
-    expect(fetch).toHaveBeenCalledTimes(1); // Only initial fetch, no update call
-    // Modal should remain open
-    expect(
-      screen.getByRole("heading", { name: /add time slot for monday/i })
-    ).toBeInTheDocument();
-  });
 
-  test("shows error if slot overlaps with existing slot", async () => {
-    renderComponent();
-    const user = userEvent.setup();
-    // Wait for initial load which includes '09:00 - 10:00' for Monday
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    const startInput = screen.getByLabelText(/start time/i);
+    const endInput = screen.getByLabelText(/end time/i);
+    await user.type(startInput, "10:30");
+    await user.type(endInput, "11:30");
+    await user.click(screen.getByRole("button", { name: /save slot/i }));
+
     await waitFor(() =>
-      expect(screen.getByText("09:00 - 10:00")).toBeInTheDocument()
+      expect(global.fetch).toHaveBeenLastCalledWith(
+        expect.stringMatching("/facilities/.+/timeslots"),
+        expect.objectContaining({ method: "PUT" })
+      )
     );
-
-    const mondayRow = screen.getByRole("row", { name: /monday/i });
-    const addButton = within(mondayRow).getByAltText(/add slot/i);
-    await user.click(addButton);
-    await screen.findByRole("heading", { name: /add time slot for monday/i });
-
-    // Attempt to add an overlapping slot (09:30 - 10:30)
-    fireEvent.change(screen.getByLabelText(/start time/i), {
-      target: { value: "09:30" },
-    });
-    fireEvent.change(screen.getByLabelText(/end time/i), {
-      target: { value: "10:30" },
-    });
-
-    const saveButton = screen.getByRole("button", { name: /save slot/i });
-    await user.click(saveButton);
-
-    expect(toast.error).toHaveBeenCalledWith(
-      "Overlaps with existing slot: 09:00 - 10:00"
-    );
-    expect(fetch).toHaveBeenCalledTimes(1); // Only initial fetch
-    expect(
-      screen.getByRole("heading", { name: /add time slot for monday/i })
-    ).toBeInTheDocument(); // Modal still open
+    expect(await screen.findByText("09:00 - 10:00")).toBeInTheDocument();
   });
 
-  test("shows error if slot is a duplicate", async () => {
-    renderComponent();
+  test("duplicate slot shows toast.error & no PUT", async () => {
     const user = userEvent.setup();
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1)); // Wait for initial load
+    renderPage();
+
+    await user.click(
+      within(screen.getByText("Monday").closest("tr")).getByRole("img", {
+        name: /add slot/i,
+      })
+    );
+    const startInput = screen.getByLabelText(/start time/i);
+    const endInput = screen.getByLabelText(/end time/i);
+    await user.type(startInput, "10:30");
+    await user.type(endInput, "11:30");
+
+    await user.click(screen.getByRole("button", { name: /save slot/i }));
+
+    await flushPromises();
+    expect(mockToast.error).toHaveBeenCalledWith("This slot already exists");
+    expect(global.fetch).toHaveBeenCalledTimes(1); // only initial POST
+  });
+
+  test("overlapping slot shows toast.error & no PUT", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(
+      within(screen.getByText("Monday").closest("tr")).getByRole("img", {
+        name: /add slot/i,
+      })
+    );
+    const startInput = screen.getByLabelText(/start time/i);
+    const endInput = screen.getByLabelText(/end time/i);
+    await user.type(startInput, "10:30");
+    await user.type(endInput, "11:30");
+    await user.click(screen.getByRole("button", { name: /save slot/i }));
+
+    await flushPromises();
+    expect(mockToast.error).toHaveBeenCalledWith(
+      expect.stringContaining("Overlaps with existing slot")
+    );
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  test("delete icon removes pill & issues DELETE", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    const pill = await screen.findByText("10:00 - 11:00");
+    await user.click(within(pill).getByRole("img", { name: /delete/i }));
+
     await waitFor(() =>
-      expect(screen.getByText("09:00 - 10:00")).toBeInTheDocument()
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringMatching("/facilities/.+/timeslots"),
+        expect.objectContaining({ method: "DELETE" })
+      )
     );
-
-    const mondayRow = screen.getByRole("row", { name: /monday/i });
-    const addButton = within(mondayRow).getByAltText(/add slot/i);
-    await user.click(addButton);
-    await screen.findByRole("heading", { name: /add time slot for monday/i });
-
-    // Attempt to add the exact same slot
-    fireEvent.change(screen.getByLabelText(/start time/i), {
-      target: { value: "09:00" },
-    });
-    fireEvent.change(screen.getByLabelText(/end time/i), {
-      target: { value: "10:00" },
-    });
-
-    const saveButton = screen.getByRole("button", { name: /save slot/i });
-    await user.click(saveButton);
-
-    expect(toast.error).toHaveBeenCalledWith("This slot already exists");
-    expect(fetch).toHaveBeenCalledTimes(1); // Only initial fetch
-    expect(
-      screen.getByRole("heading", { name: /add time slot for monday/i })
-    ).toBeInTheDocument(); // Modal still open
+    expect(pill).not.toBeInTheDocument();
   });
 
-  test("deletes an existing timeslot", async () => {
-    renderComponent();
-    const user = userEvent.setup();
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1)); // Wait for initial load
-
-    // Find the Monday slot and its delete button
-    const mondaySlotPill = await screen.findByText("09:00 - 10:00");
-    expect(mondaySlotPill).toBeInTheDocument();
-    const deleteButton = within(mondaySlotPill.closest("span")).getByAltText(
-      /delete/i
-    ); // Find delete icon within the slot pill
-
-    // Mock the DELETE request
-    fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ message: "Timeslot deleted successfully" }),
-    });
-
-    // Click delete
-    await user.click(deleteButton);
-
-    // Check backend DELETE call
-    await waitFor(() => {
-      expect(fetch).toHaveBeenCalledTimes(2); // Initial load + delete
-      expect(fetch).toHaveBeenCalledWith(
-        `http://localhost:8080/api/facilities/${facilityId}/timeslots`,
-        expect.objectContaining({
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${mockToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ day: "Monday", start: "09:00", end: "10:00" }),
-        })
-      );
-    });
-
-    // Check toast message
-    await waitFor(() => {
-      expect(toast.success).toHaveBeenCalledWith(
-        "Timeslot deleted successfully"
-      );
-    });
-
-    // Check that the slot is removed from the UI
-    await waitFor(() => {
-      expect(screen.queryByText("09:00 - 10:00")).not.toBeInTheDocument();
-    });
-  });
-
-  test("handles error during timeslot delete", async () => {
-    renderComponent();
-    const user = userEvent.setup();
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1)); // Wait for initial load
-
-    const mondaySlotPill = await screen.findByText("09:00 - 10:00");
-    const deleteButton = within(mondaySlotPill.closest("span")).getByAltText(
-      /delete/i
+  test("back button navigates to Manage-Facilities page", async () => {
+    renderPage();
+    await userEvent.click(
+      await screen.findByRole("button", { name: /back to facilities/i })
     );
-
-    // Mock failed DELETE request
-    const errorMsg = "Failed to delete slot from API";
-    fetch.mockResolvedValueOnce({
-      ok: false,
-      json: async () => ({ message: errorMsg }),
-    });
-
-    // Spy on console.error
-    const consoleSpy = jest
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-
-    await user.click(deleteButton);
-
-    await waitFor(() => {
-      expect(fetch).toHaveBeenCalledTimes(2);
-    });
-
-    await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith(errorMsg);
-    });
-
-    // Slot should still be in the UI
-    expect(screen.getByText("09:00 - 10:00")).toBeInTheDocument();
-    expect(consoleSpy).toHaveBeenCalledWith("Delete error:", expect.any(Error));
-    consoleSpy.mockRestore();
+    expect(mockNavigate).toHaveBeenCalledWith("/staff-manage-facilities");
   });
-
-  // Add tests for other validation cases (e.g., empty start/end time)
-  // Add tests for handling backend update errors
 });

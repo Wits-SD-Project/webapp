@@ -1,142 +1,155 @@
-// frontend/src/pages/auth/__tests__/SignIn.test.js
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { MemoryRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider, AuthContext } from "../../../../context/AuthContext"; // Adjust path
-import SignIn from "../SignIn"; // Adjust path
+import { render, fireEvent, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
+import SignIn from "../SignIn";
+import { GoogleAuthProvider } from "firebase/auth";
 
-// Mock the AuthContext login function and navigate
-const mockLogin = jest.fn();
+// Mocks
 const mockNavigate = jest.fn();
+const mockSignInWithPopup = jest.fn();
+const mockGetIdToken = jest.fn();
+const mockSignInWithThirdParty = jest.fn();
+const mockToastSuccess = jest.fn();
+const mockToastError = jest.fn();
+const mockSetAuthUser = jest.fn();
 
-// Mock react-router-dom's useNavigate
+beforeAll(() => {
+  jest.spyOn(console, "error").mockImplementation(() => {});
+  jest.spyOn(console, "log").mockImplementation(() => {});
+});
+
+// Mock modules
 jest.mock("react-router-dom", () => ({
-  ...jest.requireActual("react-router-dom"), // Use actual implementations for MemoryRouter etc.
+  ...jest.requireActual("react-router-dom"),
   useNavigate: () => mockNavigate,
 }));
 
-// Mock the context directly for simplicity in this test
-const renderWithProviders = (ui) => {
-  return render(
-    <MemoryRouter initialEntries={["/signin"]}>
-      <AuthContext.Provider
-        value={{
-          user: null,
-          loading: false,
-          login: mockLogin /* other context values */,
-        }}
-      >
-        <Routes>
-          <Route path="/signin" element={ui} />
-          <Route path="/" element={<div>Home Page</div>} />{" "}
-          {/* Mock destination */}
-        </Routes>
-      </AuthContext.Provider>
+jest.mock("../../../auth/auth", () => ({
+  signInWithThirdParty: (...args) => mockSignInWithThirdParty(...args),
+}));
+
+jest.mock("react-toastify", () => ({
+  toast: {
+    success: (msg) => mockToastSuccess(msg),
+    error: (msg) => mockToastError(msg),
+  },
+}));
+
+jest.mock("react-spinners", () => ({
+  ClipLoader: () => <div>Loading...</div>,
+}));
+
+jest.mock("../../../context/AuthContext", () => ({
+  useAuth: () => ({
+    setAuthUser: mockSetAuthUser,
+  }),
+}));
+
+jest.mock("firebase/auth", () => ({
+  auth: {},
+  GoogleAuthProvider: class {
+    static credentialFromResult = jest.fn(() => ({}));
+  },
+  signInWithPopup: (...args) => mockSignInWithPopup(...args),
+  getAuth: () => ({}),
+}));
+
+// Setup
+const renderComponent = () =>
+  render(
+    <MemoryRouter>
+      <SignIn />
     </MemoryRouter>
   );
-};
 
-describe("SignIn Component", () => {
+// ✅ Basic test coverage
+describe("SignIn Page", () => {
   beforeEach(() => {
-    // Reset mocks before each test
-    mockLogin.mockClear();
-    mockNavigate.mockClear();
-    // Reset any fetch/firebase mocks if needed globally
+    jest.clearAllMocks();
   });
 
-  test("renders sign in form correctly", () => {
-    renderWithProviders(<SignIn />);
+  test("renders logo and sign in button", () => {
+    const { getByText, getByRole } = renderComponent();
+    expect(getByText(/sign in now/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /sign in/i })
+      getByRole("button", { name: /sign in with google/i })
     ).toBeInTheDocument();
-    expect(screen.getByLabelText(/email address/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /sign in/i })
-    ).toBeInTheDocument();
-    expect(screen.getByText(/forgot password/i)).toBeInTheDocument(); // Check for link
-    expect(screen.getByText(/don't have an account\?/i)).toBeInTheDocument(); // Check for link
   });
 
-  test("allows user to input email and password", () => {
-    renderWithProviders(<SignIn />);
-    const emailInput = screen.getByLabelText(/email address/i);
-    const passwordInput = screen.getByLabelText(/password/i);
+  test("triggers third-party Google sign in success path", async () => {
+    GoogleAuthProvider.credentialFromResult = jest.fn(() => ({
+      accessToken: "mock",
+    })); // ✅ Add this
 
-    fireEvent.change(emailInput, { target: { value: "test@example.com" } });
-    fireEvent.change(passwordInput, { target: { value: "password123" } });
+    const mockUser = {
+      email: "test@example.com",
+      role: "admin",
+      name: "Test User",
+      getIdToken: mockGetIdToken,
+    };
+    mockSignInWithPopup.mockResolvedValueOnce({ user: mockUser });
+    mockGetIdToken.mockResolvedValueOnce("mockToken");
+    mockSignInWithThirdParty.mockResolvedValueOnce(mockUser);
 
-    expect(emailInput).toHaveValue("test@example.com");
-    expect(passwordInput).toHaveValue("password123");
-  });
-
-  test("calls login function on form submission and navigates on success", async () => {
-    // Mock login to resolve successfully
-    mockLogin.mockResolvedValueOnce(); // Simulate successful login
-
-    renderWithProviders(<SignIn />);
-    const emailInput = screen.getByLabelText(/email address/i);
-    const passwordInput = screen.getByLabelText(/password/i);
-    const submitButton = screen.getByRole("button", { name: /sign in/i });
-
-    fireEvent.change(emailInput, { target: { value: "test@example.com" } });
-    fireEvent.change(passwordInput, { target: { value: "password123" } });
-    fireEvent.click(submitButton);
-
-    // Wait for async login and navigation
-    await waitFor(() => {
-      expect(mockLogin).toHaveBeenCalledTimes(1);
-      expect(mockLogin).toHaveBeenCalledWith("test@example.com", "password123");
-    });
+    const { getByRole } = renderComponent();
+    fireEvent.click(getByRole("button", { name: /sign in with google/i }));
 
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledTimes(1);
-      expect(mockNavigate).toHaveBeenCalledWith("/"); // Or the expected redirect path
+      expect(mockSetAuthUser).toHaveBeenCalledWith({
+        email: "test@example.com",
+        role: "admin",
+        name: "Test User",
+      });
+      expect(mockToastSuccess).toHaveBeenCalled();
+      expect(mockNavigate).toHaveBeenCalledWith("/admin-dashboard");
     });
   });
 
-  test("shows error message on failed login", async () => {
-    // Mock login to reject with an error
-    const errorMessage = "Invalid credentials";
-    mockLogin.mockRejectedValueOnce(new Error(errorMessage));
+  test("shows toast error for 'User not registered'", async () => {
+    GoogleAuthProvider.credentialFromResult = jest.fn(() => ({
+      accessToken: "mock",
+    }));
 
-    renderWithProviders(<SignIn />);
-    fireEvent.change(screen.getByLabelText(/email address/i), {
-      target: { value: "wrong@example.com" },
-    });
-    fireEvent.change(screen.getByLabelText(/password/i), {
-      target: { value: "wrong" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /sign in/i }));
+    const error = {
+      response: {
+        data: {
+          message: "User not registered.",
+        },
+      },
+    };
 
-    // Wait for error message (assuming react-toastify or similar is used via context)
-    // If displaying error inline:
-    // await waitFor(() => {
-    //   expect(screen.getByText(errorMessage)).toBeInTheDocument();
-    // });
+    const mockUser = {
+      getIdToken: mockGetIdToken,
+    };
 
-    // Check if the mock login function was called
+    mockSignInWithPopup.mockResolvedValueOnce({ user: mockUser });
+    mockGetIdToken.mockResolvedValueOnce("token");
+    mockSignInWithThirdParty.mockRejectedValueOnce(error);
+
+    const { getByRole } = renderComponent();
+    fireEvent.click(getByRole("button", { name: /sign in with google/i }));
+
     await waitFor(() => {
-      expect(mockLogin).toHaveBeenCalledTimes(1);
-      expect(mockLogin).toHaveBeenCalledWith("wrong@example.com", "wrong");
+      expect(mockSetAuthUser).toHaveBeenCalledWith(null);
+      expect(mockToastError).toHaveBeenCalledWith(
+        "Account not registered. Please sign up first."
+      );
+    });
+  });
+
+  test("handles unknown error gracefully", async () => {
+    mockSignInWithPopup.mockImplementationOnce(() => {
+      throw new Error("Unknown error");
     });
 
-    // Assert that navigation did NOT happen
-    expect(mockNavigate).not.toHaveBeenCalled();
-  });
+    const { getByRole } = renderComponent();
+    fireEvent.click(getByRole("button", { name: /sign in with google/i }));
 
-  test("navigates to signup page when signup link is clicked", () => {
-    renderWithProviders(<SignIn />);
-    const signUpLink = screen.getByRole("link", { name: /sign up/i }); // Make sure the link has a role or accessible name
-    fireEvent.click(signUpLink);
-    // We can't easily assert navigation with this setup, but we check the link exists
-    expect(signUpLink).toHaveAttribute("href", "/signup"); // Check link destination
-  });
-
-  test("navigates to forgot password page when link is clicked", () => {
-    renderWithProviders(<SignIn />);
-    const forgotLink = screen.getByRole("link", { name: /forgot password/i });
-    fireEvent.click(forgotLink);
-    expect(forgotLink).toHaveAttribute("href", "/forgot-password");
+    await waitFor(() => {
+      expect(mockSetAuthUser).toHaveBeenCalledWith(null);
+      expect(mockToastError).toHaveBeenCalledWith(
+        "Sign in failed. Please try again."
+      );
+    });
   });
 });

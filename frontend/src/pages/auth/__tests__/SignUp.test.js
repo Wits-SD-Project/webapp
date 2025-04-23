@@ -1,41 +1,51 @@
-// frontend/src/pages/auth/__tests__/SignUp.test.js
+// src/pages/auth/__tests__/SignUp.test.js
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import userEvent from "@testing-library/user-event"; // Correct import
 import "@testing-library/jest-dom";
 import { MemoryRouter } from "react-router-dom"; // Use MemoryRouter for routing context
 import SignUp from "../SignUp";
-import { AuthProvider } from "../../../context/AuthContext"; // Import real provider for structure, but hooks might be mocked
+import { __triggerAuthCallback } from "../../../firebase";
+// AuthProvider might not be needed if useAuth is mocked directly
+// import { AuthProvider } from "../../../context/AuthContext";
 
 // Mock dependencies
-import { createUserWithEmailAndPassword, setDoc, doc } from "../../../firebase"; // Use named imports matching your mock
+// Use named imports matching your firebase module structure and the mock
+
 import { toast } from "react-toastify";
 
 // Mock the necessary modules
-jest.mock("../../../firebase"); // Use the mock from __mocks__
-jest.mock("react-toastify");
-jest.mock("react-router-dom", () => ({
-  ...jest.requireActual("react-router-dom"), // Keep original stuff like Link
-  useNavigate: () => jest.fn().mockImplementation(() => {}), // Mock navigate
+
+jest.mock("../../../auth/auth", () => ({
+  signUpWithThirdParty: jest.fn(),
 }));
 
-// Mock context if needed, or provide a simplified mock provider
-jest.mock("../../../context/AuthContext", () => ({
-  useAuth: () => ({
-    setAuthUser: jest.fn(),
-    loading: false, // Mock loading state if used directly
-    // Add other context values if needed
-  }),
-  // Keep AuthProvider if SignUp relies on its structure, otherwise mock it too
-  AuthProvider: ({ children }) => <div>{children}</div>,
+jest.mock("../../../firebase"); // Use the mock from __mocks__
+jest.mock("react-toastify");
+const mockNavigate = jest.fn();
+jest.mock("react-router-dom", () => ({
+  ...jest.requireActual("react-router-dom"), // Keep original stuff like Link
+  useNavigate: () => mockNavigate, // Mock navigate
 }));
+
+jest.mock("firebase/auth", () => ({
+  signInWithPopup: jest.fn(),
+  GoogleAuthProvider: class {
+    static credentialFromResult = jest.fn();
+  },
+}));
+
+beforeAll(() => {
+  // Suppress logs during tests
+  jest.spyOn(console, "error").mockImplementation(() => {});
+  jest.spyOn(console, "log").mockImplementation(() => {});
+});
 
 describe("SignUp Component", () => {
   const renderComponent = () => {
     render(
       <MemoryRouter>
-        {/* You might need to wrap with your actual AuthProvider if it provides
-            more than just setAuthUser or if SignUp consumes it directly */}
+        {/* No Provider needed if context isn't directly used by SignUp */}
         <SignUp />
       </MemoryRouter>
     );
@@ -44,188 +54,171 @@ describe("SignUp Component", () => {
   beforeEach(() => {
     // Reset mocks before each test
     jest.clearAllMocks();
+    mockNavigate.mockClear(); // Clear navigate mock calls
   });
 
   test("renders sign-up form elements", () => {
     renderComponent();
     expect(
-      screen.getByRole("heading", { name: /sign up now/i })
+      // Correct the heading text query
+      screen.getByRole("heading", { name: /create your account/i })
     ).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/email/i)).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/^password$/i)).toBeInTheDocument(); // Use regex for exact match
+    // Inputs are MUI based, check for role and label instead of placeholder
+    expect(screen.getByRole("combobox", { name: /role/i })).toBeInTheDocument(); // Role selection
+    // Check for the Google button
+    expect(screen.getByRole("button", { name: /google/i })).toBeInTheDocument();
+    // Check for the sign-in link
     expect(
-      screen.getByPlaceholderText(/confirm password/i)
-    ).toBeInTheDocument();
-    expect(screen.getByRole("combobox")).toBeInTheDocument(); // Role selection
-    expect(
-      screen.getByRole("button", { name: /sign up/i })
+      screen.getByRole("link", { name: /sign in here/i })
     ).toBeInTheDocument();
   });
 
-  test("shows error if passwords do not match", async () => {
+  test("shows error if role is not selected before Google sign-up", async () => {
     renderComponent();
     const user = userEvent.setup();
+    const googleButton = screen.getByRole("button", { name: /google/i });
 
-    await user.type(screen.getByPlaceholderText(/email/i), "test@example.com");
-    await user.type(screen.getByPlaceholderText(/^password$/i), "password123");
-    await user.type(
-      screen.getByPlaceholderText(/confirm password/i),
-      "password456"
-    );
-    await user.selectOptions(screen.getByRole("combobox"), "Resident");
-    await user.click(screen.getByRole("button", { name: /sign up/i }));
+    await user.click(googleButton);
 
-    expect(
-      await screen.findByText(/passwords do not match/i)
-    ).toBeInTheDocument();
-    expect(createUserWithEmailAndPassword).not.toHaveBeenCalled();
-    expect(setDoc).not.toHaveBeenCalled();
-    expect(toast.error).toHaveBeenCalledWith("Passwords do not match");
+    expect(toast.error).toHaveBeenCalledWith("Please select a role first");
+    // Ensure Firebase popup wasn't called
+    // Need to mock signInWithPopup if checking this
+    // const { signInWithPopup } = require('firebase/auth'); // Assuming this would be mocked
+    // expect(signInWithPopup).not.toHaveBeenCalled();
   });
 
-  test("shows error if email is already in use", async () => {
-    // Mock Firebase to throw 'auth/email-already-in-use'
-    createUserWithEmailAndPassword.mockRejectedValueOnce({
-      code: "auth/email-already-in-use",
-    });
-    renderComponent();
-    const user = userEvent.setup();
+  // Add tests for successful Google sign-up, API errors, etc.
+  // These would require mocking signInWithPopup and signUpWithThirdParty
 
-    await user.type(
-      screen.getByPlaceholderText(/email/i),
-      "existing@example.com"
-    );
-    await user.type(screen.getByPlaceholderText(/^password$/i), "password123");
-    await user.type(
-      screen.getByPlaceholderText(/confirm password/i),
-      "password123"
-    );
-    await user.selectOptions(screen.getByRole("combobox"), "Resident");
-    await user.click(screen.getByRole("button", { name: /sign up/i }));
-
-    await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith("Email already in use.");
-    });
-    expect(createUserWithEmailAndPassword).toHaveBeenCalledTimes(1);
-    expect(setDoc).not.toHaveBeenCalled();
-  });
-
-  test("calls firebase auth and firestore on successful sign-up", async () => {
-    // Setup successful mock return
-    const mockUserCred = {
-      user: { uid: "new-user-uid", email: "new@example.com" },
+  test("calls Google sign-up flow and backend on successful Google sign-up", async () => {
+    const { signInWithPopup, GoogleAuthProvider } = require("firebase/auth"); // Import from mock
+    const { signUpWithThirdParty } = require("../../../auth/auth"); // Import your API function
+    GoogleAuthProvider.credentialFromResult = jest.fn(() => ({
+      accessToken: "mock",
+    }));
+    // Mock Firebase popup success
+    const mockFirebaseUser = {
+      uid: "google-user-123",
+      getIdToken: jest.fn().mockResolvedValue("mock-google-id-token"),
     };
-    createUserWithEmailAndPassword.mockResolvedValueOnce(mockUserCred);
-    setDoc.mockResolvedValueOnce(undefined); // Mock setDoc success
+    signInWithPopup.mockResolvedValue({
+      user: mockFirebaseUser,
+      credential: {
+        /* mock credential if needed */
+      }, // Mock credential if signUpWithThirdParty uses it
+    });
+    GoogleAuthProvider.credentialFromResult = jest.fn(() => ({
+      /* mock credential */
+    })); // Mock static method
+
+    // Mock backend API success
+    const mockBackendResponse = {
+      userId: "backend-user-id",
+      email: "google@test.com",
+    };
+    signUpWithThirdParty.mockResolvedValue(mockBackendResponse);
 
     renderComponent();
     const user = userEvent.setup();
 
-    const emailInput = screen.getByPlaceholderText(/email/i);
-    const passwordInput = screen.getByPlaceholderText(/^password$/i);
-    const confirmPasswordInput =
-      screen.getByPlaceholderText(/confirm password/i);
-    const roleSelect = screen.getByRole("combobox");
-    const signUpButton = screen.getByRole("button", { name: /sign up/i });
+    // Select role first
+    const roleSelect = screen.getByRole("combobox", { name: /role/i });
+    await user.click(roleSelect); // Open the select dropdown
+    const staffOption = await screen.findByRole("option", {
+      name: /facility staff/i,
+    });
+    await user.click(staffOption); // Select Staff role
 
-    await user.type(emailInput, "new@example.com");
-    await user.type(passwordInput, "password123");
-    await user.type(confirmPasswordInput, "password123");
-    await user.selectOptions(roleSelect, "Staff"); // Select 'Staff' role
-    await user.click(signUpButton);
+    const googleButton = screen.getByRole("button", { name: /google/i });
+    await user.click(googleButton);
 
-    // Wait for async operations
+    // Check Firebase popup call
     await waitFor(() => {
-      expect(createUserWithEmailAndPassword).toHaveBeenCalledTimes(1);
-      expect(createUserWithEmailAndPassword).toHaveBeenCalledWith(
-        expect.anything(), // Mocked auth instance
-        "new@example.com",
-        "password123"
-      );
+      expect(signInWithPopup).toHaveBeenCalledTimes(1);
+      // Optionally check arguments if needed: expect(signInWithPopup).toHaveBeenCalledWith(auth, expect.any(Object));
     });
 
+    // Check backend API call
     await waitFor(() => {
-      expect(setDoc).toHaveBeenCalledTimes(1);
-      // Check if setDoc is called with the correct user data structure
-      expect(setDoc).toHaveBeenCalledWith(
-        expect.objectContaining({ path: "users/new-user-uid" }), // Check the doc path
-        expect.objectContaining({
-          // Check the data being set
-          email: "new@example.com",
-          role: "Staff", // Ensure correct role
-          status: "pending", // Ensure status is pending
-        })
-      );
+      expect(signUpWithThirdParty).toHaveBeenCalledTimes(1);
+      expect(signUpWithThirdParty).toHaveBeenCalledWith({
+        idToken: "mock-google-id-token",
+        provider: "google",
+        role: "staff", // Ensure correct role selected
+      });
     });
 
+    // Check success toast
     await waitFor(() => {
       expect(toast.success).toHaveBeenCalledWith(
-        "Sign up request sent successfully! Please wait for admin approval."
+        expect.stringContaining(
+          `Account created for ${mockBackendResponse.email}. Awaiting admin approval.`
+        )
       );
     });
 
-    // Optionally check for navigation if it happens on success
-    // const navigate = require('react-router-dom').useNavigate();
-    // expect(navigate).toHaveBeenCalledWith('/signin'); // Or wherever it navigates
+    // Check navigation
+    expect(mockNavigate).toHaveBeenCalledWith("/signin");
   });
 
-  test("handles generic firebase error during sign up", async () => {
-    createUserWithEmailAndPassword.mockRejectedValueOnce(
-      new Error("Firebase generic error")
-    );
-    renderComponent();
-    const user = userEvent.setup();
+  test("handles Google sign-up cancellation (popup closed)", async () => {
+    const { signInWithPopup } = require("firebase/auth");
 
-    await user.type(screen.getByPlaceholderText(/email/i), "error@example.com");
-    await user.type(screen.getByPlaceholderText(/^password$/i), "password123");
-    await user.type(
-      screen.getByPlaceholderText(/confirm password/i),
-      "password123"
-    );
-    await user.selectOptions(screen.getByRole("combobox"), "Resident");
-    await user.click(screen.getByRole("button", { name: /sign up/i }));
-
-    await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith(
-        "Failed to sign up. Please try again."
-      );
-    });
-    expect(setDoc).not.toHaveBeenCalled();
-  });
-
-  test("handles firestore error after successful auth", async () => {
-    // Setup successful auth mock return, but Firestore fail
-    const mockUserCred = {
-      user: { uid: "firestore-fail-uid", email: "firestore@fail.com" },
-    };
-    createUserWithEmailAndPassword.mockResolvedValueOnce(mockUserCred);
-    setDoc.mockRejectedValueOnce(new Error("Firestore error")); // Mock setDoc failure
+    // Mock Firebase popup closing
+    signInWithPopup.mockRejectedValue({ code: "auth/popup-closed-by-user" });
 
     renderComponent();
     const user = userEvent.setup();
 
-    await user.type(
-      screen.getByPlaceholderText(/email/i),
-      "firestore@fail.com"
-    );
-    await user.type(screen.getByPlaceholderText(/^password$/i), "password123");
-    await user.type(
-      screen.getByPlaceholderText(/confirm password/i),
-      "password123"
-    );
-    await user.selectOptions(screen.getByRole("combobox"), "Staff");
-    await user.click(screen.getByRole("button", { name: /sign up/i }));
+    // Select role
+    const roleSelect = screen.getByRole("combobox", { name: /role/i });
+    await user.click(roleSelect);
+    const residentOption = await screen.findByRole("option", {
+      name: /resident/i,
+    });
+    await user.click(residentOption);
+
+    const googleButton = screen.getByRole("button", { name: /google/i });
+    await user.click(googleButton);
 
     await waitFor(() => {
-      expect(createUserWithEmailAndPassword).toHaveBeenCalledTimes(1);
+      expect(signInWithPopup).toHaveBeenCalledTimes(1);
     });
+
+    // Check cancellation toast
+    expect(toast.error).toHaveBeenCalledWith("Signup canceled");
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  test("handles generic Google sign-up error", async () => {
+    const { signInWithPopup } = require("firebase/auth");
+    const { signUpWithThirdParty } = require("../../../auth/auth");
+
+    // Mock Firebase popup error
+    const error = new Error("Firebase generic auth error");
+    signInWithPopup.mockRejectedValue(error);
+
+    renderComponent();
+    const user = userEvent.setup();
+
+    // Select role
+    const roleSelect = screen.getByRole("combobox", { name: /role/i });
+    await user.click(roleSelect);
+    const residentOption = await screen.findByRole("option", {
+      name: /resident/i,
+    });
+    await user.click(residentOption);
+
+    const googleButton = screen.getByRole("button", { name: /google/i });
+    await user.click(googleButton);
+
     await waitFor(() => {
-      expect(setDoc).toHaveBeenCalledTimes(1);
+      expect(signInWithPopup).toHaveBeenCalledTimes(1);
     });
-    await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith(
-        "Failed to save user data. Please contact support."
-      );
-    });
+
+    // Check generic error toast
+    expect(toast.error).toHaveBeenCalledWith("Signup failed: " + error.message);
+    expect(signUpWithThirdParty).not.toHaveBeenCalled(); // Backend should not be called
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 });

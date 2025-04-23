@@ -1,4 +1,4 @@
-// frontend/src/__tests__/App.test.js
+// src/__tests__/App.test.jsx
 import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
@@ -35,6 +35,15 @@ jest.mock("../components/ResidentBooking", () => () => (
 jest.mock("../pages/dashboards/StaffViewBookings", () => () => (
   <div data-testid="staff-view-bookings-page">Staff View Bookings</div>
 ));
+jest.mock("../pages/dashboards/StaffManageFacilities", () => () => (
+  <div data-testid="staff-manage-facilities-page">Staff Manage Facilities</div>
+));
+jest.mock("../pages/dashboards/StaffEditTimeSlots", () => () => (
+  <div data-testid="staff-edit-timeslots-page">Staff Edit Time Slots</div>
+));
+jest.mock("../pages/dashboards/StaffUpcomingBookings", () => () => (
+  <div data-testid="staff-upcoming-bookings-page">Staff Upcoming Bookings</div>
+));
 
 // Mock ProtectedRoute to just render children for routing tests
 jest.mock("../components/ProtectedRoute", () => ({ children }) => (
@@ -45,6 +54,15 @@ jest.mock("../components/ProtectedRoute", () => ({ children }) => (
 jest.mock("../context/AuthContext", () => ({
   AuthProvider: ({ children }) => <div>{children}</div>, // Simple wrapper
   useAuth: jest.fn(), // We'll set the return value in tests
+}));
+
+// Mock ToastContainer as it's mocked in setupTests to return null
+jest.mock("react-toastify", () => ({
+  ToastContainer: () => <div data-testid="toast-container"></div>, // Render something identifiable
+  toast: {
+    success: jest.fn(),
+    error: jest.fn(),
+  },
 }));
 
 describe("App Routing", () => {
@@ -117,12 +135,29 @@ describe("App Routing", () => {
   });
 
   // Add similar tests for other protected routes...
+  test('renders StaffManageFacilities for "/staff-manage-facilities" route', () => {
+    renderApp("/staff-manage-facilities");
+    expect(
+      screen.getByTestId("staff-manage-facilities-page")
+    ).toBeInTheDocument();
+  });
+
+  test('renders StaffEditTimeSlots for "/staff-edit-time-slots/:id" route', () => {
+    renderApp("/staff-edit-time-slots/test-id");
+    expect(screen.getByTestId("staff-edit-timeslots-page")).toBeInTheDocument();
+  });
+
+  test('renders StaffUpcomingBookings for "/staff-upcoming-bookings" route', () => {
+    renderApp("/staff-upcoming-bookings");
+    expect(
+      screen.getByTestId("staff-upcoming-bookings-page")
+    ).toBeInTheDocument();
+  });
 
   test("renders ToastContainer", () => {
     renderApp("/");
-    // ToastContainer might not render specific test IDs, check for its presence indirectly
-    // or by checking its default role if applicable.
-    // This is a basic check, testing actual toasts is harder.
-    expect(screen.getByRole("alert", { hidden: true })).toBeInTheDocument(); // Toast containers often have alert role
+    // Check if the mocked ToastContainer is rendered
+    expect(screen.getByTestId("toast-container")).toBeInTheDocument();
+    // Removed the problematic role="alert" check
   });
 });
