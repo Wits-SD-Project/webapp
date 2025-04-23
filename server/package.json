@@ -4,6 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "test": "jest --coverage",
+    "test:watch": "jest --watch",
     "test": "jest",
     "test:watch": "jest --watch",
     "start": "node index.js"
@@ -27,6 +29,7 @@
   },
   "devDependencies": {
     "jest": "^29.7.0",
+    "node-mocks-http": "^1.16.2",
     "supertest": "^7.1.0"
   }
 }
