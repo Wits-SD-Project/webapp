@@ -1,97 +1,151 @@
-// frontend/src/components/Navbar.test.js
+// frontend/src/components/__tests__/Navbar.test.js
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
-import { AuthContext } from "../context/AuthContext"; // Adjust path
-import Navbar from "./Navbar"; // Adjust path
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import "@testing-library/jest-dom";
+import { MemoryRouter, useNavigate } from "react-router-dom";
+import Navbar from "../Navbar"; // Adjust path
+import { useAuth } from "../../context/AuthContext"; // Adjust path
+import { auth } from "../../firebase"; // Import mocked auth
+import { toast } from "react-toastify";
 
-const mockLogout = jest.fn();
+// Mock dependencies
+jest.mock("../../firebase"); // Mock firebase auth object
+jest.mock("../../context/AuthContext");
+jest.mock("react-toastify");
+
+// Mock react-router-dom specifically useNavigate
 const mockNavigate = jest.fn();
-
 jest.mock("react-router-dom", () => ({
   ...jest.requireActual("react-router-dom"),
   useNavigate: () => mockNavigate,
 }));
 
-const renderNavbar = (user) => {
-  return render(
-    <MemoryRouter>
-      <AuthContext.Provider value={{ user, logout: mockLogout }}>
-        <Navbar />
-      </AuthContext.Provider>
-    </MemoryRouter>
-  );
-};
+// Mock global fetch for the logout API call
+global.fetch = jest.fn();
 
 describe("Navbar Component", () => {
+  const mockSetAuthUser = jest.fn();
+
+  const renderComponent = () => {
+    // Setup mock context value
+    useAuth.mockReturnValue({
+      setAuthUser: mockSetAuthUser,
+      // Add other context values if Navbar consumes them
+    });
+    render(
+      <MemoryRouter>
+        <Navbar />
+      </MemoryRouter>
+    );
+  };
+
   beforeEach(() => {
-    mockLogout.mockClear();
-    mockNavigate.mockClear();
+    jest.clearAllMocks();
+    fetch.mockClear(); // Clear fetch mock
+    // Provide a mock implementation for auth.signOut if not in __mocks__
+    if (!auth.signOut) {
+      auth.signOut = jest.fn().mockResolvedValue(undefined);
+    }
   });
 
-  test("renders logo and title", () => {
-    renderNavbar(null); // Render as logged out
-    // Check for logo if it's an img with alt text
-    // expect(screen.getByAltText(/sports sphere logo/i)).toBeInTheDocument();
-    // Or check for title text
-    expect(screen.getByText(/sports sphere/i)).toBeInTheDocument();
-  });
-
-  test("renders sign in and sign up links when logged out", () => {
-    renderNavbar(null);
-    expect(screen.getByRole("link", { name: /sign in/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /sign up/i })).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /logout/i })
-    ).not.toBeInTheDocument();
-  });
-
-  test("renders welcome message and logout button when logged in", () => {
-    const testUser = { email: "test@example.com" /* other user props */ };
-    renderNavbar(testUser);
-
-    // Check for a welcome message - adjust based on your Navbar's display
-    // expect(screen.getByText(/welcome, test@example.com/i)).toBeInTheDocument();
-    // Or just check for the logout button
+  test("renders logo and logout button", () => {
+    renderComponent();
+    expect(screen.getByAltText("Logo")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /logout/i })).toBeInTheDocument();
-    expect(
-      screen.queryByRole("link", { name: /sign in/i })
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("link", { name: /sign up/i })
-    ).not.toBeInTheDocument();
   });
 
-  test("calls logout and navigates when logout button is clicked", async () => {
-    const testUser = { email: "test@example.com" };
-    mockLogout.mockResolvedValueOnce(); // Simulate successful logout
+  test("clicking logout calls Firebase signOut, fetch API, updates context, shows toast, and navigates", async () => {
+    // Mock successful fetch response
+    fetch.mockResolvedValueOnce({ ok: true });
+    auth.signOut.mockResolvedValueOnce(undefined); // Ensure signOut resolves
 
-    renderNavbar(testUser);
+    renderComponent();
+    const user = userEvent.setup();
     const logoutButton = screen.getByRole("button", { name: /logout/i });
-    fireEvent.click(logoutButton);
 
-    // Check if context logout function was called
+    await user.click(logoutButton);
+
+    // Check Firebase sign out
     await waitFor(() => {
-      expect(mockLogout).toHaveBeenCalledTimes(1);
+      expect(auth.signOut).toHaveBeenCalledTimes(1);
     });
 
-    // Check if navigation occurred (usually back to signin)
+    // Check fetch call to backend logout
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith("/signin"); // Adjust path if needed
+      expect(fetch).toHaveBeenCalledTimes(1);
+      expect(fetch).toHaveBeenCalledWith(
+        "http://localhost:8080/api/auth/logout",
+        expect.objectContaining({ method: "POST", credentials: "include" })
+      );
     });
+
+    // Check context update
+    expect(mockSetAuthUser).toHaveBeenCalledTimes(1);
+    expect(mockSetAuthUser).toHaveBeenCalledWith(null);
+
+    // Check toast message
+    expect(toast.success).toHaveBeenCalledTimes(1);
+    expect(toast.success).toHaveBeenCalledWith("Logged out");
+
+    // Check navigation
+    expect(mockNavigate).toHaveBeenCalledTimes(1);
+    expect(mockNavigate).toHaveBeenCalledWith("/signin");
   });
 
-  test("navigates correctly when links are clicked", () => {
-    renderNavbar(null); // Logged out state
+  test("handles Firebase signOut error during logout", async () => {
+    const error = new Error("Firebase signout failed");
+    auth.signOut.mockRejectedValueOnce(error); // Simulate Firebase error
+    // Fetch might still be called or not, depending on flow, assume it might not be
+    fetch.mockResolvedValueOnce({ ok: true });
 
-    const signInLink = screen.getByRole("link", { name: /sign in/i });
-    const signUpLink = screen.getByRole("link", { name: /sign up/i });
+    renderComponent();
+    const user = userEvent.setup();
+    const logoutButton = screen.getByRole("button", { name: /logout/i });
 
-    expect(signInLink).toHaveAttribute("href", "/signin");
-    expect(signUpLink).toHaveAttribute("href", "/signup");
+    // Spy on console.error
+    const consoleSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
 
-    // You can simulate clicks if needed, but checking href is often sufficient for links
-    // fireEvent.click(signInLink);
-    // assert navigation or check router state if using more advanced MemoryRouter setup
+    await user.click(logoutButton);
+
+    await waitFor(() => {
+      expect(auth.signOut).toHaveBeenCalledTimes(1);
+    });
+
+    // Check that the error was logged
+    expect(consoleSpy).toHaveBeenCalledWith("Firebase signout error:", error);
+
+    // Context, toast, and navigation should still happen even if Firebase fails
+    expect(mockSetAuthUser).toHaveBeenCalledWith(null);
+    expect(toast.success).toHaveBeenCalledWith("Logged out");
+    expect(mockNavigate).toHaveBeenCalledWith("/signin");
+
+    consoleSpy.mockRestore(); // Restore console.error
+  });
+
+  test("handles fetch API error during logout", async () => {
+    auth.signOut.mockResolvedValueOnce(undefined); // Firebase signout is successful
+    fetch.mockResolvedValueOnce({ ok: false, statusText: "Server Error" }); // Simulate fetch failure
+
+    renderComponent();
+    const user = userEvent.setup();
+    const logoutButton = screen.getByRole("button", { name: /logout/i });
+
+    await user.click(logoutButton);
+
+    await waitFor(() => {
+      expect(auth.signOut).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalledTimes(1);
+    });
+
+    // Should still proceed with context update, toast, and navigation
+    expect(mockSetAuthUser).toHaveBeenCalledWith(null);
+    expect(toast.success).toHaveBeenCalledWith("Logged out");
+    expect(mockNavigate).toHaveBeenCalledWith("/signin");
+    // Maybe add a console.error check if you log the fetch error specifically
   });
 });

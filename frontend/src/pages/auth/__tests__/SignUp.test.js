@@ -1,168 +1,231 @@
 // frontend/src/pages/auth/__tests__/SignUp.test.js
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { MemoryRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider, AuthContext } from "../../../../context/AuthContext"; // Adjust path
-import SignUp from "../SignUp"; // Adjust path
+import userEvent from "@testing-library/user-event";
+import "@testing-library/jest-dom";
+import { MemoryRouter } from "react-router-dom"; // Use MemoryRouter for routing context
+import SignUp from "../SignUp";
+import { AuthProvider } from "../../../context/AuthContext"; // Import real provider for structure, but hooks might be mocked
 
-const mockSignup = jest.fn();
-const mockNavigate = jest.fn();
+// Mock dependencies
+import { createUserWithEmailAndPassword, setDoc, doc } from "../../../firebase"; // Use named imports matching your mock
+import { toast } from "react-toastify";
 
+// Mock the necessary modules
+jest.mock("../../../firebase"); // Use the mock from __mocks__
+jest.mock("react-toastify");
 jest.mock("react-router-dom", () => ({
-  ...jest.requireActual("react-router-dom"),
-  useNavigate: () => mockNavigate,
+  ...jest.requireActual("react-router-dom"), // Keep original stuff like Link
+  useNavigate: () => jest.fn().mockImplementation(() => {}), // Mock navigate
 }));
 
-const renderWithProviders = (ui) => {
-  return render(
-    <MemoryRouter initialEntries={["/signup"]}>
-      {/* You might need the full AuthProvider if SignUp relies on more context logic */}
-      <AuthContext.Provider
-        value={{ user: null, loading: false, signup: mockSignup }}
-      >
-        <Routes>
-          <Route path="/signup" element={ui} />
-          <Route path="/signin" element={<div>Sign In Page</div>} />{" "}
-          {/* Mock destination */}
-        </Routes>
-      </AuthContext.Provider>
-    </MemoryRouter>
-  );
-};
+// Mock context if needed, or provide a simplified mock provider
+jest.mock("../../../context/AuthContext", () => ({
+  useAuth: () => ({
+    setAuthUser: jest.fn(),
+    loading: false, // Mock loading state if used directly
+    // Add other context values if needed
+  }),
+  // Keep AuthProvider if SignUp relies on its structure, otherwise mock it too
+  AuthProvider: ({ children }) => <div>{children}</div>,
+}));
 
 describe("SignUp Component", () => {
+  const renderComponent = () => {
+    render(
+      <MemoryRouter>
+        {/* You might need to wrap with your actual AuthProvider if it provides
+            more than just setAuthUser or if SignUp consumes it directly */}
+        <SignUp />
+      </MemoryRouter>
+    );
+  };
+
   beforeEach(() => {
-    mockSignup.mockClear();
-    mockNavigate.mockClear();
+    // Reset mocks before each test
+    jest.clearAllMocks();
   });
 
-  test("renders sign up form correctly", () => {
-    renderWithProviders(<SignUp />);
+  test("renders sign-up form elements", () => {
+    renderComponent();
     expect(
-      screen.getByRole("heading", { name: /create account/i })
+      screen.getByRole("heading", { name: /sign up now/i })
     ).toBeInTheDocument();
-    expect(screen.getByLabelText(/email address/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/^password$/i)).toBeInTheDocument(); // Match exact label 'Password'
-    expect(screen.getByLabelText(/confirm password/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/role/i)).toBeInTheDocument(); // Assuming a select dropdown for role
+    expect(screen.getByPlaceholderText(/email/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/^password$/i)).toBeInTheDocument(); // Use regex for exact match
+    expect(
+      screen.getByPlaceholderText(/confirm password/i)
+    ).toBeInTheDocument();
+    expect(screen.getByRole("combobox")).toBeInTheDocument(); // Role selection
     expect(
       screen.getByRole("button", { name: /sign up/i })
     ).toBeInTheDocument();
-    expect(screen.getByText(/already have an account\?/i)).toBeInTheDocument();
-  });
-
-  test("allows user input in form fields", () => {
-    renderWithProviders(<SignUp />);
-    fireEvent.change(screen.getByLabelText(/email address/i), {
-      target: { value: "new@example.com" },
-    });
-    fireEvent.change(screen.getByLabelText(/^password$/i), {
-      target: { value: "password123" },
-    });
-    fireEvent.change(screen.getByLabelText(/confirm password/i), {
-      target: { value: "password123" },
-    });
-    // Select role (adjust value based on your options)
-    fireEvent.change(screen.getByLabelText(/role/i), {
-      target: { value: "resident" },
-    });
-
-    expect(screen.getByLabelText(/email address/i)).toHaveValue(
-      "new@example.com"
-    );
-    expect(screen.getByLabelText(/^password$/i)).toHaveValue("password123");
-    expect(screen.getByLabelText(/confirm password/i)).toHaveValue(
-      "password123"
-    );
-    expect(screen.getByLabelText(/role/i)).toHaveValue("resident");
-  });
-
-  test("calls signup function on form submission and navigates on success", async () => {
-    mockSignup.mockResolvedValueOnce(); // Simulate successful signup
-
-    renderWithProviders(<SignUp />);
-    fireEvent.change(screen.getByLabelText(/email address/i), {
-      target: { value: "new@example.com" },
-    });
-    fireEvent.change(screen.getByLabelText(/^password$/i), {
-      target: { value: "password123" },
-    });
-    fireEvent.change(screen.getByLabelText(/confirm password/i), {
-      target: { value: "password123" },
-    });
-    fireEvent.change(screen.getByLabelText(/role/i), {
-      target: { value: "resident" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /sign up/i }));
-
-    await waitFor(() => {
-      expect(mockSignup).toHaveBeenCalledTimes(1);
-      expect(mockSignup).toHaveBeenCalledWith(
-        "new@example.com",
-        "password123",
-        "resident"
-      ); // Adjust args based on your signup function
-    });
-
-    await waitFor(() => {
-      // Expect navigation or a success message display
-      expect(mockNavigate).toHaveBeenCalledWith("/signin"); // Or wherever signup redirects
-      // Or check for a success message:
-      // expect(screen.getByText(/signup successful/i)).toBeInTheDocument();
-    });
   });
 
   test("shows error if passwords do not match", async () => {
-    renderWithProviders(<SignUp />);
-    fireEvent.change(screen.getByLabelText(/email address/i), {
-      target: { value: "test@example.com" },
-    });
-    fireEvent.change(screen.getByLabelText(/^password$/i), {
-      target: { value: "password123" },
-    });
-    fireEvent.change(screen.getByLabelText(/confirm password/i), {
-      target: { value: "password456" },
-    }); // Mismatch
-    fireEvent.change(screen.getByLabelText(/role/i), {
-      target: { value: "resident" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /sign up/i }));
+    renderComponent();
+    const user = userEvent.setup();
 
-    // Wait for validation message (assuming it's displayed)
-    await waitFor(() => {
-      expect(screen.getByText(/passwords do not match/i)).toBeInTheDocument(); // Adjust error message
-    });
+    await user.type(screen.getByPlaceholderText(/email/i), "test@example.com");
+    await user.type(screen.getByPlaceholderText(/^password$/i), "password123");
+    await user.type(
+      screen.getByPlaceholderText(/confirm password/i),
+      "password456"
+    );
+    await user.selectOptions(screen.getByRole("combobox"), "Resident");
+    await user.click(screen.getByRole("button", { name: /sign up/i }));
 
-    expect(mockSignup).not.toHaveBeenCalled();
-    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(
+      await screen.findByText(/passwords do not match/i)
+    ).toBeInTheDocument();
+    expect(createUserWithEmailAndPassword).not.toHaveBeenCalled();
+    expect(setDoc).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith("Passwords do not match");
   });
 
-  test("shows error message on failed signup (e.g., email exists)", async () => {
-    const errorMessage = "Email already in use";
-    mockSignup.mockRejectedValueOnce(new Error(errorMessage));
+  test("shows error if email is already in use", async () => {
+    // Mock Firebase to throw 'auth/email-already-in-use'
+    createUserWithEmailAndPassword.mockRejectedValueOnce({
+      code: "auth/email-already-in-use",
+    });
+    renderComponent();
+    const user = userEvent.setup();
 
-    renderWithProviders(<SignUp />);
-    fireEvent.change(screen.getByLabelText(/email address/i), {
-      target: { value: "existing@example.com" },
-    });
-    fireEvent.change(screen.getByLabelText(/^password$/i), {
-      target: { value: "password123" },
-    });
-    fireEvent.change(screen.getByLabelText(/confirm password/i), {
-      target: { value: "password123" },
-    });
-    fireEvent.change(screen.getByLabelText(/role/i), {
-      target: { value: "staff" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /sign up/i }));
+    await user.type(
+      screen.getByPlaceholderText(/email/i),
+      "existing@example.com"
+    );
+    await user.type(screen.getByPlaceholderText(/^password$/i), "password123");
+    await user.type(
+      screen.getByPlaceholderText(/confirm password/i),
+      "password123"
+    );
+    await user.selectOptions(screen.getByRole("combobox"), "Resident");
+    await user.click(screen.getByRole("button", { name: /sign up/i }));
 
     await waitFor(() => {
-      expect(mockSignup).toHaveBeenCalledTimes(1);
+      expect(toast.error).toHaveBeenCalledWith("Email already in use.");
     });
-    // Assert error display (toast or inline)
-    // await waitFor(() => {
-    //   expect(screen.getByText(errorMessage)).toBeInTheDocument();
-    // });
-    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(createUserWithEmailAndPassword).toHaveBeenCalledTimes(1);
+    expect(setDoc).not.toHaveBeenCalled();
+  });
+
+  test("calls firebase auth and firestore on successful sign-up", async () => {
+    // Setup successful mock return
+    const mockUserCred = {
+      user: { uid: "new-user-uid", email: "new@example.com" },
+    };
+    createUserWithEmailAndPassword.mockResolvedValueOnce(mockUserCred);
+    setDoc.mockResolvedValueOnce(undefined); // Mock setDoc success
+
+    renderComponent();
+    const user = userEvent.setup();
+
+    const emailInput = screen.getByPlaceholderText(/email/i);
+    const passwordInput = screen.getByPlaceholderText(/^password$/i);
+    const confirmPasswordInput =
+      screen.getByPlaceholderText(/confirm password/i);
+    const roleSelect = screen.getByRole("combobox");
+    const signUpButton = screen.getByRole("button", { name: /sign up/i });
+
+    await user.type(emailInput, "new@example.com");
+    await user.type(passwordInput, "password123");
+    await user.type(confirmPasswordInput, "password123");
+    await user.selectOptions(roleSelect, "Staff"); // Select 'Staff' role
+    await user.click(signUpButton);
+
+    // Wait for async operations
+    await waitFor(() => {
+      expect(createUserWithEmailAndPassword).toHaveBeenCalledTimes(1);
+      expect(createUserWithEmailAndPassword).toHaveBeenCalledWith(
+        expect.anything(), // Mocked auth instance
+        "new@example.com",
+        "password123"
+      );
+    });
+
+    await waitFor(() => {
+      expect(setDoc).toHaveBeenCalledTimes(1);
+      // Check if setDoc is called with the correct user data structure
+      expect(setDoc).toHaveBeenCalledWith(
+        expect.objectContaining({ path: "users/new-user-uid" }), // Check the doc path
+        expect.objectContaining({
+          // Check the data being set
+          email: "new@example.com",
+          role: "Staff", // Ensure correct role
+          status: "pending", // Ensure status is pending
+        })
+      );
+    });
+
+    await waitFor(() => {
+      expect(toast.success).toHaveBeenCalledWith(
+        "Sign up request sent successfully! Please wait for admin approval."
+      );
+    });
+
+    // Optionally check for navigation if it happens on success
+    // const navigate = require('react-router-dom').useNavigate();
+    // expect(navigate).toHaveBeenCalledWith('/signin'); // Or wherever it navigates
+  });
+
+  test("handles generic firebase error during sign up", async () => {
+    createUserWithEmailAndPassword.mockRejectedValueOnce(
+      new Error("Firebase generic error")
+    );
+    renderComponent();
+    const user = userEvent.setup();
+
+    await user.type(screen.getByPlaceholderText(/email/i), "error@example.com");
+    await user.type(screen.getByPlaceholderText(/^password$/i), "password123");
+    await user.type(
+      screen.getByPlaceholderText(/confirm password/i),
+      "password123"
+    );
+    await user.selectOptions(screen.getByRole("combobox"), "Resident");
+    await user.click(screen.getByRole("button", { name: /sign up/i }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(
+        "Failed to sign up. Please try again."
+      );
+    });
+    expect(setDoc).not.toHaveBeenCalled();
+  });
+
+  test("handles firestore error after successful auth", async () => {
+    // Setup successful auth mock return, but Firestore fail
+    const mockUserCred = {
+      user: { uid: "firestore-fail-uid", email: "firestore@fail.com" },
+    };
+    createUserWithEmailAndPassword.mockResolvedValueOnce(mockUserCred);
+    setDoc.mockRejectedValueOnce(new Error("Firestore error")); // Mock setDoc failure
+
+    renderComponent();
+    const user = userEvent.setup();
+
+    await user.type(
+      screen.getByPlaceholderText(/email/i),
+      "firestore@fail.com"
+    );
+    await user.type(screen.getByPlaceholderText(/^password$/i), "password123");
+    await user.type(
+      screen.getByPlaceholderText(/confirm password/i),
+      "password123"
+    );
+    await user.selectOptions(screen.getByRole("combobox"), "Staff");
+    await user.click(screen.getByRole("button", { name: /sign up/i }));
+
+    await waitFor(() => {
+      expect(createUserWithEmailAndPassword).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(setDoc).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(
+        "Failed to save user data. Please contact support."
+      );
+    });
   });
 });
