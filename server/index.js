@@ -29,5 +29,9 @@ app.use("/api/facilities",facilitiesRoutes);
 // Use environment PORT variable for Azure compatibility
 const PORT = process.env.PORT || 8080;
 
+module.exports = app;
 
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+if (require.main === module) {
+  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+}
+

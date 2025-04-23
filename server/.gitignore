@@ -2,3 +2,5 @@
 .env
 serviceAccountKey.json
 q.txt
+/coverage
+/package-lock.json
