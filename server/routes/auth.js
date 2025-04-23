@@ -1,38 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { admin, auth, db } = require("../firebase");
-
-const { createUserWithEmailAndPassword } = require("firebase/auth");
-
-const { doc, setDoc, getDoc } = require("firebase/firestore");
-
-router.post("/signup", async (req, res) => {
-  const { name, email, password, role } = req.body;
-  const trimmedPassword = password.trim();
-  try {
-    const userCred = await createUserWithEmailAndPassword(
-      auth,
-      email,
-      trimmedPassword
-    );
-    const userDoc = doc(db, "users", email);
-
-    await setDoc(userDoc, {
-      name,
-      email,
-      role,
-      approved: false,
-      accepted: false,
-      createdAt: new Date(),
-    });
-
-    res.json({ email: userCred.user.email });
-  } catch (err) {
-    res.status(400).json({ message: err.message });
-  }
-});
-
-const FIREBASE_API_KEY = process.env.FIREBASE_API_KEY;
+const { admin } = require("../firebase");
 
 router.post("/signup/thirdparty", async (req, res) => {
   const { idToken, role } = req.body;
@@ -86,61 +54,6 @@ router.post("/signup/thirdparty", async (req, res) => {
   }
 });
 
-router.post("/signin", async (req, res) => {
-  const { email, password } = req.body;
-
-  try {
-    const fetch = (await import("node-fetch")).default;
-
-    const firebaseRes = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: email,
-          password: password,
-          returnSecureToken: true,
-        }),
-      }
-    );
-
-    if (!firebaseRes.ok) {
-      const error = await firebaseRes.json();
-      return res.status(400).json({ message: error.error.message });
-    }
-
-    const data = await firebaseRes.json();
-
-    const userDoc = doc(db, "users", email);
-    const snapshot = await getDoc(userDoc);
-
-    if (!snapshot.exists()) {
-      return res
-        .status(404)
-        .json({ message: "User profile not found in database." });
-    }
-
-    const userData = snapshot.data();
-
-    if (!userData.approved) {
-      return res
-        .status(403)
-        .json({ message: "Account not yet approved by admin." });
-    }
-    if (!userData.accepted) {
-      return res.status(403).json({ message: "Access denied." });
-    }
-
-    res.json({
-      email: userData.email,
-      role: userData.role,
-      approved: userData.approved,
-    });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
 
 router.post("/signin/thirdparty", async (req, res) => {
   const { idToken } = req.body;
@@ -166,6 +79,9 @@ router.post("/signin/thirdparty", async (req, res) => {
     if (!userData.approved) {
       return res.status(403).json({ message: "Account not yet approved." });
     }
+    if (!userData.accepted) {
+      return res.status(403).json({ message: "Access denied." });
+    }
 
     // Create a session cookie
     const expiresIn = 60 * 60 * 1000; // 1 hour
@@ -185,6 +101,7 @@ router.post("/signin/thirdparty", async (req, res) => {
       email: userData.email,
       role: userData.role,
       approved: userData.approved,
+      accepted: userData.accepted,
       name: userData.name || "",
     });
   } catch (err) {
@@ -202,6 +119,41 @@ router.post("/signin/thirdparty", async (req, res) => {
       message: errorMessage,
       error: process.env.NODE_ENV === "development" ? err.message : undefined,
     });
+  }
+});
+
+// Add to your backend routes
+router.post("/verify-session", async (req, res) => {
+  try {
+    const { idToken } = req.body;
+    
+    // Verify the Firebase ID token
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const email = decodedToken.email;
+
+    // Check user in Firestore
+    const userDoc = await admin.firestore().collection("users").doc(email).get();
+    
+    if (!userDoc.exists) {
+      return res.status(404).json({ message: "User not registered" });
+    }
+
+    const userData = userDoc.data();
+    
+    if (!userData.approved || !userData.accepted) {
+      return res.status(403).json({ message: "Account not authorized" });
+    }
+
+    res.json({
+      user: {
+        email: userData.email,
+        role: userData.role,
+        name: userData.name || ""
+      }
+    });
+  } catch (error) {
+    console.error("Session verification error:", error);
+    res.status(401).json({ message: "Invalid session" });
   }
 });
 

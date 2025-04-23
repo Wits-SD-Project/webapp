@@ -1,10 +1,13 @@
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../../components/SideBar.js";
 import "../../styles/staffDashboard.css";
+import { useAuth } from "../../context/AuthContext.js";
 
 export default function StaffDashboard() {
   const navigate = useNavigate();
+  const { authUser } = useAuth();
 
+  const username = authUser.name;
   return (
     <main className="dashboard">
      
@@ -15,7 +18,7 @@ export default function StaffDashboard() {
         <main className="main-content">
           <header className="page-header">
             <h1>Dashboard</h1>
-            <div className="user-name">John Doe</div>
+            <div className="user-name">{username}</div>
           </header>
 
           <div className="card-container">

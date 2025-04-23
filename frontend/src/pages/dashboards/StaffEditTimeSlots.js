@@ -31,7 +31,7 @@ export default function EditTimeSlots() {
         const token = await getAuthToken();
         
         // // Fetch facility details
-        // const facilityRes = await fetch(`http://localhost:5000/api/facilities/${id}`, {
+        // const facilityRes = await fetch(`http://localhost:8080/api/facilities/${id}`, {
         //   headers: { Authorization: `Bearer ${token}` }
         // });
         // const facilityData = await facilityRes.json();
@@ -39,7 +39,7 @@ export default function EditTimeSlots() {
         // setFacilityName(facilityData.name);
 
         // Fetch timeslots
-        const slotsRes = await fetch(`http://localhost:5000/api/facilities/timeslots`, {
+        const slotsRes = await fetch(`http://localhost:8080/api/facilities/timeslots`, {
           method:"POST",
           headers: { 
             Authorization: `Bearer ${token}`,
@@ -60,7 +60,6 @@ export default function EditTimeSlots() {
         }, {});
 
         setSlotsByDay(groupedSlots);
-        toast.success(slotsData.message)
       } catch (err) {
         console.log(err)
         toast.error(err.message);
@@ -73,7 +72,7 @@ export default function EditTimeSlots() {
   const updateBackend = async (updatedSlots) => {
     try {
       const token = await getAuthToken();
-      const res = await fetch(`http://localhost:5000/api/facilities/${id}/timeslots`, {
+      const res = await fetch(`http://localhost:8080/api/facilities/${id}/timeslots`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -150,14 +149,48 @@ export default function EditTimeSlots() {
     setEndTime("");
   };
   
-  const handleDeleteSlot = (day, slot) => {
-    const newSlots = {
-      ...slotsByDay,
-      [day]: slotsByDay[day].filter(s => s !== slot)
-    };
-    setSlotsByDay(newSlots);
-    updateBackend(newSlots);
+  //Deleting a specific Timeslot
+  const handleDeleteSlot = async (day, slot) => {
+    try {
+      const token = await getAuthToken();
+      
+      // Convert slot string to start/end times
+      const [start, end] = slot.split(" - ");
+      
+      const response = await fetch(`http://localhost:8080/api/facilities/${id}/timeslots`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          day,
+          start,
+          end
+        })
+      });
+  
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.message || "Failed to delete timeslot");
+      }
+  
+      // Update local state
+      setSlotsByDay(prev => ({
+        ...prev,
+        [day]: prev[day].filter(s => s !== slot)
+      }));
+      
+      toast.success("Timeslot deleted successfully");
+      
+    } catch (error) {
+      console.error("Delete error:", error);
+      toast.error(error.message || "Failed to delete timeslot");
+    }
   };
+
+
 
   return (
     <main className="edit-timeslots-page">
