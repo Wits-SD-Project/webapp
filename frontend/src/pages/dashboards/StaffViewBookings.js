@@ -8,126 +8,126 @@ import { db } from "../../firebase";
 
 
 //import data from db - dummy data for now
-const dummyBookings = [
-    {
-        facilityName: "Wanderers",
-        facilityType: "Cricket Ground",
-        user: "Priyanka Gohil",
-        datetime: "2025-06-17 14:00",
-        duration: "1.5 hrs",
-        status: "pending",
-        id: "1"
-      },
-      {
-        facilityName: "Olympic Arena",
-        facilityType: "Swimming Pool #2",
-        user: "Jane Doe",
-        datetime: "2025-06-17 16:00",
-        duration: "2 hrs",
-        status: "approved",
-        id: "2"
-      },
-      {
-        facilityName: "City Dome",
-        facilityType: "Basketball Court #1",
-        user: "John Stark",
-        datetime: "2025-06-18 09:00",
-        duration: "1 hr",
-        status: "pending",
-        id: "3"
-      },
-      {
-        facilityName: "West Field",
-        facilityType: "Football Pitch",
-        user: "Bruce Banner",
-        datetime: "2025-06-18 19:00",
-        duration: "1.5 hrs",
-        status: "rejected",
-        id: "4"
-      },
-      {
-        facilityName: "Indoor Zone",
-        facilityType: "Badminton Court",
-        user: "Natasha R.",
-        datetime: "2025-06-19 11:00",
-        duration: "1 hr",
-        status: "approved",
-        id: "5"
-      },
-      {
-        facilityName: "Grand Arena",
-        facilityType: "Volleyball Court",
-        user: "Peter Parker",
-        datetime: "2025-06-20 13:00",
-        duration: "2 hrs",
-        status: "pending",
-        id: "6"
-      },
-      {
-        facilityName: "Sky Hall",
-        facilityType: "Gym",
-        user: "Tony Stark",
-        datetime: "2025-06-20 15:00",
-        duration: "1 hr",
-        status: "approved",
-        id: "7"
-      },
-      {
-        facilityName: "Zen Center",
-        facilityType: "Yoga Room",
-        user: "Wanda M.",
-        datetime: "2025-06-21 09:30",
-        duration: "1.5 hrs",
-        status: "pending",
-        id: "8"
-      },
-      {
-        facilityName: "Pro Track",
-        facilityType: "Athletics Track",
-        user: "Steve Rogers",
-        datetime: "2025-06-22 10:00",
-        duration: "2 hrs",
-        status: "rejected",
-        id: "9"
-      },
-      {
-        facilityName: "Game Hub",
-        facilityType: "Esports Room",
-        user: "Shuri",
-        datetime: "2025-06-23 17:00",
-        duration: "1 hr",
-        status: "approved",
-        id: "10"
-      },
-      {
-        facilityName: "Game Hub",
-        facilityType: "Esports Room",
-        user: "Shuri",
-        datetime: "2025-06-23 17:00",
-        duration: "1 hr",
-        status: "approved",
-        id: "11"
-      },
-      {
-        facilityName: "Game Hub",
-        facilityType: "Esports Room",
-        user: "Shuri",
-        datetime: "2025-06-23 17:00",
-        duration: "1 hr",
-        status: "approved",
-        id: "12"
-      },
-      {
-        facilityName: "Game Hub",
-        facilityType: "Esports Room",
-        user: "Shuri",
-        datetime: "2025-06-23 17:00",
-        duration: "1 hr",
-        status: "approved",
-        id: "13"
-      }
+// const dummyBookings = [
+//     {
+//         facilityName: "Wanderers",
+//         facilityType: "Cricket Ground",
+//         user: "Priyanka Gohil",
+//         datetime: "2025-06-17 14:00",
+//         duration: "1.5 hrs",
+//         status: "pending",
+//         id: "1"
+//       },
+//       {
+//         facilityName: "Olympic Arena",
+//         facilityType: "Swimming Pool #2",
+//         user: "Jane Doe",
+//         datetime: "2025-06-17 16:00",
+//         duration: "2 hrs",
+//         status: "approved",
+//         id: "2"
+//       },
+//       {
+//         facilityName: "City Dome",
+//         facilityType: "Basketball Court #1",
+//         user: "John Stark",
+//         datetime: "2025-06-18 09:00",
+//         duration: "1 hr",
+//         status: "pending",
+//         id: "3"
+//       },
+//       {
+//         facilityName: "West Field",
+//         facilityType: "Football Pitch",
+//         user: "Bruce Banner",
+//         datetime: "2025-06-18 19:00",
+//         duration: "1.5 hrs",
+//         status: "rejected",
+//         id: "4"
+//       },
+//       {
+//         facilityName: "Indoor Zone",
+//         facilityType: "Badminton Court",
+//         user: "Natasha R.",
+//         datetime: "2025-06-19 11:00",
+//         duration: "1 hr",
+//         status: "approved",
+//         id: "5"
+//       },
+//       {
+//         facilityName: "Grand Arena",
+//         facilityType: "Volleyball Court",
+//         user: "Peter Parker",
+//         datetime: "2025-06-20 13:00",
+//         duration: "2 hrs",
+//         status: "pending",
+//         id: "6"
+//       },
+//       {
+//         facilityName: "Sky Hall",
+//         facilityType: "Gym",
+//         user: "Tony Stark",
+//         datetime: "2025-06-20 15:00",
+//         duration: "1 hr",
+//         status: "approved",
+//         id: "7"
+//       },
+//       {
+//         facilityName: "Zen Center",
+//         facilityType: "Yoga Room",
+//         user: "Wanda M.",
+//         datetime: "2025-06-21 09:30",
+//         duration: "1.5 hrs",
+//         status: "pending",
+//         id: "8"
+//       },
+//       {
+//         facilityName: "Pro Track",
+//         facilityType: "Athletics Track",
+//         user: "Steve Rogers",
+//         datetime: "2025-06-22 10:00",
+//         duration: "2 hrs",
+//         status: "rejected",
+//         id: "9"
+//       },
+//       {
+//         facilityName: "Game Hub",
+//         facilityType: "Esports Room",
+//         user: "Shuri",
+//         datetime: "2025-06-23 17:00",
+//         duration: "1 hr",
+//         status: "approved",
+//         id: "10"
+//       },
+//       {
+//         facilityName: "Game Hub",
+//         facilityType: "Esports Room",
+//         user: "Shuri",
+//         datetime: "2025-06-23 17:00",
+//         duration: "1 hr",
+//         status: "approved",
+//         id: "11"
+//       },
+//       {
+//         facilityName: "Game Hub",
+//         facilityType: "Esports Room",
+//         user: "Shuri",
+//         datetime: "2025-06-23 17:00",
+//         duration: "1 hr",
+//         status: "approved",
+//         id: "12"
+//       },
+//       {
+//         facilityName: "Game Hub",
+//         facilityType: "Esports Room",
+//         user: "Shuri",
+//         datetime: "2025-06-23 17:00",
+//         duration: "1 hr",
+//         status: "approved",
+//         id: "13"
+//       }
   
-];
+// ];
 
 export default function ViewBookings() {
   const [bookings, setBookings] = useState([]);
@@ -153,7 +153,7 @@ useEffect(() => {
 
     // Create notification
     await addDoc(collection(db, "notifications"), {
-    userEmail: booking.userName || booking.user || "unknown",
+    userName: booking.userName || booking.user || "unknown",
     facilityName: booking.facilityName,
     status: newStatus,
     slot: booking.slot || booking.datetime,
