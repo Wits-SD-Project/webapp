@@ -5,33 +5,45 @@ import Navbar from "../../components/Navbar";
 
 export default function UserDashboard() {
   const [facilities, setFacilities] = useState([]);
+  const [notifications, setNotifications] = useState([]);
 
-  // Fetch facilities from Firestore
+  // Fetch facilities and notifications from Firestore
   useEffect(() => {
-    const fetchFacilities = async () => {
+    const fetchFacilitiesAndNotifications = async () => {
+      const user = auth.currentUser;
+      if (!user) return;
+
       try {
+        // Notifications
+        const snapshot = await getDocs(query(
+          collection(db, "notifications"),
+          where("userEmail", "==", user.email)
+        ));
+        const userNotifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setNotifications(userNotifications);
+
+        // Facilities with timeslots
         const querySnapshot = await getDocs(collection(db, "facilities-test"));
         const facilitiesData = await Promise.all(
           querySnapshot.docs.map(async (doc) => {
             const facility = { id: doc.id, ...doc.data() };
 
-            // Fetch related slots
             const slotsSnapshot = await getDocs(
               query(collection(db, "timeslots-test"), where("facilityId", "==", doc.id))
             );
             const slots = slotsSnapshot.docs.map(slotDoc => slotDoc.data());
 
-            return { ...facility, slots };
+            return { ...facility, timeslots: slots };
           })
         );
 
         setFacilities(facilitiesData);
       } catch (error) {
-        console.error("Error fetching facilities:", error);
+        console.error("Error fetching data:", error);
       }
     };
 
-    fetchFacilities();
+    fetchFacilitiesAndNotifications();
   }, []);
 
   const handleBooking = async (facility, slot) => {
@@ -51,10 +63,10 @@ export default function UserDashboard() {
       const duration =
         diff % 60 === 0 ? `${diff / 60} hr${diff > 60 ? "s" : ""}` : `${(diff / 60).toFixed(1)} hrs`;
 
-      // Add to bookings collection only (do not modify facility directly)
       await addDoc(collection(db, "bookings"), {
         facilityName: facility.name,
         userName: user.displayName || user.email,
+        userEmail: user.email,
         date: new Date().toISOString().split("T")[0],
         slot: `${slot.start} - ${slot.end}`,
         duration: duration,
@@ -121,6 +133,22 @@ export default function UserDashboard() {
             ))}
           </div>
         )}
+
+        {/* Notifications Section */}
+        <section style={{ marginTop: "3rem" }}>
+          <h2>Notifications</h2>
+          {notifications.length === 0 ? (
+            <p>No notifications yet.</p>
+          ) : (
+            <ul>
+              {notifications.map((note, idx) => (
+                <li key={idx} style={{ marginBottom: "1rem" }}>
+                  Your booking for <strong>{note.facilityName}</strong> at <strong>{note.slot}</strong> was <strong>{note.status}</strong>.
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </main>
     </>
   );

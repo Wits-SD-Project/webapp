@@ -22,7 +22,7 @@ export default function AdminDashboard() {
     const fetchUsers = async () => {
       try {
         const res = await fetch(
-          "https://ssbackend-aka9gddqdxesexh5.canadacentral-01.azurewebsites.net/api/admin/users"
+          "http://localhost:8080/api/admin/users"
         );
         const text = await res.text();
         if (!res.ok) throw new Error(text || res.statusText);
@@ -47,7 +47,7 @@ export default function AdminDashboard() {
   const handleToggle = async (user, endpoint, flagKey) => {
     try {
       const res = await fetch(
-        `https://ssbackend-aka9gddqdxesexh5.canadacentral-01.azurewebsites.net/api/admin/${endpoint}`,
+        `http://localhost:8080/api/admin/${endpoint}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

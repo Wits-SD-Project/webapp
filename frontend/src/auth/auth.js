@@ -50,7 +50,7 @@ export const uploadFacility = async ({
   isOutdoors,
   availability,
 }) => {
-  const res = await fetch("http://localhost:8080/api/facilities/upload:", {
+  const res = await fetch("http://localhost:8080/api/facilities/upload", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

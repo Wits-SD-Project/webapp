@@ -45,47 +45,50 @@ function makeCollection(collName) {
   return {
     doc: (id) => makeDocRef(id),
     where: function(field, op, value) {
+      let filters = [[field, op, value]];
+
       let matching = Array.from(firestoreData.entries())
         .filter(([, data]) => {
           if (!data) return false;
-          const fieldValue = data[field];
-          if (field.endsWith('_lower')) {
-            return fieldValue === value.toLowerCase();
-          }
-          return fieldValue === value;
+          return data[field] === value || 
+                 (field.endsWith('_lower') && data[field] === value.toLowerCase());
         })
-        
         .map(([id, data]) => ({ 
           id, 
           data: () => data,
           ref: makeDocRef(id)
         }));
 
-      return {
-        where: function(newField, newOp, newValue) {
+      const query = {
+        _collection: collName,
+        _filters: filters,
+        where(newField, newOp, newValue) {
+          filters.push([newField, newOp, newValue]);
           matching = matching.filter(({ data }) => {
             const docData = data();
-            if (newField.endsWith('_lower')) {
-              return docData[newField] === newValue.toLowerCase();
-            }
-            return docData[newField] === newValue;
+            return docData[newField] === newValue ||
+                   (newField.endsWith('_lower') && docData[newField] === newValue.toLowerCase());
           });
           return this;
         },
-        limit: (n) => ({
-          get: jest.fn(() => Promise.resolve({
-            empty: matching.length === 0,
-            docs: matching.slice(0, n),
-          })),
-        }),
+        limit(n) {
+          return {
+            ...query,
+            get: jest.fn(() => Promise.resolve({
+              empty: matching.length === 0,
+              docs: matching.slice(0, n),
+            }))
+          };
+        },
         get: jest.fn(() => Promise.resolve({
           empty: matching.length === 0,
           docs: matching,
-          forEach: function(fn) {
-            matching.forEach(fn);
-          }
+          forEach(fn) { matching.forEach(fn); }
         })),
+        _getMatching: () => matching,
       };
+
+      return query;
     },
     get: jest.fn(() => {
       const docs = Array.from(firestoreData.entries())
@@ -96,9 +99,7 @@ function makeCollection(collName) {
         }));
       return Promise.resolve({ 
         docs,
-        forEach: function(fn) {
-          docs.forEach(fn);
-        }
+        forEach(fn) { docs.forEach(fn); }
       });
     }),
   };
@@ -109,25 +110,11 @@ async function runTransaction(updateFunction) {
   try {
     return await updateFunction({
       get: async (query) => {
-        if (query.where && query.collection) {
-          const matching = Array.from(firestoreData.entries())
-            .filter(([id, data]) => {
-              return query.where.every(([field, op, value]) => {
-                if (field.endsWith('_lower')) {
-                  return data[field] === value.toLowerCase();
-                }
-                return data[field] === value;
-              });
-            })
-            .map(([id, data]) => ({
-              id,
-              data: () => data,
-              exists: true
-            }));
-
+        if (query._getMatching) {
+          const docs = query._getMatching();
           return {
-            empty: matching.length === 0,
-            docs: matching
+            empty: docs.length === 0,
+            docs
           };
         }
 
@@ -143,6 +130,7 @@ async function runTransaction(updateFunction) {
     throw error;
   }
 }
+
 
 function batch() {
   const ops = [];

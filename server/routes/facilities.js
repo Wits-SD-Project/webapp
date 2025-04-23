@@ -88,14 +88,13 @@ router.post('/upload', authenticate, async (req, res) => {
         let docRef;
         try {
             docRef = await admin.firestore().runTransaction(async (transaction) => {
-                const duplicateCheck = await transaction.get({
-                    collection: "facilities-test",
-                    where: [
-                      ["name_lower", "==", facilityData.name_lower],
-                      ["type_lower", "==", facilityData.type_lower]
-                    ]
-                  });
-                  
+              const duplicateQuery = facilitiesRef
+              .where("name_lower", "==", facilityData.name_lower)
+              .where("type_lower", "==", facilityData.type_lower)
+              .limit(1);
+          
+             const duplicateCheck = await transaction.get(duplicateQuery);
+          
         
                 if (!duplicateCheck.empty) {
                     throw new Error("DUPLICATE_FACILITY");
