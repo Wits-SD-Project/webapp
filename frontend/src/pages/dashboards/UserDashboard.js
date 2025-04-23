@@ -7,43 +7,55 @@ export default function UserDashboard() {
   const [facilities, setFacilities] = useState([]);
   const [notifications, setNotifications] = useState([]);
 
-  // Fetch facilities and notifications from Firestore
   useEffect(() => {
-    const fetchFacilitiesAndNotifications = async () => {
+    const fetchNotifications = async () => {
       const user = auth.currentUser;
       if (!user) return;
-
+  
       try {
-        // Notifications
-        const snapshot = await getDocs(query(
+        const q = query(
           collection(db, "notifications"),
-          where("userEmail", "==", user.email)
-        ));
-        const userNotifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setNotifications(userNotifications);
+          where("userName", "==", auth.currentUser.displayName)
+        );
+        const snapshot = await getDocs(q);
+        const notifs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setNotifications(notifs);
+      } catch (error) {
+        console.error("Error fetching notifications:", error);
+      }
+    };
+  
+    fetchNotifications();
+  }, []);
+  
 
-        // Facilities with timeslots
+
+  // Fetch facilities from Firestore
+  useEffect(() => {
+    const fetchFacilities = async () => {
+      try {
         const querySnapshot = await getDocs(collection(db, "facilities-test"));
         const facilitiesData = await Promise.all(
           querySnapshot.docs.map(async (doc) => {
             const facility = { id: doc.id, ...doc.data() };
 
+            // Fetch related slots
             const slotsSnapshot = await getDocs(
               query(collection(db, "timeslots-test"), where("facilityId", "==", doc.id))
             );
             const slots = slotsSnapshot.docs.map(slotDoc => slotDoc.data());
 
-            return { ...facility, timeslots: slots };
+            return { ...facility, slots };
           })
         );
 
         setFacilities(facilitiesData);
       } catch (error) {
-        console.error("Error fetching data:", error);
+        console.error("Error fetching facilities:", error);
       }
     };
 
-    fetchFacilitiesAndNotifications();
+    fetchFacilities();
   }, []);
 
   const handleBooking = async (facility, slot) => {
@@ -63,10 +75,10 @@ export default function UserDashboard() {
       const duration =
         diff % 60 === 0 ? `${diff / 60} hr${diff > 60 ? "s" : ""}` : `${(diff / 60).toFixed(1)} hrs`;
 
+      // Add to bookings collection only (do not modify facility directly)
       await addDoc(collection(db, "bookings"), {
         facilityName: facility.name,
         userName: user.displayName || user.email,
-        userEmail: user.email,
         date: new Date().toISOString().split("T")[0],
         slot: `${slot.start} - ${slot.end}`,
         duration: duration,
@@ -86,6 +98,31 @@ export default function UserDashboard() {
       <Navbar />
       <main style={{ padding: "2rem" }}>
         <h1>Available Facility Time Slots</h1>
+        <section style={{ marginBottom: "2rem" }}>
+  <h2>Notifications</h2>
+  {notifications.length === 0 ? (
+    <p>No notifications yet.</p>
+  ) : (
+    <ul style={{ listStyleType: "none", paddingLeft: 0 }}>
+      {notifications.map((notif) => (
+        <li
+          key={notif.id}
+          style={{
+            background: "#f1f1f1",
+            padding: "0.8rem",
+            borderRadius: "6px",
+            marginBottom: "0.5rem",
+            borderLeft: notif.status === "approved" ? "5px solid green" : "5px solid red"
+          }}
+        >
+          <strong>{notif.status.toUpperCase()}</strong>: Your booking for <em>{notif.facilityName}</em> at <em>{notif.slot}</em> has been {notif.status}.
+        </li>
+      ))}
+    </ul>
+  )}
+</section>
+
+
         {facilities.length === 0 ? (
           <p>Loading facilities...</p>
         ) : (
@@ -133,22 +170,6 @@ export default function UserDashboard() {
             ))}
           </div>
         )}
-
-        {/* Notifications Section */}
-        <section style={{ marginTop: "3rem" }}>
-          <h2>Notifications</h2>
-          {notifications.length === 0 ? (
-            <p>No notifications yet.</p>
-          ) : (
-            <ul>
-              {notifications.map((note, idx) => (
-                <li key={idx} style={{ marginBottom: "1rem" }}>
-                  Your booking for <strong>{note.facilityName}</strong> at <strong>{note.slot}</strong> was <strong>{note.status}</strong>.
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
       </main>
     </>
   );

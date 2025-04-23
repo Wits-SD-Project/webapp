@@ -7,7 +7,7 @@ import { db } from "../../firebase";
 
 
 
-//import data from db - dummy data for now
+// import data from db - dummy data for now
 const dummyBookings = [
     {
         facilityName: "Wanderers",
@@ -153,7 +153,7 @@ useEffect(() => {
 
     // Create notification
     await addDoc(collection(db, "notifications"), {
-    userEmail: booking.userName || booking.user || "unknown",
+    userName: booking.userName || booking.user || "unknown",
     facilityName: booking.facilityName,
     status: newStatus,
     slot: booking.slot || booking.datetime,
