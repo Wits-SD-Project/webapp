@@ -43,8 +43,6 @@ describe('Facilities API Endpoints', () => {
     });
   
     it('should successfully upload a new facility', async () => {
-      // Add debug logging
-      console.log('Initial firestore data:', admin.__firestoreData.size);
       
       const response = await request(app)
         .post('/facilities/upload')
@@ -55,10 +53,6 @@ describe('Facilities API Endpoints', () => {
           availability: 'Weekdays'
         });
   
-      console.log('Response status:', response.status);
-      console.log('Response body:', response.body);
-      console.log('Current firestore data:', Array.from(admin.__firestoreData.values()));
-  
       expect(response.status).toBe(201);
       expect(response.body.success).toBe(true);
       
@@ -68,7 +62,7 @@ describe('Facilities API Endpoints', () => {
       expect(facilities[0].name).toBe('Unique Facility');
     });
   });
-  
+
  // In your test file
 describe('POST /facilities/upload', () => {
   beforeEach(() => {
