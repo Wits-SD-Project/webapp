@@ -627,5 +627,65 @@ router.delete('/:id/timeslots', authenticate, async (req, res) => {
     }
 });
 
+router.post('/bookings', authenticate, async (req, res) => {
+  try {
+    const { facilityId, facilityName, slot, selectedDate } = req.body;
+    const userId = req.user.uid;
+
+    if (!facilityId || !facilityName || !slot || !selectedDate) {
+      return res.status(400).json({ success: false, message: "Missing required fields" });
+    }
+
+    const bookingsRef = admin.firestore().collection('bookings');
+
+    // Check if the user has already booked this slot on the selected date
+    const duplicateBookingSnap = await bookingsRef
+      .where('facilityId', '==', facilityId)
+      .where('date', '==', selectedDate)
+      .where('slot', '==', slot)
+      .where('userId', '==', userId)
+      .get();
+
+    if (!duplicateBookingSnap.empty) {
+      return res.status(409).json({ success: false, message: "You have already booked this slot." });
+    }
+
+    // Check if the slot is fully booked
+    const existingBookingsSnap = await bookingsRef
+      .where('facilityId', '==', facilityId)
+      .where('date', '==', selectedDate)
+      .where('slot', '==', slot)
+      .get();
+
+    const currentBookings = existingBookingsSnap.size;
+
+    if (currentBookings >= 1) {
+      return res.status(409).json({ success: false, message: "This slot is fully booked" });
+    }
+
+    const docRef = admin.firestore().collection("facilities-test").doc(facilityId);
+    const doc= await docRef.get()
+    const staffID = doc.data().created_by
+
+    // If under capacity and not a duplicate, create new booking
+    await bookingsRef.add({
+      facilityId,
+      facilityName,
+      userId,
+      userName: req.user.name || req.user.email,
+      slot,
+      date: selectedDate,
+      status: 'pending',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      facilityStaff:staffID
+    });
+
+    res.status(201).json({ success: true, message: "Booking confirmed" });
+  } catch (err) {
+    console.error('Booking error:', err);
+    res.status(500).json({ success: false, message: "Failed to complete booking" });
+  }
+});
+
 
 module.exports = router
