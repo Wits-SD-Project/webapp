@@ -5,6 +5,30 @@ import Navbar from "../../components/Navbar";
 
 export default function UserDashboard() {
   const [facilities, setFacilities] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      const user = auth.currentUser;
+      if (!user) return;
+  
+      try {
+        const q = query(
+          collection(db, "notifications"),
+          where("userName", "==", auth.currentUser.displayName)
+        );
+        const snapshot = await getDocs(q);
+        const notifs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setNotifications(notifs);
+      } catch (error) {
+        console.error("Error fetching notifications:", error);
+      }
+    };
+  
+    fetchNotifications();
+  }, []);
+  
+
 
   // Fetch facilities from Firestore
   useEffect(() => {
@@ -74,6 +98,31 @@ export default function UserDashboard() {
       <Navbar />
       <main style={{ padding: "2rem" }}>
         <h1>Available Facility Time Slots</h1>
+        <section style={{ marginBottom: "2rem" }}>
+  <h2>Notifications</h2>
+  {notifications.length === 0 ? (
+    <p>No notifications yet.</p>
+  ) : (
+    <ul style={{ listStyleType: "none", paddingLeft: 0 }}>
+      {notifications.map((notif) => (
+        <li
+          key={notif.id}
+          style={{
+            background: "#f1f1f1",
+            padding: "0.8rem",
+            borderRadius: "6px",
+            marginBottom: "0.5rem",
+            borderLeft: notif.status === "approved" ? "5px solid green" : "5px solid red"
+          }}
+        >
+          <strong>{notif.status.toUpperCase()}</strong>: Your booking for <em>{notif.facilityName}</em> at <em>{notif.slot}</em> has been {notif.status}.
+        </li>
+      ))}
+    </ul>
+  )}
+</section>
+
+
         {facilities.length === 0 ? (
           <p>Loading facilities...</p>
         ) : (

@@ -2,12 +2,12 @@ import { useEffect, useState } from "react";
 import Sidebar from "../../components/SideBar.js";
 import "../../styles/staffViewBookings.css";
 
-import { doc, updateDoc, collection, getDocs } from "firebase/firestore";
+import { addDoc, doc, updateDoc, collection, getDocs } from "firebase/firestore";
 import { db } from "../../firebase";
 
 
 
-//import data from db - dummy data for now
+// import data from db - dummy data for now
 const dummyBookings = [
     {
         facilityName: "Wanderers",
@@ -150,6 +150,16 @@ useEffect(() => {
     const bookingId = booking.id;
     const bookingRef = doc(db, "bookings", bookingId);
     await updateDoc(bookingRef, { status: newStatus });
+
+    // Create notification
+    await addDoc(collection(db, "notifications"), {
+    userName: booking.userName || booking.user || "unknown",
+    facilityName: booking.facilityName,
+    status: newStatus,
+    slot: booking.slot || booking.datetime,
+    createdAt: new Date().toISOString(),
+    read: false
+  } );
 
     if (newStatus === "approved") {
       // find the facility by name
