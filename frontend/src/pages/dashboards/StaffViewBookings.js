@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import Sidebar from "../../components/SideBar.js";
 import "../../styles/staffViewBookings.css";
 
-import { addDoc, doc, updateDoc, collection, getDocs } from "firebase/firestore";
-import { db } from "../../firebase";
+import { addDoc, doc, updateDoc, collection, getDocs ,query,where} from "firebase/firestore";
+import { db ,auth} from "../../firebase";
 
 
 
@@ -131,10 +131,19 @@ const dummyBookings = [
 
 export default function ViewBookings() {
   const [bookings, setBookings] = useState([]);
+  
 
 useEffect(() => {
+  const user = auth.currentUser;
+  if (!user) return;
   const fetchBookings = async () => {
-    const snapshot = await getDocs(collection(db, "bookings"));
+     const bookingsRef = collection(db, "bookings");
+            const q = query(
+              bookingsRef,
+              where("facilityStaff", "==", user.uid)
+            );
+      
+            const snapshot = await getDocs(q);
     const bookingsData = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
@@ -210,7 +219,6 @@ useEffect(() => {
               <thead>
                 <tr>
                   <th>Facility Name</th>
-                  <th>Facility Type</th>
                   <th>User</th>
                   <th>Date/Time</th>
                   <th>Duration</th>
@@ -222,7 +230,6 @@ useEffect(() => {
                 {bookings.map((b, index) => (
                   <tr key={index}>
                     <td>{b.facilityName}</td>
-                    <td>{b.facilityType || "—"}</td>
                     <td>{b.userName || b.user || "—"}</td>
                     <td>{b.slot || b.datetime || "—"}</td>
                     <td>{b.duration}</td>
