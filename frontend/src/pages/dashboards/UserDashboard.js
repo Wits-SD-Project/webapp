@@ -14,8 +14,6 @@ export default function UserDashboard() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  
-
   useEffect(() => {
     const fetchNotifications = async () => {
       const user = auth.currentUser;
@@ -38,23 +36,19 @@ export default function UserDashboard() {
   }, []);
 
   useEffect(() => {
-
     const fetchFacilities = async () => {
       try {
         const querySnapshot = await getDocs(collection(db, "facilities-test"));
         const facilitiesData = await Promise.all(
           querySnapshot.docs.map(async (doc) => {
             const facility = { id: doc.id, ...doc.data() };
-
             const slotsSnapshot = await getDocs(
               query(collection(db, "timeslots-test"), where("facilityId", "==", doc.id))
             );
             const slots = slotsSnapshot.docs.map(slotDoc => slotDoc.data());
-
             return { ...facility, slots };
           })
         );
-
         setFacilities(facilitiesData);
       } catch (error) {
         console.error("Error fetching facilities:", error);
@@ -73,7 +67,6 @@ export default function UserDashboard() {
   const confirmBooking = async (date) => {
     if (!selectedSlot || !selectedFacility) return;
 
-
     const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
     const selectedDay = daysOfWeek[date.getDay()];
 
@@ -85,9 +78,8 @@ export default function UserDashboard() {
     const [startHour, startMinute] = selectedSlot.start.split(":").map(Number);
     const slotStartDateTime = new Date(date);
     slotStartDateTime.setHours(startHour, startMinute, 0, 0);
-  
+
     const now = new Date();
-  
     if (slotStartDateTime < now) {
       toast.error("This time slot has already passed. Please select a future time.");
       return;
@@ -133,72 +125,48 @@ export default function UserDashboard() {
   return (
     <>
       <Navbar />
-      <main style={{ padding: "2rem" }}>
-        <h1>Available Facility Time Slots</h1>
+      <main style={{ display: "flex", flexWrap: "wrap", gap: "2rem", padding: "2rem" }}>
+        {/* Left: Facilities Section */}
+        <div style={{ flex: 3, minWidth: "300px" }}>
+          <h1>Available Facility Time Slots</h1>
 
-        {/* Notifications */}
-        <section style={{ marginBottom: "2rem" }}>
-          <h2>Notifications</h2>
-          {notifications.length === 0 ? (
-            <p>No notifications yet.</p>
+          <div style={{ marginBottom: "1.5rem" }}>
+            <input
+              type="text"
+              placeholder="Search facilities..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "0.5rem",
+                fontSize: "1rem",
+                borderRadius: "6px",
+                border: "1px solid #ccc",
+              }}
+            />
+          </div>
+
+          {facilities.length === 0 ? (
+            <p>Loading facilities...</p>
           ) : (
-            <ul style={{ listStyleType: "none", paddingLeft: 0 }}>
-              {notifications.map((notif) => (
-                <li
-                  key={notif.id}
-                  style={{
-                    background: "#f1f1f1",
-                    padding: "0.8rem",
-                    borderRadius: "6px",
-                    marginBottom: "0.5rem",
-                    borderLeft: notif.status === "approved" ? "5px solid green" : "5px solid red"
-                  }}
-                >
-                  <strong>{notif.status.toUpperCase()}</strong>: Your booking for <em>{notif.facilityName}</em> at <em>{notif.slot}</em> has been {notif.status}.
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        <div style={{ marginBottom: "1.5rem" }}>
-          <input
-            type="text"
-            placeholder="Search facilities..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "0.5rem",
-              fontSize: "1rem",
-              borderRadius: "6px",
-              border: "1px solid #ccc",
-            }}
-          />
-        </div>
-        {/* Facilities List */}
-        {facilities.length === 0 ? (
-          <p>Loading facilities...</p>
-        ) : (
-          <div style={{ maxHeight: "70vh", overflowY: "auto", paddingRight: "1rem" }}>
-            {facilities
-              .filter((facility) =>
-                facility.name.toLowerCase().includes(searchQuery.toLowerCase())
-              ).map(facility => (
-              <div key={facility.id} style={{ marginBottom: "2rem" }}>
-                <h2>{facility.name}</h2>
-                <table style={{ width: "100%", borderCollapse: "collapse", marginTop: "1rem" }}>
-                  <thead>
-                    <tr>
-                      <th style={{ borderBottom: "1px solid #ccc", textAlign: "left", padding: "0.5rem" }}>Day</th>
-                      <th style={{ borderBottom: "1px solid #ccc", textAlign: "left", padding: "0.5rem" }}>Start</th>
-                      <th style={{ borderBottom: "1px solid #ccc", textAlign: "left", padding: "0.5rem" }}>End</th>
-                      <th style={{ borderBottom: "1px solid #ccc", textAlign: "left", padding: "0.5rem" }}>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(facility.timeslots || [])
-                      .map((slot, index) => (
+            <div style={{ maxHeight: "70vh", overflowY: "auto", paddingRight: "1rem" }}>
+              {facilities
+                .filter((facility) =>
+                  facility.name.toLowerCase().includes(searchQuery.toLowerCase())
+                ).map(facility => (
+                <div key={facility.id} style={{ marginBottom: "2rem" }}>
+                  <h2>{facility.name}</h2>
+                  <table style={{ width: "100%", borderCollapse: "collapse", marginTop: "1rem" }}>
+                    <thead>
+                      <tr>
+                        <th style={{ borderBottom: "1px solid #ccc", textAlign: "left", padding: "0.5rem" }}>Day</th>
+                        <th style={{ borderBottom: "1px solid #ccc", textAlign: "left", padding: "0.5rem" }}>Start</th>
+                        <th style={{ borderBottom: "1px solid #ccc", textAlign: "left", padding: "0.5rem" }}>End</th>
+                        <th style={{ borderBottom: "1px solid #ccc", textAlign: "left", padding: "0.5rem" }}>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(facility.slots || []).map((slot, index) => (
                         <tr key={index}>
                           <td style={{ padding: "0.5rem" }}>{slot.day}</td>
                           <td style={{ padding: "0.5rem" }}>{slot.start}</td>
@@ -220,12 +188,47 @@ export default function UserDashboard() {
                           </td>
                         </tr>
                       ))}
-                  </tbody>
-                </table>
-              </div>
-            ))}
-          </div>
-        )}
+                    </tbody>
+                  </table>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Right: Notifications Section */}
+        <aside style={{
+          flex: 1,
+          minWidth: "250px",
+          background: "#f9f9f9",
+          padding: "1rem",
+          borderRadius: "8px",
+          height: "80vh",
+          overflowY: "auto",
+          boxShadow: "0 0 8px rgba(0,0,0,0.1)"
+        }}>
+          <h2>Notifications</h2>
+          {notifications.length === 0 ? (
+            <p>No notifications yet.</p>
+          ) : (
+            <ul style={{ listStyleType: "none", paddingLeft: 0 }}>
+              {notifications.map((notif) => (
+                <li
+                  key={notif.id}
+                  style={{
+                    background: "#f1f1f1",
+                    padding: "0.8rem",
+                    borderRadius: "6px",
+                    marginBottom: "0.5rem",
+                    borderLeft: notif.status === "approved" ? "5px solid green" : "5px solid red"
+                  }}
+                >
+                  <strong>{notif.status.toUpperCase()}</strong>: Your booking for <em>{notif.facilityName}</em> at <em>{notif.slot}</em> has been {notif.status}.
+                </li>
+              ))}
+            </ul>
+          )}
+        </aside>
 
         {/* Date Picker Modal */}
         {showDatePicker && (
