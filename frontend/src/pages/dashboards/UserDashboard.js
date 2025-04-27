@@ -1,21 +1,28 @@
 import React, { useEffect, useState } from "react";
 import { db, auth } from "../../firebase"; // Firestore config and auth
-import { doc, updateDoc, addDoc, collection, getDocs, query, where } from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import Navbar from "../../components/Navbar";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+import { toast } from "react-toastify";
 
 export default function UserDashboard() {
   const [facilities, setFacilities] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [selectedFacility, setSelectedFacility] = useState(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  
 
   useEffect(() => {
     const fetchNotifications = async () => {
       const user = auth.currentUser;
       if (!user) return;
-  
+
       try {
         const q = query(
           collection(db, "notifications"),
-          where("userName", "==", auth.currentUser.displayName)
+          where("userName", "==", user.displayName)
         );
         const snapshot = await getDocs(q);
         const notifs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -24,13 +31,10 @@ export default function UserDashboard() {
         console.error("Error fetching notifications:", error);
       }
     };
-  
+
     fetchNotifications();
   }, []);
-  
 
-
-  // Fetch facilities from Firestore
   useEffect(() => {
     const fetchFacilities = async () => {
       try {
@@ -39,7 +43,6 @@ export default function UserDashboard() {
           querySnapshot.docs.map(async (doc) => {
             const facility = { id: doc.id, ...doc.data() };
 
-            // Fetch related slots
             const slotsSnapshot = await getDocs(
               query(collection(db, "timeslots-test"), where("facilityId", "==", doc.id))
             );
@@ -58,38 +61,69 @@ export default function UserDashboard() {
     fetchFacilities();
   }, []);
 
-  const handleBooking = async (facility, slot) => {
+  const startBooking = (facility, slot) => {
+    setSelectedFacility(facility);
+    setSelectedSlot(slot);
+    setShowDatePicker(true);
+  };
+
+  const confirmBooking = async (date) => {
+    if (!selectedSlot || !selectedFacility) return;
+
+
+    const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const selectedDay = daysOfWeek[date.getDay()];
+
+    if (selectedDay !== selectedSlot.day) {
+      toast.error(`Please select a date that falls on a ${selectedSlot.day}. You picked a ${selectedDay}.`);
+      return;
+    }
+
+    const [startHour, startMinute] = selectedSlot.start.split(":").map(Number);
+    const slotStartDateTime = new Date(date);
+    slotStartDateTime.setHours(startHour, startMinute, 0, 0);
+  
+    const now = new Date();
+  
+    if (slotStartDateTime < now) {
+      toast.error("This time slot has already passed. Please select a future time.");
+      return;
+    }
+
     try {
       const user = auth.currentUser;
       if (!user) throw new Error("User not logged in");
 
-      const parseTime = (timeStr) => {
-        const [hours, minutes] = timeStr.split(":").map(Number);
-        return hours * 60 + minutes;
-      };
+      const slotTime = `${selectedSlot.start} - ${selectedSlot.end}`;
 
-      const startMins = parseTime(slot.start);
-      const endMins = parseTime(slot.end);
-      const diff = endMins - startMins;
-
-      const duration =
-        diff % 60 === 0 ? `${diff / 60} hr${diff > 60 ? "s" : ""}` : `${(diff / 60).toFixed(1)} hrs`;
-
-      // Add to bookings collection only (do not modify facility directly)
-      await addDoc(collection(db, "bookings"), {
-        facilityName: facility.name,
-        userName: user.displayName || user.email,
-        date: new Date().toISOString().split("T")[0],
-        slot: `${slot.start} - ${slot.end}`,
-        duration: duration,
-        status: "pending",
-        createdAt: new Date().toISOString()
+      const response = await fetch('http://localhost:8080/api/facilities/bookings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${await user.getIdToken()}`
+        },
+        body: JSON.stringify({
+          facilityId: selectedFacility.id,
+          facilityName: selectedFacility.name,
+          slot: slotTime,
+          selectedDate: date.toISOString().split('T')[0],
+        })
       });
 
-      alert(`Booking request submitted for ${facility.name} on ${slot.day} at ${slot.start}.`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to book slot');
+      }
+
+      toast.success(`Booking confirmed for ${selectedFacility.name} on ${date.toDateString()} at ${selectedSlot.start}.`);
     } catch (error) {
       console.error("Error booking timeslot:", error);
-      alert("Failed to book the timeslot.");
+      toast.error(error.message || "Failed to book the timeslot.");
+    } finally {
+      setSelectedSlot(null);
+      setSelectedFacility(null);
+      setShowDatePicker(false);
     }
   };
 
@@ -98,31 +132,33 @@ export default function UserDashboard() {
       <Navbar />
       <main style={{ padding: "2rem" }}>
         <h1>Available Facility Time Slots</h1>
+
+        {/* Notifications */}
         <section style={{ marginBottom: "2rem" }}>
-  <h2>Notifications</h2>
-  {notifications.length === 0 ? (
-    <p>No notifications yet.</p>
-  ) : (
-    <ul style={{ listStyleType: "none", paddingLeft: 0 }}>
-      {notifications.map((notif) => (
-        <li
-          key={notif.id}
-          style={{
-            background: "#f1f1f1",
-            padding: "0.8rem",
-            borderRadius: "6px",
-            marginBottom: "0.5rem",
-            borderLeft: notif.status === "approved" ? "5px solid green" : "5px solid red"
-          }}
-        >
-          <strong>{notif.status.toUpperCase()}</strong>: Your booking for <em>{notif.facilityName}</em> at <em>{notif.slot}</em> has been {notif.status}.
-        </li>
-      ))}
-    </ul>
-  )}
-</section>
+          <h2>Notifications</h2>
+          {notifications.length === 0 ? (
+            <p>No notifications yet.</p>
+          ) : (
+            <ul style={{ listStyleType: "none", paddingLeft: 0 }}>
+              {notifications.map((notif) => (
+                <li
+                  key={notif.id}
+                  style={{
+                    background: "#f1f1f1",
+                    padding: "0.8rem",
+                    borderRadius: "6px",
+                    marginBottom: "0.5rem",
+                    borderLeft: notif.status === "approved" ? "5px solid green" : "5px solid red"
+                  }}
+                >
+                  <strong>{notif.status.toUpperCase()}</strong>: Your booking for <em>{notif.facilityName}</em> at <em>{notif.slot}</em> has been {notif.status}.
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
 
-
+        {/* Facilities List */}
         {facilities.length === 0 ? (
           <p>Loading facilities...</p>
         ) : (
@@ -141,7 +177,6 @@ export default function UserDashboard() {
                   </thead>
                   <tbody>
                     {(facility.timeslots || [])
-                      .filter(slot => slot.isBooked === false)
                       .map((slot, index) => (
                         <tr key={index}>
                           <td style={{ padding: "0.5rem" }}>{slot.day}</td>
@@ -157,7 +192,7 @@ export default function UserDashboard() {
                                 borderRadius: "4px",
                                 cursor: "pointer"
                               }}
-                              onClick={() => handleBooking(facility, slot)}
+                              onClick={() => startBooking(facility, slot)}
                             >
                               Book
                             </button>
@@ -168,6 +203,46 @@ export default function UserDashboard() {
                 </table>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Date Picker Modal */}
+        {showDatePicker && (
+          <div style={{
+            position: "fixed",
+            top: "50%", left: "50%",
+            transform: "translate(-50%, -50%)",
+            background: "#fff",
+            padding: "2rem",
+            borderRadius: "8px",
+            boxShadow: "0 0 10px rgba(0,0,0,0.3)",
+            zIndex: 1000
+          }}>
+            <h2>Select Booking Date</h2>
+            <DatePicker
+              selected={null}
+              onChange={(date) => confirmBooking(date)}
+              minDate={new Date()}
+              inline
+            />
+            <button
+              onClick={() => {
+                setShowDatePicker(false);
+                setSelectedSlot(null);
+                setSelectedFacility(null);
+              }}
+              style={{
+                marginTop: "1rem",
+                padding: "0.5rem 1rem",
+                backgroundColor: "#dc3545",
+                color: "#fff",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer"
+              }}
+            >
+              Cancel
+            </button>
           </div>
         )}
       </main>
