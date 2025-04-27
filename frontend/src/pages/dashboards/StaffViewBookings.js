@@ -15,6 +15,8 @@ import { db, auth } from "../../firebase";
 
 export default function ViewBookings() {
   const [bookings, setBookings] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+
 
   useEffect(() => {
     const user = auth.currentUser;
@@ -94,7 +96,7 @@ export default function ViewBookings() {
         <main className="main-content">
           <header className="page-header">
             <h1>View Bookings</h1>
-            <input type="search" placeholder="Search" className="search-box" />
+            <input type="search" placeholder="Search" className="search-box" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
           </header>
 
           <section className="table-section">
@@ -111,6 +113,17 @@ export default function ViewBookings() {
               </thead>
               <tbody>
                 {[...bookings]
+                  .filter((b) => {
+                    const query = searchQuery.toLowerCase();
+                    return (
+                      b.facilityName?.toLowerCase().includes(query) ||
+                      b.userName?.toLowerCase().includes(query) ||
+                      b.user?.toLowerCase().includes(query) ||
+                      b.date?.toLowerCase().includes(query) ||
+                      b.slot?.toLowerCase().includes(query) ||
+                      b.status?.toLowerCase().includes(query)
+                    );
+                  })
                   .sort((a, b) =>
                     a.status === "pending" ? -1 : b.status === "pending" ? 1 : 0
                   )

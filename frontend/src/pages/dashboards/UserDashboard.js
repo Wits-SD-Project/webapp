@@ -12,6 +12,8 @@ export default function UserDashboard() {
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [selectedFacility, setSelectedFacility] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
   
 
   useEffect(() => {
@@ -36,6 +38,7 @@ export default function UserDashboard() {
   }, []);
 
   useEffect(() => {
+
     const fetchFacilities = async () => {
       try {
         const querySnapshot = await getDocs(collection(db, "facilities-test"));
@@ -158,12 +161,30 @@ export default function UserDashboard() {
           )}
         </section>
 
+        <div style={{ marginBottom: "1.5rem" }}>
+          <input
+            type="text"
+            placeholder="Search facilities..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              width: "100%",
+              padding: "0.5rem",
+              fontSize: "1rem",
+              borderRadius: "6px",
+              border: "1px solid #ccc",
+            }}
+          />
+        </div>
         {/* Facilities List */}
         {facilities.length === 0 ? (
           <p>Loading facilities...</p>
         ) : (
           <div style={{ maxHeight: "70vh", overflowY: "auto", paddingRight: "1rem" }}>
-            {facilities.map(facility => (
+            {facilities
+              .filter((facility) =>
+                facility.name.toLowerCase().includes(searchQuery.toLowerCase())
+              ).map(facility => (
               <div key={facility.id} style={{ marginBottom: "2rem" }}>
                 <h2>{facility.name}</h2>
                 <table style={{ width: "100%", borderCollapse: "collapse", marginTop: "1rem" }}>
