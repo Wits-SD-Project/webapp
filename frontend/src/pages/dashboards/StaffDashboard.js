@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Sidebar from "../../components/SideBar.js";
+import Sidebar from "../../components/StaffSideBar.js";
 import "../../styles/staffDashboard.css";
 import { useAuth } from "../../context/AuthContext.js";
 import { collection, query, where, onSnapshot } from "firebase/firestore";

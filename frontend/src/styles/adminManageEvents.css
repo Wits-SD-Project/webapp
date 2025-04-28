@@ -1,0 +1,190 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Segoe UI", sans-serif;
+  color: #2c003e;
+  background-color: #fff;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.container {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  margin: 0; /* Explicitly reset */
+  padding: 0; /* Explicitly reset */
+  width: 100vw;
+}
+
+/* Main Content */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 2rem;
+  overflow: hidden;
+  width: 100%;
+  max-width: none;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.page-header h1 {
+  font-size: 1.8rem;
+}
+
+/* chnge */
+.add-btn {
+  background-color: transparent;
+  border: 1px solid #00c0df;
+  color: #00c0df;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  align-self: flex-end;
+}
+
+.add-btn:hover {
+  background-color: #00c0df;
+  color: #fff;
+}
+
+  /* Scrollable table */
+  .table-section {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: auto;
+    border-radius: 12px;
+    border: 1px solid #eee;
+  }
+
+  /* Table */
+.events-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 900px;
+}
+
+.events-table th,
+.events-table td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+.events-table th {
+  background-color: #f4f4f4;
+  color: #2c003e;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.events-table td {
+  color: #333;
+  vertical-align: top;
+}
+
+/* Form elements */
+select, textarea {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-family: inherit;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+/* DateTimePicker styling */
+.react-datetime-picker {
+  width: 100%;
+}
+
+.react-datetime-picker__wrapper {
+  border: 1px solid #ddd !important;
+  border-radius: 4px !important;
+  padding: 0.5rem !important;
+}
+
+/* Action buttons */
+.actions {
+  white-space: nowrap;
+}
+
+.icon-btn {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  margin-right: 10px;
+}
+
+.icon-btn:hover {
+  opacity: 0.8;
+}
+
+.save-btn, .cancel-btn {
+  padding: 0.5rem 1rem;
+  margin-right: 0.5rem;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.3s ease;
+}
+
+.save-btn {
+  background-color: #00c774;
+  color: white;
+}
+
+.cancel-btn {
+  background-color: #ff4b4b;
+  color: white;
+}
+
+.save-btn:hover, .cancel-btn:hover {
+  filter: brightness(0.9);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .container {
+    flex-direction: column;
+  }
+
+  .main-content {
+    padding: 1rem;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .add-btn {
+    width: 100%;
+    margin-top: 1rem;
+  }
+
+  .events-table {
+    min-width: unset;
+  }
+}
