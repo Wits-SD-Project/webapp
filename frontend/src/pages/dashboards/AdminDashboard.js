@@ -1,147 +1,81 @@
-// src/pages/admin/AdminDashboard.js
-import { useEffect, useState } from "react";
-import { toast } from "react-toastify";
-import Navbar from "../../components/Navbar";
-import {
-  Box,
-  Typography,
-  Paper,
-  TableContainer,
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
-  Button,
-} from "@mui/material";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import Sidebar from "../../components/AdminSideBar.js";
+import "../../styles/staffDashboard.css"; //dont delete
+import "../../styles/adminDashboard.css";
+import { useAuth } from "../../context/AuthContext.js";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { db, auth } from "../../firebase";
+import { motion, AnimatePresence } from "framer-motion";
 
-export default function AdminDashboard() {
-  const [users, setUsers] = useState([]);
+export default function StaffDashboard() {
+  const navigate = useNavigate();
+  const { authUser } = useAuth();
+  const username = authUser?.name || "Admin";
 
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const res = await fetch(
-          "http://localhost:8080/api/admin/users"
-        );
-        const text = await res.text();
-        if (!res.ok) throw new Error(text || res.statusText);
-        const data = JSON.parse(text);
-
-        setUsers(
-          data.map((u) => ({
-            ...u,
-            approved: !!u.approved,
-            accepted: !!u.accepted,
-          }))
-        );
-      } catch (err) {
-        console.error("fetchUsers error:", err);
-        toast.error("Failed to load users: " + err.message);
-      }
-    };
-
-    fetchUsers();
-  }, []);
-
-  const handleToggle = async (user, endpoint, flagKey) => {
-    try {
-      const res = await fetch(
-        `http://localhost:8080/api/admin/${endpoint}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: user.email }),
-        }
-      );
-
-      // read raw text first
-      const text = await res.text();
-      if (!res.ok) throw new Error(text || res.statusText);
-
-      // parse json
-      const data = JSON.parse(text);
-
-      setUsers((prev) =>
-        prev.map((u) =>
-          u.email !== user.email ? u : { ...u, [flagKey]: data[flagKey] }
-        )
-      );
-
-      toast.success(data.message);
-    } catch (err) {
-      console.error(`${endpoint} error:`, err);
-      toast.error(err.message);
-    }
-  };
-
-  const toggleApproval = (u) => handleToggle(u, "toggle-approval", "approved");
-  const toggleAccepted = (u) => handleToggle(u, "toggle-accepted", "accepted");
+    const user = auth.currentUser;
+    if (!user) return;
+  }, [authUser]);
 
   return (
-    <Box component="main" sx={{ p: 2 }}>
-      <Navbar />
+    <main className="dashboard">
+      <div className="container">
+        <Sidebar activeItem="dashboard" />
 
-      <Typography variant="h4" gutterBottom>
-        Admin Dashboard
-      </Typography>
+        <main className="main-content">
+          <header className="page-header">
+            <h1>Dashboard</h1>
+            <div className="user-name">{username}</div>
+          </header>
 
-      <TableContainer
-        component={Paper}
-        sx={{ maxHeight: "calc(100vh - 200px)" }}
-      >
-        <Table stickyHeader>
-          <TableHead>
-            <TableRow>
-              <TableCell>Email</TableCell>
-              <TableCell>Role</TableCell>
-              <TableCell>Approved?</TableCell>
-              <TableCell>Access Granted?</TableCell>
-              <TableCell align="center">Actions</TableCell>
-            </TableRow>
-          </TableHead>
+          <div className="card-container">
+            <div className="card">
+              <h3>Upcoming events</h3>
+              <AnimatePresence mode="wait">
+                <motion.p>
+                  You have ?? upcoming events
+                </motion.p>
+              </AnimatePresence>
+              <button className="view-all-btn" onClick={() => navigate("/admin-manage-events")}>
+                View all
+              </button>
+            </div>
 
-          <TableBody>
-            {users.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={5} align="center">
-                  No users found.
-                </TableCell>
-              </TableRow>
-            )}
+            <div className="card">
+              <h3>Pending Applications</h3>
+              <AnimatePresence mode="wait">
+                <motion.p>
+                  ?? users requests awaiting your approval
+                </motion.p>
+              </AnimatePresence>
+              <button className="view-all-btn" onClick={() => navigate("/admin-manage-users")}>
+                View all
+              </button>
+            </div>
+          </div>
 
-            {users.map((user) => (
-              <TableRow key={user.email} hover>
-                <TableCell>{user.email}</TableCell>
-                <TableCell>{user.role}</TableCell>
-                <TableCell>{user.approved ? "Yes" : "No"}</TableCell>
-                <TableCell>{user.accepted ? "Yes" : "No"}</TableCell>
-                <TableCell align="center">
-                  <Button
-                    variant="contained"
-                    size="small"
-                    color={user.approved ? "error" : "success"}
-                    onClick={() => toggleApproval(user)}
-                  >
-                    {user.approved ? "Revoke" : "Approve"}
-                  </Button>
+          <div className="graph-container">
+            <div className="graph-card">
+              <h3>Usage Trends by Facility</h3>
+              <div className="graph-placeholder">graph here</div>
+              <div className="export-buttons">
+                <button>Export as PDF</button>
+                <button>Export as CSV</button>
+              </div>
+            </div>
 
-                  <Button
-                    sx={{ ml: 1 }}
-                    variant="contained"
-                    size="small"
-                    color={user.accepted ? "error" : "primary"}
-                    disabled={!user.approved}
-                    onClick={() => toggleAccepted(user)}
-                  >
-                    {user.accepted ? "Revoke Access" : "Grant Access"}
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-    </Box>
+            <div className="graph-card">
+              <h3>Maintenance Reports (Open vs. Closed Issues)</h3>
+              <div className="graph-placeholder">graph here</div>
+              <div className="export-buttons">
+                <button>Export as PDF</button>
+                <button>Export as CSV</button>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </main>
   );
 }
