@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import Sidebar from "../../components/SideBar";
+import Sidebar from "../../components/StaffSideBar.js";
 import clockIcon from "../../assets/clock.png";
 import editIcon from "../../assets/edit.png";
 import binIcon from "../../assets/bin.png";

@@ -50,7 +50,7 @@ export default function UserDashboard() {
       try {
         const q = query(
           collection(db, "notifications"),
-          where("userName", "==", user.displayName)
+          where("userName", "==", user.email || user.displayName)
         );
         const snapshot = await getDocs(q);
         const notifs = snapshot.docs.map((doc) => ({
@@ -70,19 +70,19 @@ export default function UserDashboard() {
     const fetchFacilities = async () => {
       try {
         const querySnapshot = await getDocs(collection(db, "facilities-test"));
-        const facilitiesData = await Promise.all(
-          querySnapshot.docs.map(async (doc) => {
-            const facility = { id: doc.id, ...doc.data() };
-            const slotsSnapshot = await getDocs(
-              query(
-                collection(db, "timeslots-test"),
-                where("facilityId", "==", doc.id)
-              )
-            );
-            const slots = slotsSnapshot.docs.map((slotDoc) => slotDoc.data());
-            return { ...facility, slots };
-          })
-        );
+        const facilitiesData = querySnapshot.docs.map((doc) => {
+          const facilityData = doc.data();
+          return {
+            id: doc.id,
+            name: facilityData.name,
+            type: facilityData.type,
+            isOutdoors: facilityData.isOutdoors,
+            availability: facilityData.availability,
+            // map timeslots inside slots
+            slots: facilityData.timeslots || [],
+          };
+        });
+
         setFacilities(facilitiesData);
         console.log(facilitiesData);
       } catch (error) {
@@ -271,11 +271,11 @@ export default function UserDashboard() {
               {selectedFacility.name}
             </Typography>
 
-            {selectedFacility.timeslots?.length === 0 ? (
+            {selectedFacility.slots?.length === 0 ? (
               <Typography>No time-slots available.</Typography>
             ) : (
               <List dense>
-                {selectedFacility.timeslots.map((slot, i) => (
+                {selectedFacility.slots.map((slot, i) => (
                   <ListItem
                     key={i}
                     secondaryAction={

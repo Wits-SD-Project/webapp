@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import Sidebar from "../../components/SideBar.js";
+import Sidebar from "../../components/StaffSideBar.js";
 import "../../styles/staffViewBookings.css";
 
 import {

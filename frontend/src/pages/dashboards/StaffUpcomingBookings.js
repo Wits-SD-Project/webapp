@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { db,auth } from "../../firebase";
 import { collection, getDocs,query ,where } from "firebase/firestore";
-import Sidebar from "../../components/SideBar.js";
+import Sidebar from "../../components/StaffSideBar.js";
 import "../../styles/staffUpcomingBookings.css";
 
 export default function StaffUpcomingBookings() {

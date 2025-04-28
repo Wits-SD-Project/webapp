@@ -5,7 +5,7 @@ import dashboardIcon from "../assets/dashboard.png";
 import viewBookingsIcon from "../assets/view-bookings.png";
 import maintenanceIcon from "../assets/maintenance.png";
 import logOutIcon from "../assets/log-out.png";
-import "./sideBar.css"; 
+import "./staffSideBar.css"; 
 import { toast } from "react-toastify";
 import { auth } from "../firebase";
 import { useAuth } from "../context/AuthContext";
@@ -57,8 +57,8 @@ export default function Sidebar({ activeItem }) {
     { 
       name: "Maintenance", 
       icon: maintenanceIcon, 
-      path: "/maintenance",
-      onClick: () => navigate("/maintenance")
+      path: "/staff-maintenance",
+      onClick: () => navigate("/staff-maintenance")
     },
     { 
       name: "Log Out", 
