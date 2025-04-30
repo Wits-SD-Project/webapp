@@ -1,98 +1,70 @@
 import { useEffect, useState } from "react";
 import Sidebar from "../../components/StaffSideBar.js";
 import "../../styles/staffMaintenance.css";
+import { getAuthToken } from "../../firebase";
+import { toast } from "react-toastify";
 
 export default function StaffMaintenance() {
-  // Dummy data for maintenance requests - delete after testing
-  const [maintenanceRequests, setMaintenanceRequests] = useState([
-    {
-      id: 1,
-      facilityName: "Basketball Court",
-      reportedBy: "John Doe",
-      description: "Net is torn and needs replacement",
-      status: "opened",
-      reportedAt: "2023-05-15 10:30 AM"
-    },
-    {
-      id: 2,
-      facilityName: "Swimming Pool",
-      reportedBy: "Sarah Smith",
-      description: "Leak in the pool filtration system",
-      status: "in progress",
-      reportedAt: "2023-05-14 02:15 PM"
-    },
-    {
-      id: 3,
-      facilityName: "Tennis Court",
-      reportedBy: "Mike Johnson",
-      description: "Crack in the court surface",
-      status: "opened",
-      reportedAt: "2023-05-16 09:45 AM"
-    },
-    {
-      id: 4,
-      facilityName: "Gymnasium",
-      reportedBy: "Emily Wilson",
-      description: "Treadmill not functioning properly",
-      status: "closed",
-      reportedAt: "2023-05-10 04:20 PM"
-    },
-    {
-      id: 5,
-      facilityName: "Squash Court",
-      reportedBy: "David Brown",
-      description: "Lighting flickering in court 2",
-      status: "opened",
-      reportedAt: "2023-05-16 11:10 AM"
-    },
-    {
-        id: 6,
-        facilityName: "Basketball Court",
-        reportedBy: "John Doe",
-        description: "Net is torn and needs replacement",
-        status: "opened",
-        reportedAt: "2023-05-15 10:30 AM"
-      },
-      {
-        id: 7,
-        facilityName: "Swimming Pool",
-        reportedBy: "Sarah Smith",
-        description: "Leak in the pool filtration system",
-        status: "in progress",
-        reportedAt: "2023-05-14 02:15 PM"
-      },
-      {
-        id: 8,
-        facilityName: "Tennis Court",
-        reportedBy: "Mike Johnson",
-        description: "Crack in the court surface",
-        status: "opened",
-        reportedAt: "2023-05-16 09:45 AM"
-      },
-      {
-        id: 9,
-        facilityName: "Gymnasium",
-        reportedBy: "Emily Wilson",
-        description: "Treadmill not functioning properly",
-        status: "closed",
-        reportedAt: "2023-05-10 04:20 PM"
-      },
-      {
-        id: 10,
-        facilityName: "Squash Court",
-        reportedBy: "David Brown",
-        description: "Lighting flickering in court 2",
-        status: "opened",
-        reportedAt: "2023-05-16 11:10 AM"
-      }
-  ]);
+  const [maintenanceRequests, setMaintenanceRequests] = useState([]);
 
-  const updateRequestStatus = (id, newStatus) => {
-    setMaintenanceRequests(prev => 
-      prev.map(request => 
-        request.id === id ? { ...request, status: newStatus } : request
-      )
-    );
+  useEffect(() => {
+    const fetchReports = async () => {
+      try {
+        const token = await getAuthToken();
+        const res = await fetch(
+          "http://localhost:8080/api/facilities/staff-maintenance-requests",
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (!res.ok) throw new Error("Failed to fetch reports");
+
+        const data = await res.json();
+        setMaintenanceRequests(data.reports.map((f) => ({ ...f})));
+      } catch (err) {
+        console.log(err);
+        toast.error("Failed to load reports: " + err.message);
+      }
+    };
+
+    fetchReports();
+  }, []);
+
+  const updateRequestStatus = async (id, newStatus) => {
+    try {
+      const token = await getAuthToken();
+      const res = await fetch(
+        `http://localhost:8080/api/facilities/updateReportStatus/${id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            status:newStatus
+          }),
+        }
+      );
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Update failed");
+
+      setMaintenanceRequests(prev => 
+        prev.map(request => 
+          request.id === id ? { ...request, status: newStatus } : request
+        )
+      );
+      toast.success(data.message);
+    } catch (err) {
+      console.error("Update facility error:", err);
+      toast.error(err.message || "Failed to update facility");
+    }
+
   };
 
   return (
@@ -124,7 +96,17 @@ export default function StaffMaintenance() {
                     <td>{request.facilityName}</td>
                     <td>{request.reportedBy}</td>
                     <td>{request.description}</td>
-                    <td>{request.reportedAt}</td>
+                    <td>
+                      {(() => {
+                        const date = new Date(request.reportedAt);
+                        return date.getFullYear() +
+                          '-' + String(date.getMonth() + 1).padStart(2, '0') +
+                          '-' + String(date.getDate()).padStart(2, '0') +
+                          ' ' + String(date.getHours()).padStart(2, '0') +
+                          ':' + String(date.getMinutes()).padStart(2, '0');
+                      })()}
+                    </td>
+
                     <td className={`status ${request.status.toLowerCase().replace(' ', '-')}`}>
                       {request.status}
                     </td>

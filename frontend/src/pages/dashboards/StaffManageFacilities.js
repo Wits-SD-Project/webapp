@@ -6,7 +6,6 @@ import binIcon from "../../assets/bin.png";
 import "../../styles/staffManageFacilities.css";
 import { useNavigate } from "react-router-dom";
 import { getAuthToken } from "../../firebase";
-import { auth } from "../../firebase";
 import { toast } from "react-toastify";
 import FacilityFormModal from "./FalicityFormModal";
 
