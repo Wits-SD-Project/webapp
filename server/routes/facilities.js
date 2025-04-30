@@ -725,4 +725,108 @@ router.post("/bookings", authenticate, async (req, res) => {
   }
 });
 
+// fetch all maintenance reports made to facilities created by a facility staff
+router.get("/staff-maintenance-requests",authenticate,async (req,res) =>{
+  try {
+    // 1. Query facilities created by the current user
+    const snapshot = await admin
+      .firestore()
+      .collection("maintenance-reports")
+      .where("facilityStaff", "==", req.user.uid)
+      .get();
+
+    // 2. Format response data
+    const reports = snapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        facilityName: data.facilityName,
+        reportedBy: data.username,
+        description: data.description,
+        status: data.status,
+        reportedAt: data.createdAt.toDate().toISOString()
+      };
+    });
+
+    // 3. Success response
+    res.json({
+      success: true,
+      reports,
+    });
+  } catch (err) {
+    console.error("Failed to fetch staff maintenance reports:", err);
+
+    // 4. Error handling
+    const errorResponse = {
+      success: false,
+      message: "Failed to fetch staff maintenance reports",
+      errorCode: "FETCH_ERROR",
+    };
+
+    // Add debug info in development
+    if (process.env.NODE_ENV === "development") {
+      errorResponse.error = err.message;
+      errorResponse.stack = err.stack;
+    }
+
+    res.status(500).json(errorResponse);
+  }
+
+  // Update maintenance report status
+  router.put("/updateReportStatus/:id",authenticate, async (req, res) => {
+    try {
+      const reportId = req.params.id;
+      const { status } = req.body;
+  
+      // 1. Get reference to the maintenance report
+      const reportRef = admin
+        .firestore()
+        .collection("maintenance-reports")
+        .doc(reportId);
+  
+      // 2. Verify report exists and is for a facility created by user
+      const doc = await reportRef.get();
+      if (!doc.exists || doc.data().facilityStaff !== req.user.uid ) {
+        return res.status(404).json({
+          success: false,
+          message: "Report not found or unauthorized",
+        });
+      }
+  
+      // 3. Prepare update data
+      const updateData = {
+        status:status
+      };
+  
+      // 4. Perform update
+      await reportRef.update(updateData);
+  
+      // 5. Return updated facility
+      const updatedDoc = await reportRef.get();
+      const data = updatedDoc.data();
+  
+      res.json({
+        success: true,
+        report: {
+          id: doc.id,
+          facilityName: data.facilityName,
+          reportedBy: data.username,
+          description: data.description,
+          status: data.status,
+          reportedAt: data.createdAt.toDate().toISOString()
+        },
+        message: "Report updated successfully",
+      });
+    } catch (err) {
+      console.error("Failed to update Report:", err);
+      res.status(500).json({
+        success: false,
+        message: "Failed to update Report",
+        error: process.env.NODE_ENV === "development" ? err.message : undefined,
+      });
+    }
+  });
+
+});
+
 module.exports = router;
