@@ -28,6 +28,11 @@ import StaffEditTimeSlots from "./pages/dashboards/StaffEditTimeSlots";
 import StaffManageFacilities from "./pages/dashboards/StaffManageFacilities";
 import StaffMaintenance from "./pages/dashboards/StaffMaintenance";
 
+//Res Pages
+import ResDashboard from "./pages/dashboards/ResDashboard";
+import ResNotifications from "./pages/dashboards/ResNotifications";
+import ResMaintenance from "./pages/dashboards/ResMaintenance";
+
 // Resident Feature
 import ResidentBooking from "./components/ResidentBooking";
 
@@ -86,6 +91,30 @@ function App() {
           element={
             <ProtectedRoute requiredRole="staff">
               <StaffDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/res-dashboard"
+          element={
+            <ProtectedRoute requiredRole="resident">
+              <ResDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/res-notifications"
+          element={
+            <ProtectedRoute requiredRole="resident">
+              <ResNotifications />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/res-maintenance"
+          element={
+            <ProtectedRoute requiredRole="resident">
+              <ResMaintenance />
             </ProtectedRoute>
           }
         />
