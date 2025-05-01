@@ -829,32 +829,4 @@ router.get("/staff-maintenance-requests",authenticate,async (req,res) =>{
 
 });
 
-//Ibram's code:
-
-router.post("/api/facility/admin/events", authenticate, async (req, res) => {
-  try {
-    // Check if user is admin
-    if (!req.user.admin) {
-      return res.status(403).json({ success: false, message: "Access denied. Admins only." });
-    }
-
-    const { eventName, facility, description, startTime, endTime } = req.body;
-
-    await admin.firestore().collection("admin-events").add({
-      eventName,
-      facility,
-      description,
-      startTime,
-      endTime,
-      createdBy: req.user.uid,
-    });
-
-    res.json({ success: true });
-  } catch (error) {
-    console.error("Error creating event:", error);
-    res.status(500).json({ success: false, message: "Internal server error" });
-  }
-});
-
-
 module.exports = router;

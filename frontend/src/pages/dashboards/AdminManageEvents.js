@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { db } from "../../firebase.js";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import Sidebar from "../../components/AdminSideBar.js";
 import editIcon from "../../assets/edit.png";
 import binIcon from "../../assets/bin.png";
 import "../../styles/adminManageEvents.css";
-
+import { getAuthToken } from "../../firebase";
+import { toast } from "react-toastify";
 
 export default function AdminManageEvents() {
   // State management for events, original events (for canceling edits), and facilities
@@ -56,7 +55,7 @@ export default function AdminManageEvents() {
       { 
         id: "1", 
         eventName: "Yoga Class", 
-        facility: "Gym", 
+        facility: { id: "1", name: "Gym" }, 
         description: "Morning yoga session for all residents",
         startTime: new Date(2023, 5, 15, 8, 0), // June 15, 2023 8:00 AM
         endTime: new Date(2023, 5, 15, 9, 0),   // June 15, 2023 9:00 AM
@@ -65,7 +64,7 @@ export default function AdminManageEvents() {
       { 
         id: "2", 
         eventName: "Swim Competition", 
-        facility: "Swimming Pool", 
+        facility:  { id: "2", name: "Swimming Pool" }, 
         description: "Annual resident swimming competition",
         startTime: new Date(2023, 5, 16, 14, 0), // June 16, 2023 2:00 PM
         endTime: new Date(2023, 5, 16, 17, 0),   // June 16, 2023 5:00 PM
@@ -74,7 +73,7 @@ export default function AdminManageEvents() {
       { 
         id: "3", 
         eventName: "Tennis Tournament", 
-        facility: "Tennis Court", 
+        facility:  { id: "3", name: "Tennis Court" }, 
         description: "Friendly tennis matches between residents",
         startTime: new Date(2023, 5, 17, 10, 0), // June 17, 2023 10:00 AM
         endTime: new Date(2023, 5, 17, 16, 0),    // June 17, 2023 4:00 PM
@@ -139,36 +138,67 @@ export default function AdminManageEvents() {
   };
 
   /**
-   * Saves the current event changes
-   * @param {string} id - Event ID being saved
-   */
-  const handleSaveEvent = async (id) => {
-    const event = events.find((e) => e.id === id);
+ * Saves the current event changes
+ * @param {string} id - Event ID being saved
+ */
+  const handleSaveEvent = async (eventId) => {
+    const event = events.find((e) => e.id === eventId);
+    if (!event) return;
   
     const payload = {
       eventName: event.eventName,
-      facility: event.facility,
+      facility: event.facility.name,
+      facilityId: event.facility.id,
       description: event.description,
-      startTime: event.startTime,
-      endTime: event.endTime,
-      createdAt: serverTimestamp(),
+      startTime: new Date(event.startTime).toISOString(),
+      endTime: new Date(event.endTime).toISOString(),
     };
   
     try {
-      await addDoc(collection(db, "admin-events"), payload);
-      console.log("Event saved to Firestore!");
-    } catch (error) {
-      console.error("Failed to save event to Firestore:", error);
-      return;
-    }
+      const token = await getAuthToken();
+      const url = event.isNew
+        ? "http://localhost:8080/api/admin/events"
+        : `http://localhost:8080/api/admin/events/${eventId}`;
   
-    setEvents((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, isEditing: false, isNew: false } : e))
-    );
+      const res = await fetch(url, {
+        method: event.isNew ? "POST" : "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+  
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message || "Something went wrong");
+  
+      // Convert ISO strings to Date objects
+      const updatedEvent = {
+        ...result.event,
+        startTime: new Date(result.event.startTime),
+        endTime: new Date(result.event.endTime),
+      };
+  
+      // Update events state
+      setEvents((prev) =>
+        prev.map((e) =>
+          e.id === eventId ? { ...updatedEvent, isEditing: false } : e
+        )
+      );
+  
+      // Update originalEvents
+      setOriginalEvents((prev) => ({
+        ...prev,
+        [eventId]: updatedEvent,
+      }));
+  
+      toast.success(result.message || "Event saved successfully");
+    } catch (error) {
+      console.error("Save error:", error);
+      toast.error(error.message);
+    }
   };
   
-  
-
   /**
    * Formats a Date object into a readable string
    * @param {Date} date - The date to format
@@ -233,14 +263,17 @@ export default function AdminManageEvents() {
                     <td>
                       {e.isEditing ? (
                         <select
-                          value={e.facility}
-                          onChange={(ev) => handleFieldChange(e.id, "facility", ev.target.value)}
+                          value={e.facility.id}
+                          onChange={(ev) => {
+                            const selected = facilities.find(f => f.id === ev.target.value);
+                            handleFieldChange(e.id, "facility", selected);
+                          }}
                         >
                           {facilities.map((f) => (
-                            <option key={f.id} value={f.name}>{f.name}</option>
+                            <option key={f.id} value={f.id}>{f.name}</option>
                           ))}
                         </select>
-                      ) : e.facility}
+                      ) : e.facility?.name}
                     </td>
                     
                     {/* Description column */}
