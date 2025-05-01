@@ -1,37 +1,42 @@
 import { useEffect, useState } from "react";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { auth, db } from "../../firebase";
 import Sidebar from "../../components/ResSideBar.js";
 import "../../styles/resNotifications.css";
 
 export default function ResNotifications() {
- //dummy data
-  const [notifications, setNotifications] = useState([
-    {
-      date: "2023-05-15 10:30 AM",
-      type: "Booking",
-      message: "Your booking has been approved!"
-    },
-    {
-      date: "2023-05-16 02:15 PM",
-      type: "Maintenance",
-      message: "Pool area will be closed for maintenance from 3 PM to 5 PM on May 16."
-    },
-    {
-      date: "2023-05-17 09:00 AM",
-      type: "Weather",
-      message: "Heavy rain expected today. Please take precautions on the tennis court."
-    },
-    {
-      date: "2023-05-18 04:45 PM",
-      type: "Event",
-      message: "New fitness class added to the schedule."
-    },
-    {
-      date: "2023-05-19 11:20 AM",
-      type: "Booking",
-      message: "Your booking request has been rejected."
-    }
-  ]);
+  const [notifications, setNotifications] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      const user = auth.currentUser;
+      if (!user) return;
+
+      try {
+        const q = query(
+          collection(db, "notifications"),
+          where("userName", "==", user.email) // match your field
+        );
+        const snapshot = await getDocs(q);
+
+        const fetchedNotifications = snapshot.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            date: new Date(data.createdAt).toLocaleString(),
+            type: "Booking",
+            message: `Your booking for ${data.facilityName} at ${data.slot} was ${data.status}.`,
+          };
+        });
+
+        setNotifications(fetchedNotifications);
+      } catch (error) {
+        console.error("Error fetching notifications:", error);
+      }
+    };
+
+    fetchNotifications();
+  }, []);
 
   return (
     <main className="notifications">
@@ -41,12 +46,12 @@ export default function ResNotifications() {
         <main className="main-content">
           <header className="page-header">
             <h1>Notifications</h1>
-            <input 
-              type="search" 
-              placeholder="Search" 
-              className="search-box" 
-              value={searchQuery} 
-              onChange={(e) => setSearchQuery(e.target.value)} 
+            <input
+              type="search"
+              placeholder="Search"
+              className="search-box"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
           </header>
 

@@ -238,5 +238,80 @@ router.put("/events/:id", authenticate, async (req, res) => {
   }
 });
 
+// Fetch all admin events
+router.get("/events", authenticate, async (req, res) => {
+  try {
+    // 1. Fetch the user's document
+    const userRef = admin.firestore().collection("users").doc(req.user.email);
+    const userSnap = await userRef.get();
+
+    if (!userSnap.exists) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+        errorCode: "USER_NOT_FOUND",
+      });
+    }
+
+    const userData = userSnap.data();
+
+    // 2. Check if user is an admin
+    if (userData.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Admins only.",
+        errorCode: "FORBIDDEN",
+      });
+    }
+
+    // 3. Query admin events
+    const eventsRef = admin.firestore().collection("admin-events");
+    const snapshot = await eventsRef.orderBy("startTime").get();
+
+    // 4. Format response data
+    const events = snapshot.docs.map((doc) => {
+      const event = doc.data();
+      return {
+        id: doc.id,
+        eventName: event.eventName,
+        facility: {
+          id: event.facilityId,
+          name: event.facility,
+        },
+        description: event.description,
+        startTime: new Date(event.startTime),
+        endTime: new Date(event.endTime),
+        isEditing: false,
+      };
+    });
+
+    // 5. Success response
+    res.status(200).json({
+      success: true,
+      count: events.length,
+      events,
+    });
+
+  } catch (error) {
+    console.error("Error fetching admin events:", error);
+
+    // 6. Error handling
+    const errorResponse = {
+      success: false,
+      message: "Failed to fetch admin events",
+      errorCode: "FETCH_ERROR",
+    };
+
+    if (process.env.NODE_ENV === "development") {
+      errorResponse.error = error.message;
+      errorResponse.stack = error.stack;
+    }
+
+    res.status(500).json(errorResponse);
+  }
+});
+
+
+
 
 module.exports = router;
