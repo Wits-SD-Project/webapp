@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { db } from "../../firebase.js";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import Sidebar from "../../components/AdminSideBar.js";
 import editIcon from "../../assets/edit.png";
 import binIcon from "../../assets/bin.png";
@@ -140,21 +142,32 @@ export default function AdminManageEvents() {
    * Saves the current event changes
    * @param {string} id - Event ID being saved
    */
-  const handleSaveEvent = (id) => {
+  const handleSaveEvent = async (id) => {
     const event = events.find((e) => e.id === id);
-    if (event.isNew) {
-      console.log("Adding new event:", event);
-      // In a real app, you would send this to your backend here
-    } else {
-      console.log("Updating event:", event);
-      // In a real app, you would update the backend here
+  
+    const payload = {
+      eventName: event.eventName,
+      facility: event.facility,
+      description: event.description,
+      startTime: event.startTime,
+      endTime: event.endTime,
+      createdAt: serverTimestamp(),
+    };
+  
+    try {
+      await addDoc(collection(db, "admin-events"), payload);
+      console.log("Event saved to Firestore!");
+    } catch (error) {
+      console.error("Failed to save event to Firestore:", error);
+      return;
     }
-    
-    // Update the event to no longer be in edit mode
+  
     setEvents((prev) =>
       prev.map((e) => (e.id === id ? { ...e, isEditing: false, isNew: false } : e))
     );
   };
+  
+  
 
   /**
    * Formats a Date object into a readable string
