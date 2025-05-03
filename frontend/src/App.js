@@ -32,6 +32,7 @@ import StaffMaintenance from "./pages/dashboards/StaffMaintenance";
 import ResDashboard from "./pages/dashboards/ResDashboard";
 import ResNotifications from "./pages/dashboards/ResNotifications";
 import ResMaintenance from "./pages/dashboards/ResMaintenance";
+import ResEvents from "./pages/dashboards/ResEvents";
 
 // Resident Feature
 import ResidentBooking from "./components/ResidentBooking";
@@ -115,6 +116,14 @@ function App() {
           element={
             <ProtectedRoute requiredRole="resident">
               <ResMaintenance />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/res-events"
+          element={
+            <ProtectedRoute requiredRole="resident">
+              <ResEvents />
             </ProtectedRoute>
           }
         />
