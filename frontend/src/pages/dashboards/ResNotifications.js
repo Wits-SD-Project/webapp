@@ -22,11 +22,28 @@ export default function ResNotifications() {
 
         const fetchedNotifications = snapshot.docs.map((doc) => {
           const data = doc.data();
-          return {
-            date: new Date(data.createdAt).toLocaleString(),
-            type: "Booking",
-            message: `Your booking for ${data.facilityName} at ${data.slot} was ${data.status}.`,
-          };
+          const isBooking = data.facilityName && data.slot && data.status;
+          const isEvent = data.eventName && data.facility && data.startTime && data.endTime;
+
+          if (isBooking) {
+            return {
+              date: new Date(data.createdAt).toLocaleString(),
+              type: "Booking",
+              message: `Your booking for ${data.facilityName} at ${data.slot} was ${data.status}.`,
+            };
+          } else if (isEvent) {
+            return {
+              date: new Date(data.createdAt).toLocaleString(),
+              type: "Event",
+              message: `New event '${data.eventName}' at ${data.facility} from ${new Date(data.startTime).toLocaleString()} to ${new Date(data.endTime).toLocaleString()}.`,
+            };
+          } else {
+            return {
+              date: new Date(data.createdAt).toLocaleString(),
+              type: "General",
+              message: "You have a new notification.",
+            };
+          }
         });
 
         setNotifications(fetchedNotifications);

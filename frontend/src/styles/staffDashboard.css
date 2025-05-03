@@ -92,3 +92,18 @@
   }
 
 }
+
+.new-event-banner {
+  background-color: #e0f7fa;
+  padding: 10px 20px;
+  color: #006064;
+  font-weight: bold;
+  border-left: 4px solid #00acc1;
+  margin-bottom: 1rem;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

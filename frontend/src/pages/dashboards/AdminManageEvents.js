@@ -5,6 +5,8 @@ import binIcon from "../../assets/bin.png";
 import "../../styles/adminManageEvents.css";
 import { getAuthToken } from "../../firebase";
 import { toast } from "react-toastify";
+import { collection, addDoc, getDocs, query, where } from "firebase/firestore";
+import { db } from "../../firebase"; // Ensure this import exists at the top of the file
 
 export default function AdminManageEvents() {
   const [events, setEvents] = useState([]);
@@ -136,6 +138,25 @@ export default function AdminManageEvents() {
 
       const result = await res.json();
       if (!res.ok) throw new Error(result.message || "Something went wrong");
+
+      // Push a notification to each resident
+      try {
+        const usersSnapshot = await getDocs(query(collection(db, "users"), where("role", "==", "resident")));
+        usersSnapshot.forEach(async (docSnap) => {
+          const resident = docSnap.data();
+          await addDoc(collection(db, "notifications"), {
+            createdAt: new Date().toISOString(),
+            facilityName: result.event.facility,
+            slot: `${formatDateTime(new Date(result.event.startTime))} - ${formatDateTime(new Date(result.event.endTime))}`,
+            status: "new-event",
+            eventName: result.event.eventName,
+            userName: resident.email,
+            read: false,
+          });
+        });
+      } catch (notifyErr) {
+        console.error("Error sending event notifications:", notifyErr);
+      }
 
       const updatedEvent = {
         ...result.event,
