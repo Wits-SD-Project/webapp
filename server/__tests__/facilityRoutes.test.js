@@ -24,95 +24,172 @@ jest.mock('../authenticate', () => (req, res, next) => {
 describe('Facilities API Endpoints', () => {
   const facilityId = 'test-facility-id';
 
+  // In your test file's beforeEach
   beforeEach(() => {
     admin.__firestoreData.clear();
     admin.__firestoreData.set(facilityId, {
       name: 'Test Facility',
+      name_lower: 'test facility', // Add this
       type: 'Test Type',
+      type_lower: 'test type', // Add this
       isOutdoors: true,
       created_by: 'test-user-123',
       timeslots: []
     });
   });
-  describe('POST /facilities/upload - Enhanced Version', () => {
+
+  describe('POST /facilities/upload', () => {
     beforeEach(() => {
       admin.__firestoreData.clear();
       jest.clearAllMocks();
     });
   
-    it('should create a new facility with required fields', async () => {
-      const res = await request(app).post('/facilities/upload').send({
-        name: 'Soccer Field',
-        type: 'Outdoor',
-        isOutdoors: true,
+    it('should successfully upload a new facility with all fields', async () => {
+      const response = await request(app)
+        .post('/facilities/upload')
+        .send({
+          name: 'New Facility',
+          type: 'Basketball Court',
+          isOutdoors: true,
+          availability: 'Weekdays',
+          location: 'Central Park',
+          imageUrls: ['url1.jpg', 'url2.jpg']
+        });
+  
+      expect(response.status).toBe(201);
+      expect(response.body.success).toBe(true);
+      expect(response.body.facility).toMatchObject({
+        name: 'New Facility',
+        type: 'Basketball Court',
+        isOutdoors: 'Yes',
         availability: 'Weekdays',
-        location: 'Cape Town',
-        imageUrls: ['https://example.com/image.jpg']
+        location: 'Central Park',
+        imageUrls: ['url1.jpg', 'url2.jpg']
       });
   
-      expect(res.status).toBe(201);
-      expect(res.body.success).toBe(true);
-      expect(res.body.facility.name).toBe('Soccer Field');
-      expect(res.body.facility.isOutdoors).toBe('Yes');
+      // Verify Firestore data
+      const facilities = Array.from(admin.__firestoreData.values());
+      expect(facilities).toHaveLength(1);
+      const facilityData = facilities[0];
+      expect(facilityData.name_lower).toBe('new facility');
+      expect(facilityData.type_lower).toBe('basketball court');
+      expect(facilityData.created_at).toBeDefined();
+    });
+  
+    it('should prevent case-insensitive duplicates', async () => {
+      // Create initial facility
+      await request(app)
+        .post('/facilities/upload')
+        .send({
+          name: 'Test Facility',
+          type: 'Tennis Court',
+          isOutdoors: true
+        });
+  
+      // Attempt duplicate with different casing
+      const response = await request(app)
+        .post('/facilities/upload')
+        .send({
+          name: 'test facility',
+          type: 'tennis court',
+          isOutdoors: false
+        });
+  
+      expect(response.status).toBe(409);
+      expect(response.body.errorCode).toBe('DUPLICATE_FACILITY');
+    });
+  
+    it('should allow different types with same name', async () => {
+      await request(app)
+        .post('/facilities/upload')
+        .send({
+          name: 'Sports Complex',
+          type: 'Basketball',
+          isOutdoors: true
+        });
+  
+      const response = await request(app)
+        .post('/facilities/upload')
+        .send({
+          name: 'Sports Complex',
+          type: 'Tennis',
+          isOutdoors: false
+        });
+  
+      expect(response.status).toBe(201);
+      expect(response.body.success).toBe(true);
     });
   
     it('should return 400 for missing required fields', async () => {
-      const res = await request(app).post('/facilities/upload').send({
-        name: 'Incomplete Facility'
-      });
+      const testCases = [
+        { name: 'Test' }, // missing type & isOutdoors
+        { type: 'Test' }, // missing name & isOutdoors
+        { isOutdoors: true }, // missing name & type
+        { name: 'Test', type: 'Test' }, // missing isOutdoors
+      ];
   
-      expect(res.status).toBe(400);
-      expect(res.body.errorCode).toBe('MISSING_REQUIRED_FIELDS');
+      for (const body of testCases) {
+        const response = await request(app)
+          .post('/facilities/upload')
+          .send(body);
+        expect(response.status).toBe(400);
+        expect(response.body.errorCode).toBe('MISSING_REQUIRED_FIELDS');
+      }
     });
   
     it('should return 400 for invalid field types', async () => {
-      const res = await request(app).post('/facilities/upload').send({
-        name: 'Bad Field',
-        type: 'Tennis',
-        isOutdoors: 'yes',
-        availability: 'Weekends',
-        location: 'Durban'
-      });
+      const response = await request(app)
+        .post('/facilities/upload')
+        .send({
+          name: 12345,
+          type: 'Test',
+          isOutdoors: 'true' // should be boolean
+        });
   
-      expect(res.status).toBe(400);
-      expect(res.body.errorCode).toBe('INVALID_FIELD_TYPES');
+      expect(response.status).toBe(400);
+      expect(response.body.errorCode).toBe('INVALID_FIELD_TYPES');
     });
   
-    it('should return 400 if name or type exceed max length', async () => {
-      const res = await request(app).post('/facilities/upload').send({
-        name: 'A'.repeat(101),
-        type: 'B'.repeat(51),
-        isOutdoors: true,
-        availability: 'Anytime',
-        location: 'Joburg'
-      });
+    it('should return 400 for excessive field lengths', async () => {
+      const longName = 'a'.repeat(101);
+      const longType = 'b'.repeat(51);
   
-      expect(res.status).toBe(400);
-      expect(res.body.errorCode).toBe('FIELD_TOO_LONG');
+      const responses = await Promise.all([
+        request(app).post('/facilities/upload').send({
+          name: longName,
+          type: 'Valid',
+          isOutdoors: true
+        }),
+        request(app).post('/facilities/upload').send({
+          name: 'Valid',
+          type: longType,
+          isOutdoors: true
+        })
+      ]);
+  
+      responses.forEach(response => {
+        expect(response.status).toBe(400);
+        expect(response.body.errorCode).toBe('FIELD_TOO_LONG');
+      });
     });
   
-    it('should prevent duplicate facility (case-insensitive)', async () => {
-      await request(app).post('/facilities/upload').send({
-        name: 'Main Gym',
-        type: 'Fitness',
-        isOutdoors: false,
-        availability: '24/7',
-        location: 'JHB'
+  it('should handle optional fields correctly', async () => {
+    const response = await request(app)
+      .post('/facilities/upload')
+      .send({
+        name: 'Optional Fields',
+        type: 'Test Type',
+        isOutdoors: false
       });
-  
-      const res = await request(app).post('/facilities/upload').send({
-        name: 'main gym',
-        type: 'fitness',
-        isOutdoors: false,
-        availability: '24/7',
-        location: 'JHB'
-      });
-  
-      expect(res.status).toBe(409);
-      expect(res.body.errorCode).toBe('DUPLICATE_FACILITY');
+
+    expect(response.status).toBe(201);
+    expect(response.body.facility).toMatchObject({
+      location: '', // Now expecting empty string instead of undefined
+      imageUrls: []
     });
   });
-  
+  });
+
   describe('GET /facilities/staff-facilities', () => {
     beforeEach(() => {
         // Clear existing data

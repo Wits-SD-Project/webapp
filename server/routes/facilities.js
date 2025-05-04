@@ -42,8 +42,8 @@ router.post("/upload", authenticate, async (req, res) => {
   // Sanitize inputs
   const sanitizedName = name.trim();
   const sanitizedType = type.trim();
-  const sanitizedAvailability = availability.trim();
-  const sanitizedLoc = location.trim();
+  const sanitizedAvailability = availability ? availability.trim() : '';
+  const sanitizedLoc = location ? location.trim() : '';
 
   // Validate string lengths
   if (sanitizedName.length > 100 || sanitizedType.length > 50) {
@@ -85,7 +85,7 @@ router.post("/upload", authenticate, async (req, res) => {
       isOutdoors: Boolean(isOutdoors),
       availability: sanitizedAvailability,
       location: sanitizedLoc,
-      imageUrls,
+      imageUrls:imageUrls || [],
       timeslots: [],
       created_by: req.user.uid,
       created_at: admin.firestore.FieldValue.serverTimestamp(),
@@ -117,6 +117,7 @@ router.post("/upload", authenticate, async (req, res) => {
           errorCode: "DUPLICATE_FACILITY",
         });
       }
+      console.error("Transaction error:", transactionError);
       throw transactionError;
     }
 
@@ -139,7 +140,11 @@ router.post("/upload", authenticate, async (req, res) => {
     });
   } catch (err) {
     console.error("Upload error:", err);
-    res.status(500).json({ message: "Failed to upload facility" });
+    res.status(500).json({ 
+      success: false,
+      message: "Failed to upload facility",
+      errorCode: "SERVER_ERROR"
+    });
   }
 });
 

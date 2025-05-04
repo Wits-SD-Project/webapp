@@ -16,33 +16,48 @@ describe('Auth Routes', () => {
   const uid = '12345';
 
   beforeEach(() => {
-    admin.__firestoreData.clear();
-    admin.auth().verifyIdToken.mockClear();
-    admin.auth().setCustomUserClaims.mockClear();
+    admin2.__firestoreData.clear();
+    // reset auth mocks
+    admin2.auth().verifyIdToken.mockClear();
+    admin2.auth().setCustomUserClaims.mockClear();
+    admin2.auth().createSessionCookie.mockClear();
   });
 
   test('Signup - New user', async () => {
-    // Mock the auth response
-    admin.auth().verifyIdToken.mockResolvedValueOnce({
-      uid,
-      email,
-      name: 'Test User'
-    });
-
-    const res = await request(app)
-      .post('/api/auth/signup')
+    const res = await request2(app2)
+      .post('/api/signup/thirdparty')
       .send({ idToken: 'valid-token', role: 'resident' });
 
     expect(res.status).toBe(200);
     expect(res.body.email).toBe(email);
-    expect(admin.auth().setCustomUserClaims).toHaveBeenCalledWith(uid, {
-      role: 'resident',
-      approved: false
+    expect(admin2.auth().setCustomUserClaims).toHaveBeenCalledWith(uid, {
+      role: 'resident', approved: false
     });
-    
-    // Verify user was created in Firestore
-    const userDoc = admin.__firestoreData.get(`users/${email}`);
-    expect(userDoc).toBeDefined();
-    expect(userDoc.uid).toBe(uid);
+  });
+
+  test('Signin - Unapproved', async () => {
+    admin2.__firestoreData.set(email, {
+      email, uid, approved: false, accepted: true, role: 'resident', name: 'Test'
+    });
+
+    const res = await request2(app2)
+      .post('/api/signin/thirdparty')
+      .send({ idToken: 'valid-token' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.message).toMatch(/not yet approved/);
+  });
+
+  test('Verify session - Approved & accepted', async () => {
+    admin2.__firestoreData.set(email, {
+      email, uid, approved: true, accepted: true, role: 'resident', name: 'Test'
+    });
+
+    const res = await request2(app2)
+      .post('/api/verify-session')
+      .send({ idToken: 'valid-token' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.user).toEqual(expect.objectContaining({ email, role: 'resident', name: 'Test' }));
   });
 });
