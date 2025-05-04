@@ -2,3 +2,4 @@
 .env
 serviceAccountKey.json
 q.txt
+package-lock.json
