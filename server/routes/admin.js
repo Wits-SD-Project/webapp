@@ -312,6 +312,71 @@ router.get("/events", authenticate, async (req, res) => {
 });
 
 
+// 🛠 GET maintenance issue summary
+router.get("/maintenance-summary", authenticate, async (req, res) => {
+  const { facility, dateRange } = req.query;
+
+  try {
+    // Step 1: Ensure the requester is an admin
+    const userSnap = await admin.firestore().collection("users").doc(req.user.email).get();
+    if (!userSnap.exists || userSnap.data().role !== "admin") {
+      return res.status(403).json({ message: "Access denied. Admins only." });
+    }
+
+    // Step 2: Build query
+    let query = admin.firestore().collection("maintenance-issues");
+
+    if (facility) {
+      query = query.where("facilityName", "==", facility);
+    }
+
+    if (dateRange === "last30days") {
+      const now = new Date();
+      const past30Days = new Date(now.setDate(now.getDate() - 30));
+      query = query.where("createdAt", ">=", past30Days);
+    }
+
+    const snapshot = await query.get();
+
+    const issues = snapshot.docs.map((doc) => doc.data());
+
+    // Step 3: Count open vs. closed
+    const summary = {
+      openCount: 0,
+      closedCount: 0,
+    };
+
+    const grouped = {};
+
+    for (const issue of issues) {
+      if (issue.status === "open") summary.openCount++;
+      else if (issue.status === "closed") summary.closedCount++;
+
+      if (facility == null) {
+        const f = issue.facilityName || "Unknown";
+        grouped[f] = grouped[f] || { open: 0, closed: 0 };
+        grouped[f][issue.status] = (grouped[f][issue.status] || 0) + 1;
+      }
+    }
+
+    // Step 4: Return response
+    const response = {
+      openCount: summary.openCount,
+      closedCount: summary.closedCount,
+    };
+
+    if (!facility) {
+      response.groupedByFacility = grouped;
+    }
+
+    return res.json(response);
+  } catch (err) {
+    console.error("Error fetching maintenance summary:", err);
+    res.status(500).json({ message: "Internal server error." });
+  }
+});
+
+
 
 
 module.exports = router;
