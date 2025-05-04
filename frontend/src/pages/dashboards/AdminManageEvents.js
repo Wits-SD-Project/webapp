@@ -203,6 +203,30 @@ export default function AdminManageEvents() {
     }
   };
 
+  const handleDeleteEvent = async (eventId) => {
+    try {
+      const token = await getAuthToken();
+      const url = `http://localhost:8080/api/admin/events/${eventId}`;
+
+      const res = await fetch(url, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message || "Failed to delete event");
+
+      setEvents((prev) => prev.filter((e) => e.id !== eventId));
+      toast.success(result.message || "Event deleted successfully");
+    } catch (error) {
+      console.error("Delete error:", error);
+      toast.error(error.message || "An unexpected error occurred");
+    }
+  };
+
   const formatDateTime = (date) => {
     if (!date) return "";
     return date.toLocaleString('en-US', {
@@ -318,7 +342,7 @@ export default function AdminManageEvents() {
                             className="icon-btn"
                             onClick={() => {
                               if (window.confirm(`Are you sure you want to delete "${e.eventName}"?`)) {
-                                setEvents((prev) => prev.filter(ev => ev.id !== e.id));
+                                handleDeleteEvent(e.id);
                               }
                             }}
                           />

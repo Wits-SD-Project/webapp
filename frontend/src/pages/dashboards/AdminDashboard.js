@@ -14,9 +14,18 @@ export default function StaffDashboard() {
   const username = authUser?.name || "Admin";
 
   useEffect(() => {
-    const user = auth.currentUser;
-    if (!user) return;
-  }, [authUser]);
+  const user = auth.currentUser;
+  if (user) {
+    user.getIdToken()
+      .then((token) => {
+        console.log("Admin token:", token);
+      })
+      .catch((err) => console.error("Failed to get token:", err));
+  } else {
+    console.warn("No user is currently logged in.");
+  }
+}, [authUser]);
+
 
   return (
     <main className="dashboard">
@@ -78,4 +87,5 @@ export default function StaffDashboard() {
       </div>
     </main>
   );
+  
 }

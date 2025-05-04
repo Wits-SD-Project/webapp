@@ -298,6 +298,32 @@ router.put("/events/:id", authenticate, async (req, res) => {
   }
 });
 
+router.delete("/events/:id", authenticate, async (req, res) => {
+  try {
+    const userRef = admin.firestore().collection("users").doc(req.user.email);
+    const snap = await userRef.get();
+
+    if (!snap.exists || snap.data().role !== "admin") {
+      return res.status(403).json({ success: false, message: "Access denied. Admins only." });
+    }
+
+    const eventId = req.params.id;
+    const eventRef = admin.firestore().collection("admin-events").doc(eventId);
+    const doc = await eventRef.get();
+
+    if (!doc.exists) {
+      return res.status(404).json({ success: false, message: "Event not found." });
+    }
+
+    await eventRef.delete();
+
+    return res.status(200).json({ success: true, message: "Event successfully deleted." });
+  } catch (error) {
+    console.error("Error deleting event:", error);
+    return res.status(500).json({ success: false, message: "Internal server error." });
+  }
+});
+
 
 // Fetch all admin events
 router.get("/events", authenticate, async (req, res) => {
@@ -385,7 +411,7 @@ router.get("/maintenance-summary", authenticate, async (req, res) => {
     }
 
     // Step 2: Build query
-    let query = admin.firestore().collection("maintenance-issues");
+    let query = admin.firestore().collection("maintenance-reports");
 
     if (facility) {
       query = query.where("facilityName", "==", facility);
@@ -410,15 +436,18 @@ router.get("/maintenance-summary", authenticate, async (req, res) => {
     const grouped = {};
 
     for (const issue of issues) {
-      if (issue.status === "open") summary.openCount++;
+      console.log("Issue loaded:", issue.status, issue.facilityName);
+    
+      if (issue.status === "opened") summary.openCount++;
       else if (issue.status === "closed") summary.closedCount++;
-
+    
       if (facility == null) {
         const f = issue.facilityName || "Unknown";
-        grouped[f] = grouped[f] || { open: 0, closed: 0 };
+        grouped[f] = grouped[f] || { opened: 0, closed: 0 };
         grouped[f][issue.status] = (grouped[f][issue.status] || 0) + 1;
       }
     }
+    
 
     // Step 4: Return response
     const response = {
@@ -434,6 +463,27 @@ router.get("/maintenance-summary", authenticate, async (req, res) => {
   } catch (err) {
     console.error("Error fetching maintenance summary:", err);
     res.status(500).json({ message: "Internal server error." });
+  }
+});
+
+router.get("/maintenance-reports", authenticate, async (req, res) => {
+  try {
+    const userSnap = await admin.firestore().collection("users").doc(req.user.email).get();
+
+    if (!userSnap.exists || userSnap.data().role !== "admin") {
+      return res.status(403).json({ message: "Access denied. Admins only." });
+    }
+
+    const snapshot = await admin.firestore().collection("maintenance-reports").get();
+    const reports = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    res.status(200).json({ success: true, reports });
+  } catch (error) {
+    console.error("Error fetching maintenance reports:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch maintenance reports" });
   }
 });
 

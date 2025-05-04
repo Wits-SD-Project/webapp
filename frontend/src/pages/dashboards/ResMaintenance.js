@@ -77,6 +77,7 @@ export default function ResMaintenance() {
         description: issueDescription,
         status: "opened", // Match your existing status format
         createdAt: new Date(),
+        resolvedAt: null,
         facilityStaff: selectedFacility.created_by || "", // Use the facility's staff ID
         userId: user?.uid || "",
         username: user?.email || ""
