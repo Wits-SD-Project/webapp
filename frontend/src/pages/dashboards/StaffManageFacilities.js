@@ -51,6 +51,7 @@ export default function ManageFacilities() {
 
     fetchFacilities();
   }, []);
+  
   const handleAddFacility = async (formData) => {
     /* formData === {
          name, type, isOutdoors, availability, location, imageUrls:[...]

@@ -15,7 +15,6 @@ const upload = multer({ storage }); //stores image in RAM temporarily
 router.post("/upload", authenticate, async (req, res) => {
   const { name, type, isOutdoors, availability, location, imageUrls } =
     req.body; // what your api call should send to this api
-  console.log(req.body);
   // const img = req.file; for images
 
   // Checking required fields
@@ -43,7 +42,8 @@ router.post("/upload", authenticate, async (req, res) => {
   // Sanitize inputs
   const sanitizedName = name.trim();
   const sanitizedType = type.trim();
-  const sanitizedAvailability = availability.trim();
+  const sanitizedAvailability = availability ? availability.trim() : '';
+  const sanitizedLoc = location ? location.trim() : '';
 
   // Validate string lengths
   if (sanitizedName.length > 100 || sanitizedType.length > 50) {
@@ -84,8 +84,8 @@ router.post("/upload", authenticate, async (req, res) => {
       type_lower: sanitizedType.toLowerCase(), // For case-insensitive search
       isOutdoors: Boolean(isOutdoors),
       availability: sanitizedAvailability,
-      location: location.trim(),
-      imageUrls,
+      location: sanitizedLoc,
+      imageUrls:imageUrls || [],
       timeslots: [],
       created_by: req.user.uid,
       created_at: admin.firestore.FieldValue.serverTimestamp(),
@@ -117,6 +117,7 @@ router.post("/upload", authenticate, async (req, res) => {
           errorCode: "DUPLICATE_FACILITY",
         });
       }
+      console.error("Transaction error:", transactionError);
       throw transactionError;
     }
 
@@ -139,7 +140,11 @@ router.post("/upload", authenticate, async (req, res) => {
     });
   } catch (err) {
     console.error("Upload error:", err);
-    res.status(500).json({ message: "Failed to upload facility" });
+    res.status(500).json({ 
+      success: false,
+      message: "Failed to upload facility",
+      errorCode: "SERVER_ERROR"
+    });
   }
 });
 

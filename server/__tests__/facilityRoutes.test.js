@@ -24,11 +24,14 @@ jest.mock('../authenticate', () => (req, res, next) => {
 describe('Facilities API Endpoints', () => {
   const facilityId = 'test-facility-id';
 
+  // In your test file's beforeEach
   beforeEach(() => {
     admin.__firestoreData.clear();
     admin.__firestoreData.set(facilityId, {
       name: 'Test Facility',
+      name_lower: 'test facility', // Add this
       type: 'Test Type',
+      type_lower: 'test type', // Add this
       isOutdoors: true,
       created_by: 'test-user-123',
       timeslots: []
@@ -37,66 +40,155 @@ describe('Facilities API Endpoints', () => {
 
   describe('POST /facilities/upload', () => {
     beforeEach(() => {
-      // Double-clear to ensure clean state
       admin.__firestoreData.clear();
       jest.clearAllMocks();
     });
   
-    it('should successfully upload a new facility', async () => {
-      
+    it('should successfully upload a new facility with all fields', async () => {
       const response = await request(app)
         .post('/facilities/upload')
         .send({
-          name: 'Unique Facility',  // Changed to ensure uniqueness
+          name: 'New Facility',
           type: 'Basketball Court',
           isOutdoors: true,
-          availability: 'Weekdays'
+          availability: 'Weekdays',
+          location: 'Central Park',
+          imageUrls: ['url1.jpg', 'url2.jpg']
         });
   
       expect(response.status).toBe(201);
       expect(response.body.success).toBe(true);
-      
-      // Verify creation
+      expect(response.body.facility).toMatchObject({
+        name: 'New Facility',
+        type: 'Basketball Court',
+        isOutdoors: 'Yes',
+        availability: 'Weekdays',
+        location: 'Central Park',
+        imageUrls: ['url1.jpg', 'url2.jpg']
+      });
+  
+      // Verify Firestore data
       const facilities = Array.from(admin.__firestoreData.values());
       expect(facilities).toHaveLength(1);
-      expect(facilities[0].name).toBe('Unique Facility');
+      const facilityData = facilities[0];
+      expect(facilityData.name_lower).toBe('new facility');
+      expect(facilityData.type_lower).toBe('basketball court');
+      expect(facilityData.created_at).toBeDefined();
     });
-  });
-
- // In your test file
-describe('POST /facilities/upload', () => {
-  beforeEach(() => {
-    // Clear all test data before each test
-    admin.__firestoreData.clear();
-    jest.clearAllMocks();
-  });
-
-  it('should prevent duplicate facilities', async () => {
-    // First create a facility
-    await request(app)
-      .post('/facilities/upload')
-      .send({
-        name: 'Duplicate Facility',
-        type: 'Tennis Court',
-        isOutdoors: false,
-        availability: 'Weekends'
+  
+    it('should prevent case-insensitive duplicates', async () => {
+      // Create initial facility
+      await request(app)
+        .post('/facilities/upload')
+        .send({
+          name: 'Test Facility',
+          type: 'Tennis Court',
+          isOutdoors: true
+        });
+  
+      // Attempt duplicate with different casing
+      const response = await request(app)
+        .post('/facilities/upload')
+        .send({
+          name: 'test facility',
+          type: 'tennis court',
+          isOutdoors: false
+        });
+  
+      expect(response.status).toBe(409);
+      expect(response.body.errorCode).toBe('DUPLICATE_FACILITY');
+    });
+  
+    it('should allow different types with same name', async () => {
+      await request(app)
+        .post('/facilities/upload')
+        .send({
+          name: 'Sports Complex',
+          type: 'Basketball',
+          isOutdoors: true
+        });
+  
+      const response = await request(app)
+        .post('/facilities/upload')
+        .send({
+          name: 'Sports Complex',
+          type: 'Tennis',
+          isOutdoors: false
+        });
+  
+      expect(response.status).toBe(201);
+      expect(response.body.success).toBe(true);
+    });
+  
+    it('should return 400 for missing required fields', async () => {
+      const testCases = [
+        { name: 'Test' }, // missing type & isOutdoors
+        { type: 'Test' }, // missing name & isOutdoors
+        { isOutdoors: true }, // missing name & type
+        { name: 'Test', type: 'Test' }, // missing isOutdoors
+      ];
+  
+      for (const body of testCases) {
+        const response = await request(app)
+          .post('/facilities/upload')
+          .send(body);
+        expect(response.status).toBe(400);
+        expect(response.body.errorCode).toBe('MISSING_REQUIRED_FIELDS');
+      }
+    });
+  
+    it('should return 400 for invalid field types', async () => {
+      const response = await request(app)
+        .post('/facilities/upload')
+        .send({
+          name: 12345,
+          type: 'Test',
+          isOutdoors: 'true' // should be boolean
+        });
+  
+      expect(response.status).toBe(400);
+      expect(response.body.errorCode).toBe('INVALID_FIELD_TYPES');
+    });
+  
+    it('should return 400 for excessive field lengths', async () => {
+      const longName = 'a'.repeat(101);
+      const longType = 'b'.repeat(51);
+  
+      const responses = await Promise.all([
+        request(app).post('/facilities/upload').send({
+          name: longName,
+          type: 'Valid',
+          isOutdoors: true
+        }),
+        request(app).post('/facilities/upload').send({
+          name: 'Valid',
+          type: longType,
+          isOutdoors: true
+        })
+      ]);
+  
+      responses.forEach(response => {
+        expect(response.status).toBe(400);
+        expect(response.body.errorCode).toBe('FIELD_TOO_LONG');
       });
-
-    // Try to create same facility again
+    });
+  
+  it('should handle optional fields correctly', async () => {
     const response = await request(app)
       .post('/facilities/upload')
       .send({
-        name: 'Duplicate Facility',
-        type: 'Tennis Court',
-        isOutdoors: false,
-        availability: 'Weekends'
+        name: 'Optional Fields',
+        type: 'Test Type',
+        isOutdoors: false
       });
 
-    expect(response.status).toBe(409);
-    expect(response.body.errorCode).toBe('DUPLICATE_FACILITY');
+    expect(response.status).toBe(201);
+    expect(response.body.facility).toMatchObject({
+      location: '', // Now expecting empty string instead of undefined
+      imageUrls: []
+    });
   });
-});
-
+  });
 
   describe('GET /facilities/staff-facilities', () => {
     beforeEach(() => {
