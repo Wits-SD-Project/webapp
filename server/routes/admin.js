@@ -40,39 +40,117 @@ router.post("/toggle-approval", async (req, res) => {
   }
 });
 
-router.post("/toggle-accepted", async (req, res) => {
-  const { email } = req.body;
-  if (!email || email === "admin@gmail.com") {
-    return res.status(400).json({ message: "Invalid email." });
-  }
+router.post("/events", authenticate, async (req, res) => {
   try {
-    const userRef = admin.firestore().collection("users").doc(email);
+    const userRef = admin.firestore().collection("users").doc(req.user.email);
     const snap = await userRef.get();
-    if (!snap.exists)
-      return res.status(404).json({ message: "User not found." });
 
-    const current = snap.data().accepted || false;
-    const next = !current;
-    await userRef.update({ accepted: next });
-
-    // update custom claim if you use it
-    const uid = snap.data().uid;
-    if (uid) {
-      await admin.auth().setCustomUserClaims(uid, {
-        ...(snap.data().approved && { approved: true }),
-        accepted: next,
-      });
+    if (!snap.exists) {
+      return res.status(404).json({ success: false, message: "User not found." });
     }
 
-    res.json({
-      message: `${email} has been ${next ? "granted" : "revoked"} access`,
-      accepted: next,
+    const userData = snap.data();
+    if (userData.role !== "admin") {
+      return res.status(403).json({ success: false, message: "Access denied. Admins only." });
+    }
+
+    const {
+      eventName,
+      facility,
+      facilityId,
+      description,
+      startTime,
+      endTime,
+    } = req.body;
+
+    // === Step 1: Validate input ===
+    if (
+      !eventName || typeof eventName !== "string" ||
+      !facility || typeof facility !== "string" ||
+      !facilityId || typeof facilityId !== "string" ||
+      !description || typeof description !== "string" ||
+      !startTime || !endTime
+    ) {
+      return res.status(400).json({ success: false, message: "Missing or invalid required fields." });
+    }
+
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    const now = new Date();
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return res.status(400).json({ success: false, message: "Invalid date format." });
+    }
+
+    if (start >= end) {
+      return res.status(400).json({ success: false, message: "Start time must be before end time." });
+    }
+
+    if (start < now) {
+      return res.status(400).json({ success: false, message: "Cannot schedule events in the past." });
+    }
+
+    const eventRef = admin.firestore().collection("admin-events");
+
+    // === Step 2: Check for duplicate event (same name, facility, and startTime) ===
+    const duplicateSnap = await eventRef
+      .where("eventName", "==", eventName)
+      .where("facilityId", "==", facilityId)
+      .where("startTime", "==", start.toISOString())
+      .get();
+
+    if (!duplicateSnap.empty) {
+      return res.status(409).json({ success: false, message: "Duplicate event with same name and start time at this facility." });
+    }
+
+    // === Step 3: Check for overlapping events at the same facility ===
+    const overlappingSnap = await eventRef
+      .where("facilityId", "==", facilityId)
+      .where("startTime", "<", end.toISOString()) // start before end
+      .where("endTime", ">", start.toISOString()) // end after start
+      .get();
+
+    if (!overlappingSnap.empty) {
+      return res.status(409).json({ success: false, message: "Overlapping event already scheduled at this facility." });
+    }
+
+    // === Step 4: Add new event ===
+    const newEventDoc = await eventRef.add({
+      eventName,
+      facility,
+      facilityId,
+      description,
+      startTime: start.toISOString(),
+      endTime: end.toISOString(),
+      createdBy: req.user.uid,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Failed to update accepted status." });
+
+    const responseEvent = {
+      id: newEventDoc.id,
+      eventName,
+      facility: {
+        id: facilityId,
+        name: facility,
+      },
+      description,
+      startTime: start,
+      endTime: end,
+      isEditing: false,
+    };
+
+    return res.status(201).json({
+      success: true,
+      event: responseEvent,
+      message: "Event successfully created",
+    });
+
+  } catch (error) {
+    console.error("Error creating event:", error);
+    return res.status(500).json({ success: false, message: "Internal server error" });
   }
 });
+
 
 // Get all users - Admin SDK version
 router.get("/users", async (req, res) => {
@@ -99,94 +177,21 @@ router.get("/users", async (req, res) => {
   }
 });
 
-//Ibram's code:
-router.post("/events", authenticate, async (req, res) => {
-  const userRef = admin.firestore().collection("users").doc(req.user.email);
-  const snap = await userRef.get();
-
-  if (!snap.exists) {
-    return res.status(404).json({ message: "User not found." });
-  }
-
-  const data = snap.data();
-  if (data.role !== "admin") {
-    return res.status(403).json({ success: false, message: "Access denied. Admins only." });
-  }
-
-  try {
-    const {
-      eventName,
-      facility,
-      facilityId,
-      description,
-      startTime,
-      endTime,
-    } = req.body;
-
-    if (!facilityId || !eventName || !startTime || !endTime || !description || !facility) {
-      return res.status(400).json({ message: "Missing required fields." });
-    }
-
-    const eventRef = admin.firestore().collection("admin-events");
-
-    // Check for duplicate event by name, facility, and overlapping start time
-    const duplicateSnap = await eventRef
-      .where("eventName", "==", eventName)
-      .where("facilityId", "==", facilityId)
-      .where("startTime", "==", startTime) // You can improve this to check for time ranges if needed
-      .get();
-
-    if (!duplicateSnap.empty) {
-      return res.status(409).json({ success: false, message: "Duplicate event detected." });
-    }
-
-    // Add new event
-    const newEventDoc = await eventRef.add({
-      eventName,
-      facility,
-      facilityId,
-      description,
-      startTime,
-      endTime,
-      createdBy: req.user.uid,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    // Return the event in required format
-    const responseEvent = {
-      id: newEventDoc.id,
-      eventName,
-      facility: {
-        id: facilityId,
-        name: facility,
-      },
-      description,
-      startTime: new Date(startTime),
-      endTime: new Date(endTime),
-      isEditing: false,
-    };
-
-    return res.status(201).json({ success: true, event: responseEvent,message:"Event successfully created"});
-  } catch (error) {
-    console.error("Error creating event:", error);
-    return res.status(500).json({ success: false, message: "Internal server error" });
-  }
-});
 
 router.put("/events/:id", authenticate, async (req, res) => {
-  const userRef = admin.firestore().collection("users").doc(req.user.email);
-  const snap = await userRef.get();
-
-  if (!snap.exists) {
-    return res.status(404).json({ message: "User not found." });
-  }
-
-  const data = snap.data();
-  if (data.role !== "admin") {
-    return res.status(403).json({ success: false, message: "Access denied. Admins only." });
-  }
-
   try {
+    const userRef = admin.firestore().collection("users").doc(req.user.email);
+    const snap = await userRef.get();
+
+    if (!snap.exists) {
+      return res.status(404).json({ success: false, message: "User not found." });
+    }
+
+    const userData = snap.data();
+    if (userData.role !== "admin") {
+      return res.status(403).json({ success: false, message: "Access denied. Admins only." });
+    }
+
     const eventId = req.params.id;
     const {
       eventName,
@@ -197,24 +202,74 @@ router.put("/events/:id", authenticate, async (req, res) => {
       endTime,
     } = req.body;
 
-    if (!eventName || !facility || !facilityId || !description || !startTime || !endTime) {
-      return res.status(400).json({ message: "Missing required fields." });
+    // === Step 1: Validate input ===
+    if (
+      !eventName || typeof eventName !== "string" ||
+      !facility || typeof facility !== "string" ||
+      !facilityId || typeof facilityId !== "string" ||
+      !description || typeof description !== "string" ||
+      !startTime || !endTime
+    ) {
+      return res.status(400).json({ success: false, message: "Missing or invalid required fields." });
+    }
+
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    const now = new Date();
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return res.status(400).json({ success: false, message: "Invalid date format." });
+    }
+
+    if (start >= end) {
+      return res.status(400).json({ success: false, message: "Start time must be before end time." });
+    }
+
+    if (start < now) {
+      return res.status(400).json({ success: false, message: "Cannot update event to a past time." });
     }
 
     const eventRef = admin.firestore().collection("admin-events").doc(eventId);
-    const existing = await eventRef.get();
+    const existingSnap = await eventRef.get();
 
-    if (!existing.exists) {
+    if (!existingSnap.exists) {
       return res.status(404).json({ success: false, message: "Event not found." });
     }
 
+    const eventCollectionRef = admin.firestore().collection("admin-events");
+
+    // === Step 2: Check for duplicate event with same name, facility, and startTime (excluding current) ===
+    const duplicateSnap = await eventCollectionRef
+      .where("eventName", "==", eventName)
+      .where("facilityId", "==", facilityId)
+      .where("startTime", "==", start.toISOString())
+      .get();
+
+    const isDuplicate = duplicateSnap.docs.some(doc => doc.id !== eventId);
+    if (isDuplicate) {
+      return res.status(409).json({ success: false, message: "Duplicate event with same name and start time at this facility." });
+    }
+
+    // === Step 3: Check for overlapping time at the same facility (excluding current) ===
+    const overlappingSnap = await eventCollectionRef
+      .where("facilityId", "==", facilityId)
+      .where("startTime", "<", end.toISOString())
+      .where("endTime", ">", start.toISOString())
+      .get();
+
+    const isOverlapping = overlappingSnap.docs.some(doc => doc.id !== eventId);
+    if (isOverlapping) {
+      return res.status(409).json({ success: false, message: "Overlapping event exists at this facility." });
+    }
+
+    // === Step 4: Update event ===
     await eventRef.update({
       eventName,
       facility,
       facilityId,
       description,
-      startTime,
-      endTime,
+      startTime: start.toISOString(),
+      endTime: end.toISOString(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
@@ -226,17 +281,23 @@ router.put("/events/:id", authenticate, async (req, res) => {
         name: facility,
       },
       description,
-      startTime: new Date(startTime),
-      endTime: new Date(endTime),
+      startTime: start,
+      endTime: end,
       isEditing: false,
     };
 
-    return res.status(200).json({ success: true, event: updatedEvent, message: "Event successfully updated" });
+    return res.status(200).json({
+      success: true,
+      event: updatedEvent,
+      message: "Event successfully updated",
+    });
+
   } catch (error) {
     console.error("Error updating event:", error);
     return res.status(500).json({ success: false, message: "Internal server error" });
   }
 });
+
 
 // Fetch all admin events
 router.get("/events", authenticate, async (req, res) => {
@@ -376,7 +437,21 @@ router.get("/maintenance-summary", authenticate, async (req, res) => {
   }
 });
 
+router.get("/facilities", authenticate, async (req, res) => {
+  try {
+    const snapshot = await admin.firestore().collection("facilities-test").get();
 
+    const facilities = snapshot.docs.map(doc => ({
+      id: doc.id,
+      name: doc.data().name,
+    }));
+
+    res.status(200).json({ success: true, facilities });
+  } catch (error) {
+    console.error("Error fetching facilities:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch facilities" });
+  }
+});
 
 
 module.exports = router;

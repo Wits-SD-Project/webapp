@@ -34,70 +34,85 @@ describe('Facilities API Endpoints', () => {
       timeslots: []
     });
   });
-
-  describe('POST /facilities/upload', () => {
+  describe('POST /facilities/upload - Enhanced Version', () => {
     beforeEach(() => {
-      // Double-clear to ensure clean state
       admin.__firestoreData.clear();
       jest.clearAllMocks();
     });
   
-    it('should successfully upload a new facility', async () => {
-      
-      const response = await request(app)
-        .post('/facilities/upload')
-        .send({
-          name: 'Unique Facility',  // Changed to ensure uniqueness
-          type: 'Basketball Court',
-          isOutdoors: true,
-          availability: 'Weekdays'
-        });
+    it('should create a new facility with required fields', async () => {
+      const res = await request(app).post('/facilities/upload').send({
+        name: 'Soccer Field',
+        type: 'Outdoor',
+        isOutdoors: true,
+        availability: 'Weekdays',
+        location: 'Cape Town',
+        imageUrls: ['https://example.com/image.jpg']
+      });
   
-      expect(response.status).toBe(201);
-      expect(response.body.success).toBe(true);
-      
-      // Verify creation
-      const facilities = Array.from(admin.__firestoreData.values());
-      expect(facilities).toHaveLength(1);
-      expect(facilities[0].name).toBe('Unique Facility');
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.facility.name).toBe('Soccer Field');
+      expect(res.body.facility.isOutdoors).toBe('Yes');
+    });
+  
+    it('should return 400 for missing required fields', async () => {
+      const res = await request(app).post('/facilities/upload').send({
+        name: 'Incomplete Facility'
+      });
+  
+      expect(res.status).toBe(400);
+      expect(res.body.errorCode).toBe('MISSING_REQUIRED_FIELDS');
+    });
+  
+    it('should return 400 for invalid field types', async () => {
+      const res = await request(app).post('/facilities/upload').send({
+        name: 'Bad Field',
+        type: 'Tennis',
+        isOutdoors: 'yes',
+        availability: 'Weekends',
+        location: 'Durban'
+      });
+  
+      expect(res.status).toBe(400);
+      expect(res.body.errorCode).toBe('INVALID_FIELD_TYPES');
+    });
+  
+    it('should return 400 if name or type exceed max length', async () => {
+      const res = await request(app).post('/facilities/upload').send({
+        name: 'A'.repeat(101),
+        type: 'B'.repeat(51),
+        isOutdoors: true,
+        availability: 'Anytime',
+        location: 'Joburg'
+      });
+  
+      expect(res.status).toBe(400);
+      expect(res.body.errorCode).toBe('FIELD_TOO_LONG');
+    });
+  
+    it('should prevent duplicate facility (case-insensitive)', async () => {
+      await request(app).post('/facilities/upload').send({
+        name: 'Main Gym',
+        type: 'Fitness',
+        isOutdoors: false,
+        availability: '24/7',
+        location: 'JHB'
+      });
+  
+      const res = await request(app).post('/facilities/upload').send({
+        name: 'main gym',
+        type: 'fitness',
+        isOutdoors: false,
+        availability: '24/7',
+        location: 'JHB'
+      });
+  
+      expect(res.status).toBe(409);
+      expect(res.body.errorCode).toBe('DUPLICATE_FACILITY');
     });
   });
-
- // In your test file
-describe('POST /facilities/upload', () => {
-  beforeEach(() => {
-    // Clear all test data before each test
-    admin.__firestoreData.clear();
-    jest.clearAllMocks();
-  });
-
-  it('should prevent duplicate facilities', async () => {
-    // First create a facility
-    await request(app)
-      .post('/facilities/upload')
-      .send({
-        name: 'Duplicate Facility',
-        type: 'Tennis Court',
-        isOutdoors: false,
-        availability: 'Weekends'
-      });
-
-    // Try to create same facility again
-    const response = await request(app)
-      .post('/facilities/upload')
-      .send({
-        name: 'Duplicate Facility',
-        type: 'Tennis Court',
-        isOutdoors: false,
-        availability: 'Weekends'
-      });
-
-    expect(response.status).toBe(409);
-    expect(response.body.errorCode).toBe('DUPLICATE_FACILITY');
-  });
-});
-
-
+  
   describe('GET /facilities/staff-facilities', () => {
     beforeEach(() => {
         // Clear existing data

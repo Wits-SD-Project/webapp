@@ -15,7 +15,6 @@ const upload = multer({ storage }); //stores image in RAM temporarily
 router.post("/upload", authenticate, async (req, res) => {
   const { name, type, isOutdoors, availability, location, imageUrls } =
     req.body; // what your api call should send to this api
-  console.log(req.body);
   // const img = req.file; for images
 
   // Checking required fields
@@ -44,6 +43,7 @@ router.post("/upload", authenticate, async (req, res) => {
   const sanitizedName = name.trim();
   const sanitizedType = type.trim();
   const sanitizedAvailability = availability.trim();
+  const sanitizedLoc = location.trim();
 
   // Validate string lengths
   if (sanitizedName.length > 100 || sanitizedType.length > 50) {
@@ -84,7 +84,7 @@ router.post("/upload", authenticate, async (req, res) => {
       type_lower: sanitizedType.toLowerCase(), // For case-insensitive search
       isOutdoors: Boolean(isOutdoors),
       availability: sanitizedAvailability,
-      location: location.trim(),
+      location: sanitizedLoc,
       imageUrls,
       timeslots: [],
       created_by: req.user.uid,

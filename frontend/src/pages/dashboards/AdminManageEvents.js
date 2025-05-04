@@ -29,14 +29,34 @@ export default function AdminManageEvents() {
   };
 
   useEffect(() => {
-    const dummyFacilities = [
-      { id: "1", name: "Gym" },
-      { id: "2", name: "Swimming Pool" },
-      { id: "3", name: "Tennis Court" },
-      { id: "4", name: "Basketball Court" },
-      { id: "5", name: "Function Hall" },
-    ];
-    setFacilities(dummyFacilities);
+    const fetchFacilities = async () => {
+      try {
+        const token = await getAuthToken();
+        const res = await fetch("http://localhost:8080/api/admin/facilities", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+        });
+
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+
+        const data = await res.json();
+
+        if (data.success) {
+          setFacilities(data.facilities);
+        } else {
+          console.error("API returned success: false");
+        }
+      } catch (error) {
+        console.error("Failed to fetch facilities:", error);
+      }
+    };
+
+    fetchFacilities();
   }, []);
 
   // FETCH REAL EVENTS
@@ -75,7 +95,7 @@ export default function AdminManageEvents() {
     const newEvent = {
       id: Date.now().toString(),
       eventName: "",
-      facility: facilities.length > 0 ? facilities[0] : "",
+      facility: "",
       description: "",
       startTime: new Date(),
       endTime: new Date(Date.now() + 3600000),
@@ -232,16 +252,18 @@ export default function AdminManageEvents() {
                     <td>
                       {e.isEditing ? (
                         <select
-                          value={e.facility.id}
-                          onChange={(ev) => {
-                            const selected = facilities.find(f => f.id === ev.target.value);
-                            handleFieldChange(e.id, "facility", selected);
-                          }}
-                        >
-                          {facilities.map((f) => (
-                            <option key={f.id} value={f.id}>{f.name}</option>
-                          ))}
-                        </select>
+                        value={e.facility?.id || ""}
+                        onChange={(ev) => {
+                          const selected = facilities.find(f => f.id === ev.target.value);
+                          if (selected) handleFieldChange(e.id, "facility", selected);
+                        }}
+                      >
+                        <option value="" disabled>Select Facility</option>
+                        {facilities.map((f) => (
+                          <option key={f.id} value={f.id}>{f.name}</option>
+                        ))}
+                      </select>
+                      
                       ) : e.facility?.name}
                     </td>
                     <td>
