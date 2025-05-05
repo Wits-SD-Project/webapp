@@ -1,6 +1,23 @@
 // frontend/src/setupTests.js
 import "@testing-library/jest-dom";
 // Mock react-toastify globally if used widely for notifications
+
+jest.mock("firebase/app", () => ({
+  initializeApp: jest.fn(), // just returns undefined
+}));
+
+jest.mock("firebase/auth", () => ({
+  getAuth: jest.fn(() => ({
+    // returns a fake auth object
+    signOut: jest.fn(), // we overwrite it later in tests
+  })),
+  signOut: jest.fn(), // direct import guard, if any
+}));
+
+jest.mock("firebase/firestore", () => ({
+  getFirestore: jest.fn(() => ({})), // returns dummy db object
+}));
+
 jest.mock("react-toastify", () => ({
   toast: {
     success: jest.fn(),
