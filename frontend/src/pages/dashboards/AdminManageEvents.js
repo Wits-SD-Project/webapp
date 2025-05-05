@@ -166,12 +166,15 @@ export default function AdminManageEvents() {
           const resident = docSnap.data();
           await addDoc(collection(db, "notifications"), {
             createdAt: new Date().toISOString(),
-            facilityName: result.event.facility,
+            facilityName: result.event.facility.name,
             slot: `${formatDateTime(new Date(result.event.startTime))} - ${formatDateTime(new Date(result.event.endTime))}`,
             status: "new-event",
             eventName: result.event.eventName,
             userName: resident.email,
             read: false,
+            type: "event",
+            startTime: result.event.startTime,
+            endTime: result.event.endTime,
           });
         });
       } catch (notifyErr) {

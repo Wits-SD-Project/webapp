@@ -436,7 +436,6 @@ router.get("/maintenance-summary", authenticate, async (req, res) => {
     const grouped = {};
 
     for (const issue of issues) {
-      console.log("Issue loaded:", issue.status, issue.facilityName);
     
       if (issue.status === "opened") summary.openCount++;
       else if (issue.status === "closed") summary.closedCount++;
