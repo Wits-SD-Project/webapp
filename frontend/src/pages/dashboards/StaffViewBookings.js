@@ -17,7 +17,6 @@ export default function ViewBookings() {
   const [bookings, setBookings] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
 
-
   useEffect(() => {
     const user = auth.currentUser;
     if (!user) return;
@@ -96,7 +95,13 @@ export default function ViewBookings() {
         <main className="main-content">
           <header className="page-header">
             <h1>View Bookings</h1>
-            <input type="search" placeholder="Search" className="search-box" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+            <input
+              type="search"
+              placeholder="Search"
+              className="search-box"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </header>
 
           <section className="table-section">
