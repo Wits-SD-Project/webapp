@@ -44,62 +44,90 @@ function makeDocRef(id) {
 function makeCollection(collName) {
   return {
     doc: (id) => makeDocRef(id),
-    where: function(field, op, value) {
-      let filters = [[field, op, value]];
 
+    add: jest.fn((data) => {
+      const id = `${collName}_${Math.random().toString(36).substring(2, 15)}`;
+      firestoreData.set(id, data);
+      return Promise.resolve(makeDocRef(id));
+    }),
+
+    where: function(field, op, value) {
       let matching = Array.from(firestoreData.entries())
-        .filter(([, data]) => {
-          if (!data) return false;
-          return data[field] === value || 
-                 (field.endsWith('_lower') && data[field] === value.toLowerCase());
-        })
-        .map(([id, data]) => ({ 
-          id, 
+        .filter(([, data]) => data?.[field] === value)
+        .map(([id, data]) => ({
+          id,
           data: () => data,
           ref: makeDocRef(id)
         }));
 
       const query = {
-        _collection: collName,
-        _filters: filters,
-        where(newField, newOp, newValue) {
-          filters.push([newField, newOp, newValue]);
-          matching = matching.filter(({ data }) => {
-            const docData = data();
-            return docData[newField] === newValue ||
-                   (newField.endsWith('_lower') && docData[newField] === newValue.toLowerCase());
-          });
-          return this;
-        },
-        limit(n) {
-          return {
-            ...query,
-            get: jest.fn(() => Promise.resolve({
-              empty: matching.length === 0,
+        where: (...args) => query, // allow chaining
+        orderBy: (...args) => query,
+        limit: (n) => ({
+          get: jest.fn(() =>
+            Promise.resolve({
               docs: matching.slice(0, n),
-            }))
-          };
-        },
-        get: jest.fn(() => Promise.resolve({
-          empty: matching.length === 0,
-          docs: matching,
-          forEach(fn) { matching.forEach(fn); }
-        })),
-        _getMatching: () => matching,
+              empty: matching.length === 0,
+              forEach: (fn) => matching.slice(0, n).forEach(fn),
+            })
+          ),
+        }),
+        get: jest.fn(() =>
+          Promise.resolve({
+            docs: matching,
+            empty: matching.length === 0,
+            forEach: (fn) => matching.forEach(fn),
+          })
+        ),
       };
-
       return query;
     },
-    get: jest.fn(() => {
+
+    orderBy: function (field, direction = "asc") {
       const docs = Array.from(firestoreData.entries())
-        .map(([id, data]) => ({ 
-          id, 
+        .map(([id, data]) => ({
+          id,
           data: () => data,
-          ref: makeDocRef(id)
-        }));
-      return Promise.resolve({ 
+          ref: makeDocRef(id),
+        }))
+        .sort((a, b) => {
+          const aVal = a.data()[field];
+          const bVal = b.data()[field];
+          if (aVal < bVal) return direction === "desc" ? 1 : -1;
+          if (aVal > bVal) return direction === "desc" ? -1 : 1;
+          return 0;
+        });
+
+      return {
+        get: jest.fn(() =>
+          Promise.resolve({
+            docs,
+            empty: docs.length === 0,
+            forEach: (fn) => docs.forEach(fn),
+          })
+        ),
+        where: (...args) => this.where(...args),
+        limit: (n) => ({
+          get: jest.fn(() =>
+            Promise.resolve({
+              docs: docs.slice(0, n),
+              empty: docs.length === 0,
+              forEach: (fn) => docs.slice(0, n).forEach(fn),
+            })
+          ),
+        }),
+      };
+    },
+
+    get: jest.fn(() => {
+      const docs = Array.from(firestoreData.entries()).map(([id, data]) => ({
+        id,
+        data: () => data,
+        ref: makeDocRef(id),
+      }));
+      return Promise.resolve({
         docs,
-        forEach(fn) { docs.forEach(fn); }
+        forEach: (fn) => docs.forEach(fn),
       });
     }),
   };
