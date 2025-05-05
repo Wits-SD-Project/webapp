@@ -9,6 +9,16 @@ import { db, auth } from "../../firebase";
 import { motion, AnimatePresence } from "framer-motion";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { Doughnut } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  ArcElement,
+  Tooltip,
+  Legend
+} from "chart.js";
+
+ChartJS.register(ArcElement, Tooltip, Legend);
+
 
 export default function StaffDashboard() {
   const navigate = useNavigate();
@@ -30,10 +40,28 @@ export default function StaffDashboard() {
   
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to fetch reports");
-  
+      
+      console.log("CreatedAt values:", data.reports.map(r => r.createdAt));
+
       const doc = new jsPDF();
       doc.text("Maintenance Report", 14, 15);
-  
+
+      function formatDate(timestamp) {
+        try {
+          if (!timestamp || typeof timestamp._seconds !== "number") return "-";
+          const date = new Date(timestamp._seconds * 1000);
+          return date.toLocaleString("en-GB", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit"
+          });
+        } catch {
+          return "-";
+        }
+      }
+
       autoTable(doc, {
         startY: 25,
         head: [["Facility", "Description", "Status", "Created At"]],
@@ -41,9 +69,9 @@ export default function StaffDashboard() {
           report.facilityName || "Unknown",
           report.description || "-",
           report.status || "-",
-          report.createdAt || "-"
+          formatDate(report.createdAt)
         ]),
-      });
+      });      
   
       doc.save("Maintenance_Report.pdf");
     } catch (error) {
@@ -96,6 +124,28 @@ export default function StaffDashboard() {
     fetchMaintenanceSummary();
   }, []);
 
+  const chartData = {
+    labels: ["Open Issues", "Closed Issues"],
+    datasets: [
+      {
+        label: "Maintenance Issues",
+        data: [maintenanceSummary.openCount, maintenanceSummary.closedCount],
+        backgroundColor: ["#ff6384", "#36a2eb"],
+        borderWidth: 1,
+      },
+    ],
+  };
+  
+  const chartOptions = {
+    responsive: true,
+    plugins: {
+      legend: {
+        position: "bottom",
+      },
+    },
+  };
+  
+
   return (
     <main className="dashboard">
       <div className="container">
@@ -144,16 +194,20 @@ export default function StaffDashboard() {
             </div>
 
             <div className="graph-card">
-              <h3>Maintenance Reports (Open vs. Closed Issues)</h3>
-              <div className="graph-placeholder">
-                <p>Open Issues: {maintenanceSummary.openCount}</p>
-                <p>Closed Issues: {maintenanceSummary.closedCount}</p>
-              </div>
-              <div className="export-buttons">
-              <button onClick={handleExportMaintenancePDF}>Export as PDF</button>
-              <button>Export as CSV</button>
-              </div>
-            </div>
+  <h3>Maintenance Reports (Open vs. Closed Issues)</h3>
+  <div className="graph-placeholder">
+    <Doughnut data={chartData} options={chartOptions} />
+  </div>
+
+  <p>Open Issues: {maintenanceSummary.openCount}</p>
+  <p>Closed Issues: {maintenanceSummary.closedCount}</p>
+
+  <div className="export-buttons">
+    <button onClick={handleExportMaintenancePDF}>Export as PDF</button>
+    <button>Export as CSV</button>
+  </div>
+</div>
+
           </div>
         </main>
       </div>
