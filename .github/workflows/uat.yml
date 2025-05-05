@@ -1,78 +1,60 @@
-name: User Acceptance Tests
+name: User‑Acceptance‑&‑Coverage
 
+# -----------------------------------------------------------
+# 𝟭.  Trigger – every push that lands on the MAIN branch
+# -----------------------------------------------------------
 on:
   push:
-    branches:
-      - staging
+    branches: [main]
 
 permissions:
   contents: write
   pull-requests: write
 
 jobs:
-  uat:
+  test-with-coverage:
     runs-on: ubuntu-latest
 
     steps:
-      - name: ⬇️ Checkout code
+      # 1️⃣  Checkout project code
+      - name: ⬇️  Checkout code
         uses: actions/checkout@v3
 
-      - name: ⚙️ Setup Node.js
+      # 2️⃣  Use Node 18
+      - name: ⚙️  Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 18
 
-      - name: 📦 Install dependencies
-        run: npm install
+      # 3️⃣  Install dependencies
+      - name: 📦  Install dependencies
+        run: npm ci
         working-directory: ./frontend
 
-      - name: 🧪 Run SignIn Jest tests only
+      # 4️⃣  Run the **entire** Jest suite with coverage enabled
+      - name: 🧪  Run Jest (all tests) with coverage
         run: |
-          echo "Running tests from SignIn.test.js..."
-          npm test src/pages/__tests__/SignIn.test.js -- --ci --coverage
+          npm run test:coverage -- --ci
         working-directory: ./frontend
 
-      - name: 📂 Upload coverage report
+      # 5️⃣  Persist the html & lcov reports as workflow artefacts (optional)
+      - name: 📂  Upload local coverage artefact
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-report
-          path: coverage
+          name: frontend-coverage
+          path: |
+            frontend/coverage
+            # lcov is needed for Codecov upload but we also
+            # keep the pretty html report for manual inspection
 
-      - name: Check for differences between branches
-        id: check-diff
-        run: |
-          git fetch origin main:main
-          DIFF_COUNT=$(git rev-list --count main..staging)
-          echo "diff_count=$DIFF_COUNT" >> $GITHUB_OUTPUT
-          if [ "$DIFF_COUNT" -eq "0" ]; then
-            echo "No differences between branches, skipping PR"
-          fi
-
-      - name: 📌 Create PR from staging to main
-        id: create-pr
-        if: steps.check-diff.outputs.diff_count != '0'
-        uses: repo-sync/pull-request@v2
-        with:
-          source_branch: staging
-          destination_branch: main
-          pr_title: "Auto PR: Merge staging → main"
-          pr_body: "✅ UAT passed. Auto-merging staging to main."
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: 📝 Get PR number
-        id: get-pr-number
-        if: steps.create-pr.outputs.pr_url
-        run: |
-          PR_URL="${{ steps.create-pr.outputs.pr_url }}"
-          PR_NUMBER=$(echo $PR_URL | awk -F/ '{print $NF}')
-          echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
-          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
-
-      - name: 🤖 Auto-merge PR
-        if: steps.get-pr-number.outputs.pr_number
-        uses: pascalgn/automerge-action@v0.15.5
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PULL_REQUEST: ${{ steps.get-pr-number.outputs.pr_number }}
-          MERGE_METHOD: "squash"
-          MERGE_LABELS: ""
+      # # 6️⃣  Upload lcov.info to Codecov
+      # - name: 📈  Report to Codecov
+      #   uses: codecov/codecov-action@v3
+      #   with:
+      #     # The lcov file produced by Jest lives here:
+      #     files: frontend/coverage/lcov.info
+      #     # set the token only for private repos
+      #     token: ${{ secrets.CODECOV_TOKEN }}
+      #     flags: frontend
+      #     name: frontend-jest
+      #     fail_ci_if_error: true

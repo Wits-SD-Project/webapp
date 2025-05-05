@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { db } from "../../firebase";
-import { collection, getDocs } from "firebase/firestore";
-import Sidebar from "../../components/SideBar.js";
+import { db,auth } from "../../firebase";
+import { collection, getDocs,query ,where } from "firebase/firestore";
+import Sidebar from "../../components/StaffSideBar.js";
 import "../../styles/staffUpcomingBookings.css";
 
 export default function StaffUpcomingBookings() {
@@ -11,23 +11,34 @@ export default function StaffUpcomingBookings() {
 
   useEffect(() => {
     const fetchBookings = async () => {
+      const user = auth.currentUser;
+      if (!user) return;
+  
       try {
-        const querySnapshot = await getDocs(collection(db, "bookings"));
+        const bookingsRef = collection(db, "bookings");
+        const q = query(
+          bookingsRef,
+          where("facilityStaff", "==", user.uid),
+          where("status", "==", "approved")
+        );
+  
+        const querySnapshot = await getDocs(q);
         const bookingsData = querySnapshot.docs.map(doc => doc.data());
-
+  
         const today = new Date().toISOString().split("T")[0];
         const filtered = bookingsData
-          .filter(b => b.status === "approved" && b.date >= today)
+          .filter(b => b.date >= today)
           .sort((a, b) => new Date(a.date) - new Date(b.date));
-
+  
         setBookings(filtered);
       } catch (error) {
         console.error("Error fetching bookings:", error);
       }
     };
-
+  
     fetchBookings();
   }, []);
+  
 
   return (
     <main className="staff-upcoming-bookings">

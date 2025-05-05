@@ -1,31 +1,49 @@
 import React, { useEffect, useState } from "react";
-import { db, auth } from "../../firebase"; // Firestore config and auth
-import { doc, updateDoc, addDoc, collection, getDocs, query, where } from "firebase/firestore";
-import Navbar from "../../components/Navbar";
+import {
+  Card,
+  CardMedia,
+  CardContent,
+  CardActions,
+  Typography,
+  Button,
+  Grid,
+  Drawer,
+  List,
+  ListItem,
+  ListItemText,
+  TextField,
+  Box,
+} from "@mui/material";
+import PlaceIcon from "@mui/icons-material/Place";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+import { toast } from "react-toastify";
+import { db, auth } from "../../firebase";
+import { collection, getDocs } from "firebase/firestore";
+import Sidebar from "../../components/ResSideBar";
+import "../../styles/userDashboard.css";
+
+const placeholder =
+  "https://images.unsplash.com/photo-1527767654427-1790d8ff3745?q=80&w=2574&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
 
 export default function UserDashboard() {
   const [facilities, setFacilities] = useState([]);
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [selectedFacility, setSelectedFacility] = useState(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  // Fetch facilities from Firestore
   useEffect(() => {
     const fetchFacilities = async () => {
       try {
         const querySnapshot = await getDocs(collection(db, "facilities-test"));
-        const facilitiesData = await Promise.all(
-          querySnapshot.docs.map(async (doc) => {
-            const facility = { id: doc.id, ...doc.data() };
-
-            // Fetch related slots
-            const slotsSnapshot = await getDocs(
-              query(collection(db, "timeslots-test"), where("facilityId", "==", doc.id))
-            );
-            const slots = slotsSnapshot.docs.map(slotDoc => slotDoc.data());
-
-            return { ...facility, slots };
-          })
-        );
-
+        const facilitiesData = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
         setFacilities(facilitiesData);
+        console.log(facilitiesData);
       } catch (error) {
         console.error("Error fetching facilities:", error);
       }
@@ -34,94 +52,214 @@ export default function UserDashboard() {
     fetchFacilities();
   }, []);
 
-  const handleBooking = async (facility, slot) => {
+  const openDrawer = (fac) => {
+    setSelectedFacility(fac);
+    setDrawerOpen(true);
+  };
+
+  const startBooking = (facility, slot) => {
+    setSelectedFacility(facility);
+    setSelectedSlot(slot);
+    setShowDatePicker(true);
+  };
+
+  const confirmBooking = async (date) => {
+    if (!selectedSlot || !selectedFacility) return;
+
+    const daysOfWeek = [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+    ];
+    const selectedDay = daysOfWeek[date.getDay()];
+
+    if (selectedDay !== selectedSlot.day) {
+      toast.error(
+        `Please select a date that falls on a ${selectedSlot.day}. You picked a ${selectedDay}.`
+      );
+      return;
+    }
+
+    const [startHour, startMinute] = selectedSlot.start.split(":").map(Number);
+    const slotStartDateTime = new Date(date);
+    slotStartDateTime.setHours(startHour, startMinute, 0, 0);
+
+    const now = new Date();
+    if (slotStartDateTime < now) {
+      toast.error(
+        "This time slot has already passed. Please select a future time."
+      );
+      return;
+    }
+
     try {
       const user = auth.currentUser;
       if (!user) throw new Error("User not logged in");
 
-      const parseTime = (timeStr) => {
-        const [hours, minutes] = timeStr.split(":").map(Number);
-        return hours * 60 + minutes;
-      };
+      const slotTime = `${selectedSlot.start} - ${selectedSlot.end}`;
 
-      const startMins = parseTime(slot.start);
-      const endMins = parseTime(slot.end);
-      const diff = endMins - startMins;
+      const response = await fetch(
+        "http://localhost:8080/api/facilities/bookings",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${await user.getIdToken()}`,
+          },
+          body: JSON.stringify({
+            facilityId: selectedFacility.id,
+            facilityName: selectedFacility.name,
+            slot: slotTime,
+            selectedDate: date.toISOString().split("T")[0],
+          }),
+        }
+      );
 
-      const duration =
-        diff % 60 === 0 ? `${diff / 60} hr${diff > 60 ? "s" : ""}` : `${(diff / 60).toFixed(1)} hrs`;
+      const data = await response.json();
 
-      // Add to bookings collection only (do not modify facility directly)
-      await addDoc(collection(db, "bookings"), {
-        facilityName: facility.name,
-        userName: user.displayName || user.email,
-        date: new Date().toISOString().split("T")[0],
-        slot: `${slot.start} - ${slot.end}`,
-        duration: duration,
-        status: "pending",
-        createdAt: new Date().toISOString()
-      });
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to book slot");
+      }
 
-      alert(`Booking request submitted for ${facility.name} on ${slot.day} at ${slot.start}.`);
+      toast.success(
+        `Booking confirmed for ${
+          selectedFacility.name
+        } on ${date.toDateString()} at ${selectedSlot.start}.`
+      );
     } catch (error) {
       console.error("Error booking timeslot:", error);
-      alert("Failed to book the timeslot.");
+      toast.error(error.message || "Failed to book the timeslot.");
+    } finally {
+      setSelectedSlot(null);
+      setSelectedFacility(null);
+      setShowDatePicker(false);
     }
   };
 
   return (
-    <>
-      <Navbar />
-      <main style={{ padding: "2rem" }}>
-        <h1>Available Facility Time Slots</h1>
-        {facilities.length === 0 ? (
-          <p>Loading facilities...</p>
-        ) : (
-          <div style={{ maxHeight: "70vh", overflowY: "auto", paddingRight: "1rem" }}>
-            {facilities.map(facility => (
-              <div key={facility.id} style={{ marginBottom: "2rem" }}>
-                <h2>{facility.name}</h2>
-                <table style={{ width: "100%", borderCollapse: "collapse", marginTop: "1rem" }}>
-                  <thead>
-                    <tr>
-                      <th style={{ borderBottom: "1px solid #ccc", textAlign: "left", padding: "0.5rem" }}>Day</th>
-                      <th style={{ borderBottom: "1px solid #ccc", textAlign: "left", padding: "0.5rem" }}>Start</th>
-                      <th style={{ borderBottom: "1px solid #ccc", textAlign: "left", padding: "0.5rem" }}>End</th>
-                      <th style={{ borderBottom: "1px solid #ccc", textAlign: "left", padding: "0.5rem" }}>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(facility.timeslots || [])
-                      .filter(slot => slot.isBooked === false)
-                      .map((slot, index) => (
-                        <tr key={index}>
-                          <td style={{ padding: "0.5rem" }}>{slot.day}</td>
-                          <td style={{ padding: "0.5rem" }}>{slot.start}</td>
-                          <td style={{ padding: "0.5rem" }}>{slot.end}</td>
-                          <td style={{ padding: "0.5rem" }}>
-                            <button
-                              style={{
-                                padding: "0.3rem 0.6rem",
-                                backgroundColor: "#007bff",
-                                color: "#fff",
-                                border: "none",
-                                borderRadius: "4px",
-                                cursor: "pointer"
-                              }}
-                              onClick={() => handleBooking(facility, slot)}
-                            >
-                              Book
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-              </div>
-            ))}
-          </div>
+    <main className="user-dashboard">
+      <div className="container">
+        <Sidebar activeItem="facility bookings" />
+
+        <main className="main-content">
+          <header className="page-header">
+            <h1>Facility Bookings</h1>
+            <input
+              type="search"
+              placeholder="Search"
+              className="search-box"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </header>
+
+          <section className="facilities-grid">
+            {facilities
+              .filter((f) =>
+                f.name.toLowerCase().includes(searchQuery.toLowerCase())
+              )
+              .map((facility) => {
+                const img = facility.imageUrls?.[0]?.trim() || placeholder;
+                return (
+                  <div key={facility.id} className="facility-card">
+                    <div className="facility-image">
+                      <img src={img} alt={facility.name} />
+                    </div>
+                    <div className="facility-details">
+                      <h3>{facility.name}</h3>
+                      {facility.location && (
+                        <p className="location">
+                          <PlaceIcon fontSize="small" />
+                          {facility.location}
+                        </p>
+                      )}
+                      <button
+                        className="book-button"
+                        onClick={() => openDrawer(facility)}
+                      >
+                        Book Now
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+          </section>
+        </main>
+      </div>
+
+      {/* Booking Drawer */}
+      <Drawer
+        anchor="right"
+        open={drawerOpen}
+        onClose={() => {
+          setDrawerOpen(false);
+          setSelectedSlot(null);
+          setShowDatePicker(false);
+        }}
+        sx={{ "& .MuiDrawer-paper": { width: "min(90vw, 400px)", p: 3 } }}
+      >
+        {console.log("selectedFacility in Drawer:", selectedFacility)}
+        {selectedFacility && (
+          <>
+            <Typography variant="h5" sx={{ mb: 2 }}>
+              {selectedFacility.name}
+            </Typography>
+
+            {selectedFacility.timeslots?.length === 0 ? (
+              <Typography>No time-slots available.</Typography>
+            ) : (
+              <List dense>
+                {selectedFacility.timeslots.map((slot, i) => (
+                  <ListItem
+                    key={i}
+                    secondaryAction={
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => startBooking(selectedFacility, slot)}
+                      >
+                        Select
+                      </Button>
+                    }
+                  >
+                    <ListItemText
+                      primary={`${slot.day} • ${slot.start} – ${slot.end}`}
+                    />
+                  </ListItem>
+                ))}
+              </List>
+            )}
+          </>
         )}
-      </main>
-    </>
+
+        {showDatePicker && (
+          <Box sx={{ mt: 3 }}>
+            <Typography variant="subtitle1" gutterBottom>
+              Pick a date for {selectedSlot?.day}
+            </Typography>
+            <DatePicker
+              selected={null}
+              onChange={(d) => confirmBooking(d)}
+              minDate={new Date()}
+              inline
+            />
+            <Button
+              color="error"
+              sx={{ mt: 1 }}
+              onClick={() => {
+                setShowDatePicker(false);
+                setSelectedSlot(null);
+              }}
+            >
+              Cancel
+            </Button>
+          </Box>
+        )}
+      </Drawer>
+    </main>
   );
 }

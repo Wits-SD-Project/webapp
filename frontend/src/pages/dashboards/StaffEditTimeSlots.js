@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import Sidebar from "../../components/SideBar";
+import Sidebar from "../../components/StaffSideBar.js";
 import addIcon from "../../assets/add.png";
 import binIcon from "../../assets/bin.png";
 import "../../styles/staffEditTimeSlots.css";
