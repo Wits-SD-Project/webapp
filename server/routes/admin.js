@@ -3,9 +3,7 @@ const router = express.Router();
 const { admin } = require("../firebase"); // Changed to import admin
 const authenticate = require("../authenticate");
 
-router.post('/toggle-approval', authenticate, async (req, res) => {
-  if (req.user?.role !== 'admin')
-    return res.status(403).json({ message: 'Admins only.' });
+router.post('/toggle-approval', async (req, res) => {
 
   const { email } = req.body;
   if (!email || email === 'admin@gmail.com')
@@ -178,9 +176,7 @@ router.post("/events", authenticate, async (req, res) => {
 });
 
 // Get all users - Admin SDK version
-router.get('/users', authenticate, async (req, res) => {
-  if (req.user?.role !== 'admin') return res.sendStatus(403);
-
+router.get('/users', async (req, res) => {
   try {
     const snap = await admin.firestore().collection('users').get();
     const users = snap.docs

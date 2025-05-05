@@ -1,40 +1,29 @@
-// src/pages/admin/AdminDashboard.js
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import {
-  Box,
-  Typography,
-  Paper,
-  TableContainer,
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
-  Button,
-} from "@mui/material";
 import Sidebar from "../../components/AdminSideBar.js";
-import "../../styles/adminManageUsers.css";
 import { getAuthToken } from "../../firebase.js";
+import "../../styles/adminManageUsers.css";
+
 export default function AdminDashboard() {
   const [users, setUsers] = useState([]);
 
+  // ─────────────────────────── Fetch user list ────────────────────────────
   useEffect(() => {
-    const fetchUsers = async () => {
+    async function fetchUsers() {
       try {
-        const token = getAuthToken();
-        const res = await fetch(
-          "http://localhost:8080/api/admin/users",{
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        )
+        const token = await getAuthToken();
 
-        const text = await res.text();
-        if (!res.ok) throw new Error(text || res.statusText);
-        const data = JSON.parse(text);
+        const res = await fetch("http://localhost:8080/api/admin/users", {
+          method: "GET",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(text || res.statusText);
+        }
+
+        const data = await res.json(); // always JSON
 
         setUsers(
           data.map((u) => ({
@@ -47,47 +36,46 @@ export default function AdminDashboard() {
         console.error("fetchUsers error:", err);
         toast.error("Failed to load users: " + err.message);
       }
-    };
+    }
 
     fetchUsers();
   }, []);
 
-  const handleToggle = async (user, endpoint, flagKey) => {
+  // ────────────────────── Toggle helpers (approve / accept) ───────────────
+  async function handleToggle(user, endpoint, flagKey) {
     try {
-      const token = getAuthToken();
-      const res = await fetch(
-        `http://localhost:8080/api/admin/${endpoint}`,
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json" },
-          body: JSON.stringify({ email: user.email }),
-        }
-      );
+      const token = await getAuthToken();
 
-      // read raw text first
-      const text = await res.text();
-      if (!res.ok) throw new Error(text || res.statusText);
+      const res = await fetch(`http://localhost:8080/api/admin/${endpoint}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email: user.email }),
+      });
 
-      // parse json
-      const data = JSON.parse(text);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || res.statusText);
 
       setUsers((prev) =>
         prev.map((u) =>
-          u.email !== user.email ? u : { ...u, [flagKey]: data[flagKey] }
+          u.email === user.email ? { ...u, [flagKey]: data[flagKey] } : u
         )
       );
 
-      toast.success(data.message);
+      if (data.message) toast.success(data.message);
+      else toast.success("Saved"); // fallback
     } catch (err) {
       console.error(`${endpoint} error:`, err);
       toast.error(err.message);
     }
-  };
+  }
 
   const toggleApproval = (u) => handleToggle(u, "toggle-approval", "approved");
   const toggleAccepted = (u) => handleToggle(u, "toggle-accepted", "accepted");
 
+  // ─────────────────────────────── Render ────────────────────────────────
   return (
     <main className="admin-dashboard">
       <div className="container">
@@ -124,10 +112,18 @@ export default function AdminDashboard() {
                   <tr key={user.email}>
                     <td>{user.email}</td>
                     <td>{user.role}</td>
-                    <td className={`status ${user.approved ? "approved" : "rejected"}`}>
+                    <td
+                      className={`status ${
+                        user.approved ? "approved" : "rejected"
+                      }`}
+                    >
                       {user.approved ? "Yes" : "No"}
                     </td>
-                    <td className={`status ${user.accepted ? "approved" : "rejected"}`}>
+                    <td
+                      className={`status ${
+                        user.accepted ? "approved" : "rejected"
+                      }`}
+                    >
                       {user.accepted ? "Yes" : "No"}
                     </td>
                     <td className="actions">

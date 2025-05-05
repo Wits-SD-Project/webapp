@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { getFirestore, collection, addDoc, serverTimestamp} from "firebase/firestore";
 
 
@@ -14,14 +14,30 @@ const firebaseConfig = {
 
 
 
-const getAuthToken = async () => {
-  const user = getAuth().currentUser;
-  if (!user) throw new Error("User not authenticated");
-  return await user.getIdToken();
-};
+export async function getAuthToken() {
+  const auth = getAuth();
+
+  // If the user is already available, refresh the token immediately.
+  if (auth.currentUser) {
+    return await auth.currentUser.getIdToken(true); // true → force refresh
+  }
+
+  // First page-load: wait until Firebase finishes hydrating auth state.
+  return new Promise((resolve, reject) => {
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      unsub();
+      if (!user) {
+        reject(new Error("User not signed in"));
+        return;
+      }
+      resolve(await user.getIdToken(true));
+    });
+  });
+}
+
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-export { auth, getAuthToken, db};
+export { auth, db};
