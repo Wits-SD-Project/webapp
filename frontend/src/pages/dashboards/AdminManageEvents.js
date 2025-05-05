@@ -104,8 +104,8 @@ export default function AdminManageEvents() {
       try {
         const token = await getAuthToken();
         const res = await fetch("http://localhost:8080/api/admin/events", {
+          method: "GET",
           headers: {
-            method: "GET",
             Authorization: `Bearer ${token}`,
           },
         });

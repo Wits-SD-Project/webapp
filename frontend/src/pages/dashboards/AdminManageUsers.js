@@ -15,23 +15,14 @@ import {
 } from "@mui/material";
 import Sidebar from "../../components/AdminSideBar.js";
 import "../../styles/adminManageUsers.css";
-import { getAuthToken } from "../../firebase.js";
+
 export default function AdminDashboard() {
   const [users, setUsers] = useState([]);
 
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const token = getAuthToken();
-        const res = await fetch(
-          "http://localhost:8080/api/admin/users",{
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        )
-
+        const res = await fetch("http://localhost:8080/api/admin/users");
         const text = await res.text();
         if (!res.ok) throw new Error(text || res.statusText);
         const data = JSON.parse(text);
@@ -54,16 +45,11 @@ export default function AdminDashboard() {
 
   const handleToggle = async (user, endpoint, flagKey) => {
     try {
-      const token = getAuthToken();
-      const res = await fetch(
-        `http://localhost:8080/api/admin/${endpoint}`,
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json" },
-          body: JSON.stringify({ email: user.email }),
-        }
-      );
+      const res = await fetch(`http://localhost:8080/api/admin/${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: user.email }),
+      });
 
       // read raw text first
       const text = await res.text();
@@ -124,10 +110,18 @@ export default function AdminDashboard() {
                   <tr key={user.email}>
                     <td>{user.email}</td>
                     <td>{user.role}</td>
-                    <td className={`status ${user.approved ? "approved" : "rejected"}`}>
+                    <td
+                      className={`status ${
+                        user.approved ? "approved" : "rejected"
+                      }`}
+                    >
                       {user.approved ? "Yes" : "No"}
                     </td>
-                    <td className={`status ${user.accepted ? "approved" : "rejected"}`}>
+                    <td
+                      className={`status ${
+                        user.accepted ? "approved" : "rejected"
+                      }`}
+                    >
                       {user.accepted ? "Yes" : "No"}
                     </td>
                     <td className="actions">
