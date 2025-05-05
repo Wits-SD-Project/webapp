@@ -3,25 +3,22 @@ const router = express.Router();
 const { admin } = require("../firebase"); // Changed to import admin
 const authenticate = require("../authenticate");
 
-router.post("/toggle-approval", async (req, res) => {
+router.post('/toggle-approval', authenticate, async (req, res) => {
+  if (req.user?.role !== 'admin')
+    return res.status(403).json({ message: 'Admins only.' });
+
   const { email } = req.body;
-  if (!email || email === "admin@gmail.com") {
-    return res.status(400).json({ message: "Invalid email." });
-  }
+  if (!email || email === 'admin@gmail.com')
+    return res.status(400).json({ message: 'Invalid email.' });
 
   try {
-    const userRef = admin.firestore().collection("users").doc(email);
-    const snap = await userRef.get();
-    if (!snap.exists) {
-      return res.status(404).json({ message: "User not found." });
-    }
+    const ref  = admin.firestore().collection('users').doc(email);
+    const snap = await ref.get();
+    if (!snap.exists) return res.status(404).json({ message: 'User not found.' });
 
-    const current = snap.data().approved || false;
-    const next = !current;
-    // Update the Firestore document
-    await userRef.update({ approved: next });
+    const next = !snap.data().approved;
+    await ref.update({ approved: next });
 
-    // Update custom claims so your security rules can see it
     const uid = snap.data().uid;
     if (uid) {
       await admin.auth().setCustomUserClaims(uid, {
@@ -30,13 +27,10 @@ router.post("/toggle-approval", async (req, res) => {
       });
     }
 
-    res.json({
-      message: `${email} has been ${next ? "approved" : "revoked"}`,
-      approved: next,
-    });
+    res.status(200).json({ approved: next });
   } catch (err) {
-    console.error("toggle-approval error:", err);
-    res.status(500).json({ message: "Failed to update approval status." });
+    console.error('toggle-approval error:', err);
+    res.status(500).json({ message: 'Failed to update approval status.' });
   }
 });
 
@@ -184,27 +178,19 @@ router.post("/events", authenticate, async (req, res) => {
 });
 
 // Get all users - Admin SDK version
-router.get("/users", async (req, res) => {
+router.get('/users', authenticate, async (req, res) => {
+  if (req.user?.role !== 'admin') return res.sendStatus(403);
+
   try {
-    const snapshot = await admin.firestore().collection("users").get();
+    const snap = await admin.firestore().collection('users').get();
+    const users = snap.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .filter((u) => u.email !== 'admin@gmail.com');
 
-    const users = snapshot.docs
-      .map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-        // Add metadata if needed
-        createdAt: doc.createTime?.toDate(),
-        updatedAt: doc.updateTime?.toDate(),
-      }))
-      .filter((user) => user.email !== "admin@gmail.com");
-
-    res.json(users);
+    res.status(200).json(users);
   } catch (err) {
     console.error(err);
-    res.status(500).json({
-      message: "Failed to fetch users.",
-      error: process.env.NODE_ENV === "development" ? err.message : undefined,
-    });
+    res.status(500).json({ message: 'Failed to fetch users.' });
   }
 });
 
@@ -449,142 +435,73 @@ router.post("/block-slot", authenticate, async (req, res) => {
 });
 
 // Fetch all admin events
-router.get("/events", authenticate, async (req, res) => {
+router.get('/events', authenticate, async (req, res) => {
+  const me = await admin.firestore().collection('users').doc(req.user.email).get();
+  if (!me.exists || me.data().role !== 'admin') return res.sendStatus(403);
+
   try {
-    // 1. Fetch the user's document
-    const userRef = admin.firestore().collection("users").doc(req.user.email);
-    const userSnap = await userRef.get();
+    const snap = await admin.firestore().collection('admin-events').orderBy('startTime').get();
 
-    if (!userSnap.exists) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found.",
-        errorCode: "USER_NOT_FOUND",
-      });
-    }
-
-    const userData = userSnap.data();
-
-    // 2. Check if user is an admin
-    if (userData.role !== "admin") {
-      return res.status(403).json({
-        success: false,
-        message: "Access denied. Admins only.",
-        errorCode: "FORBIDDEN",
-      });
-    }
-
-    // 3. Query admin events
-    const eventsRef = admin.firestore().collection("admin-events");
-    const snapshot = await eventsRef.orderBy("startTime").get();
-
-    // 4. Format response data
-    const events = snapshot.docs.map((doc) => {
-      const event = doc.data();
-      return {
-        id: doc.id,
-        eventName: event.eventName,
-        facility: {
-          id: event.facilityId,
-          name: event.facility,
-        },
-        description: event.description,
-        startTime: new Date(event.startTime),
-        endTime: new Date(event.endTime),
+    const events = snap.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .filter((e) => e.eventName && e.startTime) // ignore stray mock docs
+      .map((e) => ({
+        id: e.id,
+        eventName: e.eventName,
+        facility: { id: e.facilityId, name: e.facility },
+        description: e.description,
+        startTime: new Date(e.startTime),
+        endTime: new Date(e.endTime),
         isEditing: false,
-      };
-    });
+      }));
 
-    // 5. Success response
-    res.status(200).json({
-      success: true,
-      count: events.length,
-      events,
-    });
-  } catch (error) {
-    console.error("Error fetching admin events:", error);
-
-    // 6. Error handling
-    const errorResponse = {
-      success: false,
-      message: "Failed to fetch admin events",
-      errorCode: "FETCH_ERROR",
-    };
-
-    if (process.env.NODE_ENV === "development") {
-      errorResponse.error = error.message;
-      errorResponse.stack = error.stack;
-    }
-
-    res.status(500).json(errorResponse);
+    res.status(200).json({ success: true, count: events.length, events });
+  } catch (err) {
+    console.error('Error fetching admin events:', err);
+    res.status(500).json({ message: 'Failed to fetch admin events' });
   }
 });
 
 // 🛠 GET maintenance issue summary
-router.get("/maintenance-summary", authenticate, async (req, res) => {
+router.get('/maintenance-summary', authenticate, async (req, res) => {
   const { facility, dateRange } = req.query;
 
+  const me = await admin.firestore().collection('users').doc(req.user.email).get();
+  if (!me.exists || me.data().role !== 'admin')
+    return res.status(403).json({ message: 'Access denied. Admins only.' });
+
   try {
-    // Step 1: Ensure the requester is an admin
-    const userSnap = await admin
-      .firestore()
-      .collection("users")
-      .doc(req.user.email)
-      .get();
-    if (!userSnap.exists || userSnap.data().role !== "admin") {
-      return res.status(403).json({ message: "Access denied. Admins only." });
+    let q = admin.firestore().collection('maintenance-reports');
+    if (facility) q = q.where('facilityName', '==', facility);
+    if (dateRange === 'last30days') {
+      const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      q = q.where('createdAt', '>=', since);
     }
 
-    // Step 2: Build query
-    let query = admin.firestore().collection("maintenance-reports");
+    const issues = (await q.get()).docs.map((d) => d.data());
 
-    if (facility) {
-      query = query.where("facilityName", "==", facility);
-    }
-
-    if (dateRange === "last30days") {
-      const now = new Date();
-      const past30Days = new Date(now.setDate(now.getDate() - 30));
-      query = query.where("createdAt", ">=", past30Days);
-    }
-
-    const snapshot = await query.get();
-
-    const issues = snapshot.docs.map((doc) => doc.data());
-
-    // Step 3: Count open vs. closed
-    const summary = {
-      openCount: 0,
-      closedCount: 0,
-    };
-
+    let openCount = 0,
+      closedCount = 0;
     const grouped = {};
 
-    for (const issue of issues) {
-      if (issue.status === "opened") summary.openCount++;
-      else if (issue.status === "closed") summary.closedCount++;
+    for (const i of issues) {
+      if (i.status === 'open' || i.status === 'opened') openCount++;
+      else if (i.status === 'closed') closedCount++;
 
-      if (facility == null) {
-        const f = issue.facilityName || "Unknown";
-        grouped[f] = grouped[f] || { opened: 0, closed: 0 };
-        grouped[f][issue.status] = (grouped[f][issue.status] || 0) + 1;
+      if (!facility) {
+        const f = i.facilityName || 'Unknown';
+        grouped[f] = grouped[f] || { open: 0, closed: 0 };
+        if (i.status === 'open' || i.status === 'opened') grouped[f].open++;
+        if (i.status === 'closed') grouped[f].closed++;
       }
     }
 
-    // Step 4: Return response
-    const response = {
-      openCount: summary.openCount,
-      closedCount: summary.closedCount,
-    };
-
-    if (!facility) {
-      response.groupedByFacility = grouped;
-    }
-
-    return res.json(response);
+    const resp = { openCount, closedCount };
+    if (!facility) resp.groupedByFacility = grouped;
+    res.status(200).json(resp);
   } catch (err) {
-    console.error("Error fetching maintenance summary:", err);
-    res.status(500).json({ message: "Internal server error." });
+    console.error('summary error:', err);
+    res.status(500).json({ message: 'Internal server error.' });
   }
 });
 

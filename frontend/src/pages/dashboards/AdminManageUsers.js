@@ -15,16 +15,23 @@ import {
 } from "@mui/material";
 import Sidebar from "../../components/AdminSideBar.js";
 import "../../styles/adminManageUsers.css";
-
+import { getAuthToken } from "../../firebase.js";
 export default function AdminDashboard() {
   const [users, setUsers] = useState([]);
 
   useEffect(() => {
     const fetchUsers = async () => {
       try {
+        const token = getAuthToken();
         const res = await fetch(
-          "http://localhost:8080/api/admin/users"
-        );
+          "http://localhost:8080/api/admin/users",{
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        )
+
         const text = await res.text();
         if (!res.ok) throw new Error(text || res.statusText);
         const data = JSON.parse(text);
@@ -47,11 +54,13 @@ export default function AdminDashboard() {
 
   const handleToggle = async (user, endpoint, flagKey) => {
     try {
+      const token = getAuthToken();
       const res = await fetch(
         `http://localhost:8080/api/admin/${endpoint}`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json" },
           body: JSON.stringify({ email: user.email }),
         }
       );

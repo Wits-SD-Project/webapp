@@ -57,7 +57,6 @@ export default function StaffUpcomingBookings() {
                   <th>User</th>
                   <th>Date</th>
                   <th>Time</th>
-                  <th>Duration</th>
                 </tr>
               </thead>
               <tbody>
@@ -67,7 +66,6 @@ export default function StaffUpcomingBookings() {
                     <td>{b.userName}</td>
                     <td>{b.date}</td>
                     <td>{b.slot}</td>
-                    <td>{b.duration}</td>
                   </tr>
                 ))}
               </tbody>
