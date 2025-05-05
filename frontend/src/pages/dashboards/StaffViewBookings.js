@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
-import Sidebar from "../../components/StaffSideBar.js";
-import "../../styles/staffViewBookings.css";
+import { useEffect, useState, useCallback } from 'react';
+import Sidebar from '../../components/StaffSideBar.js';
+import '../../styles/staffViewBookings.css';
 
 import {
   addDoc,
@@ -10,82 +10,79 @@ import {
   getDocs,
   query,
   where,
-} from "firebase/firestore";
-import { db, auth } from "../../firebase";
+  serverTimestamp
+} from 'firebase/firestore';
+import { db, auth } from '../../firebase';
 
 export default function ViewBookings() {
-  const [bookings, setBookings] = useState([]);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [bookings, setBookings]   = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
 
-
-  useEffect(() => {
-    const user = auth.currentUser;
-    if (!user) return;
-    const fetchBookings = async () => {
-      const bookingsRef = collection(db, "bookings");
-      const q = query(bookingsRef, where("facilityStaff", "==", user.uid));
-
-      const snapshot = await getDocs(q);
-      const bookingsData = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      console.log(bookingsData);
-      setBookings(bookingsData);
-    };
-
-    fetchBookings();
+  /* ───── helper: fetch bookings for the signed-in staff member ───── */
+  const fetchBookings = useCallback(async (uid) => {
+    if (!uid) return;
+    const snap = await getDocs(
+      query(collection(db, 'bookings'), where('facilityStaff', '==', uid))
+    );
+    setBookings(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
   }, []);
 
-  const updateBookingStatus = async (index, newStatus) => {
-    const booking = bookings[index];
-    const bookingId = booking.id;
-    const bookingRef = doc(db, "bookings", bookingId);
-    await updateDoc(bookingRef, { status: newStatus });
+  /* refresh when auth state changes */
+  useEffect(() => {
+    const unsub = auth.onAuthStateChanged((u) => fetchBookings(u?.uid));
+    return unsub;
+  }, [fetchBookings]);
 
-    // Create notification
-    await addDoc(collection(db, "notifications"), {
-      userName: booking.userName || booking.user || "unknown",
-      facilityName: booking.facilityName,
-      status: newStatus,
-      slot: booking.slot || booking.datetime,
-      createdAt: new Date().toISOString(),
-      read: false,
-    });
+  /* weight for a stable sort: pending → approved → rejected */
+  const weight = (s) => ({ pending: 0, approved: 1, rejected: 2 }[s] ?? 3);
 
-    if (newStatus === "approved") {
-      // find the facility by name
-      const facilitiesSnapshot = await getDocs(
-        collection(db, "facilities-test")
-      );
-      const facilityDoc = facilitiesSnapshot.docs.find(
-        (doc) => doc.data().name === booking.facilityName
-      );
+  /* ─────────── approve / reject handler (now keyed by id) ─────────── */
+  const updateBookingStatus = async (bookingId, newStatus) => {
+    const booking = bookings.find((b) => b.id === bookingId);
+    if (!booking) return;
 
-      if (facilityDoc) {
-        const facilityRef = doc(db, "facilities-test", facilityDoc.id);
-        const facilityData = facilityDoc.data();
+    try {
+      /* 1. update booking doc */
+      await updateDoc(doc(db, 'bookings', bookingId), { status: newStatus });
 
-        const updatedSlots = (facilityData.timeslots || []).map((slot) => {
-          if (`${slot.start} - ${slot.end}` === booking.slot) {
-            return {
-              ...slot,
-              isBooked: true,
-              bookedBy: booking.userName || booking.user || "Unknown",
-            };
-          }
-          return slot;
-        });
+      /* 2. push notification */
+      await addDoc(collection(db, 'notifications'), {
+        userName    : booking.userName ?? booking.user ?? 'Unknown',
+        facilityName: booking.facilityName,
+        status      : newStatus,
+        slot        : booking.slot ?? booking.datetime ?? '',
+        createdAt   : serverTimestamp(),
+        read        : false,
+      });
 
-        await updateDoc(facilityRef, { timeslots: updatedSlots });
+      /* 3. if approved → mark slot as booked */
+      if (newStatus === 'approved') {
+        const facSnap = await getDocs(
+          query(
+            collection(db, 'facilities-test'),
+            where('name', '==', booking.facilityName)
+          )
+        );
+        const facDoc = facSnap.docs[0];
+        if (facDoc) {
+          const facRef  = facDoc.ref;
+          const facData = facDoc.data();
+          const updatedSlots = (facData.timeslots ?? []).map((s) =>
+            `${s.start} - ${s.end}` === booking.slot
+              ? { ...s, isBooked: true, bookedBy: booking.userName ?? booking.user ?? 'Unknown' }
+              : s
+          );
+          await updateDoc(facRef, { timeslots: updatedSlots });
+        }
       }
-    }
 
-    setBookings((prev) => {
-      const updated = [...prev];
-      updated[index].status = newStatus;
-      return updated;
-    });
+      /* 4. update UI */
+      setBookings((prev) =>
+        prev.map((b) => (b.id === bookingId ? { ...b, status: newStatus } : b))
+      );
+    } catch (err) {
+      console.error('updateBookingStatus error:', err); // eslint-disable-line no-console
+    }
   };
 
   return (
@@ -96,63 +93,60 @@ export default function ViewBookings() {
         <main className="main-content">
           <header className="page-header">
             <h1>View Bookings</h1>
-            <input type="search" placeholder="Search" className="search-box" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+            <input
+              type="search"
+              placeholder="Search"
+              className="search-box"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </header>
 
           <section className="table-section">
             <table className="bookings-table">
               <thead>
                 <tr>
-                  <th>Facility Name</th>
+                  <th>Facility</th>
                   <th>User</th>
-                  <th>Date/Time</th>
-                  <th>Duration</th>
+                  <th>Date</th>
+                  <th>Slot</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
               </thead>
+
               <tbody>
                 {[...bookings]
                   .filter((b) => {
-                    const query = searchQuery.toLowerCase();
+                    const q = searchQuery.toLowerCase();
                     return (
-                      b.facilityName?.toLowerCase().includes(query) ||
-                      b.userName?.toLowerCase().includes(query) ||
-                      b.user?.toLowerCase().includes(query) ||
-                      b.date?.toLowerCase().includes(query) ||
-                      b.slot?.toLowerCase().includes(query) ||
-                      b.status?.toLowerCase().includes(query)
+                      (b.facilityName ?? '').toLowerCase().includes(q) ||
+                      (b.userName ?? b.user ?? '').toLowerCase().includes(q) ||
+                      (b.date ? b.date.toString() : '').toLowerCase().includes(q) ||
+                      (b.slot ?? '').toLowerCase().includes(q) ||
+                      (b.status ?? '').toLowerCase().includes(q)
                     );
                   })
-                  .sort((a, b) =>
-                    a.status === "pending" ? -1 : b.status === "pending" ? 1 : 0
-                  )
-                  .map((b, index) => (
-                    <tr key={index}>
+                  .sort((a, b) => weight(a.status) - weight(b.status))
+                  .map((b) => (
+                    <tr key={b.id}>
                       <td>{b.facilityName}</td>
-                      <td>{b.userName || b.user || "—"}</td>
-                      <td>{b.date || "—"}</td> {/* Show the date */}
-                      <td>{b.slot || "—"}</td>{" "}
-                      {/* Show the slot for duration */}
-                      <td className={`status ${b.status.toLowerCase()}`}>
-                        {b.status}
-                      </td>
+                      <td>{b.userName ?? b.user ?? '—'}</td>
+                      <td>{b.date ?? '—'}</td>
+                      <td>{b.slot ?? '—'}</td>
+                      <td className={`status ${b.status?.toLowerCase()}`}>{b.status}</td>
                       <td className="actions">
-                        {b.status === "pending" ? (
+                        {b.status === 'pending' ? (
                           <>
                             <button
                               className="approve"
-                              onClick={() =>
-                                updateBookingStatus(index, "approved")
-                              }
+                              onClick={() => updateBookingStatus(b.id, 'approved')}
                             >
                               Approve
                             </button>
                             <button
                               className="reject"
-                              onClick={() =>
-                                updateBookingStatus(index, "rejected")
-                              }
+                              onClick={() => updateBookingStatus(b.id, 'rejected')}
                             >
                               Reject
                             </button>
