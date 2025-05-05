@@ -40,10 +40,28 @@ export default function StaffDashboard() {
   
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to fetch reports");
-  
+      
+      console.log("CreatedAt values:", data.reports.map(r => r.createdAt));
+
       const doc = new jsPDF();
       doc.text("Maintenance Report", 14, 15);
-  
+
+      function formatDate(timestamp) {
+        try {
+          if (!timestamp || typeof timestamp._seconds !== "number") return "-";
+          const date = new Date(timestamp._seconds * 1000);
+          return date.toLocaleString("en-GB", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit"
+          });
+        } catch {
+          return "-";
+        }
+      }
+
       autoTable(doc, {
         startY: 25,
         head: [["Facility", "Description", "Status", "Created At"]],
@@ -51,9 +69,9 @@ export default function StaffDashboard() {
           report.facilityName || "Unknown",
           report.description || "-",
           report.status || "-",
-          report.createdAt || "-"
+          formatDate(report.createdAt)
         ]),
-      });
+      });      
   
       doc.save("Maintenance_Report.pdf");
     } catch (error) {
