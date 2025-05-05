@@ -46,32 +46,40 @@ router.post("/events", authenticate, async (req, res) => {
     const snap = await userRef.get();
 
     if (!snap.exists) {
-      return res.status(404).json({ success: false, message: "User not found." });
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found." });
     }
 
     const userData = snap.data();
     if (userData.role !== "admin") {
-      return res.status(403).json({ success: false, message: "Access denied. Admins only." });
+      return res
+        .status(403)
+        .json({ success: false, message: "Access denied. Admins only." });
     }
 
-    const {
-      eventName,
-      facility,
-      facilityId,
-      description,
-      startTime,
-      endTime,
-    } = req.body;
+    const { eventName, facility, facilityId, description, startTime, endTime } =
+      req.body;
 
     // === Step 1: Validate input ===
     if (
-      !eventName || typeof eventName !== "string" ||
-      !facility || typeof facility !== "string" ||
-      !facilityId || typeof facilityId !== "string" ||
-      !description || typeof description !== "string" ||
-      !startTime || !endTime
+      !eventName ||
+      typeof eventName !== "string" ||
+      !facility ||
+      typeof facility !== "string" ||
+      !facilityId ||
+      typeof facilityId !== "string" ||
+      !description ||
+      typeof description !== "string" ||
+      !startTime ||
+      !endTime
     ) {
-      return res.status(400).json({ success: false, message: "Missing or invalid required fields." });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "Missing or invalid required fields.",
+        });
     }
 
     const start = new Date(startTime);
@@ -79,15 +87,27 @@ router.post("/events", authenticate, async (req, res) => {
     const now = new Date();
 
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      return res.status(400).json({ success: false, message: "Invalid date format." });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid date format." });
     }
 
     if (start >= end) {
-      return res.status(400).json({ success: false, message: "Start time must be before end time." });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "Start time must be before end time.",
+        });
     }
 
     if (start < now) {
-      return res.status(400).json({ success: false, message: "Cannot schedule events in the past." });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "Cannot schedule events in the past.",
+        });
     }
 
     const eventRef = admin.firestore().collection("admin-events");
@@ -100,7 +120,13 @@ router.post("/events", authenticate, async (req, res) => {
       .get();
 
     if (!duplicateSnap.empty) {
-      return res.status(409).json({ success: false, message: "Duplicate event with same name and start time at this facility." });
+      return res
+        .status(409)
+        .json({
+          success: false,
+          message:
+            "Duplicate event with same name and start time at this facility.",
+        });
     }
 
     // === Step 3: Check for overlapping events at the same facility ===
@@ -111,7 +137,12 @@ router.post("/events", authenticate, async (req, res) => {
       .get();
 
     if (!overlappingSnap.empty) {
-      return res.status(409).json({ success: false, message: "Overlapping event already scheduled at this facility." });
+      return res
+        .status(409)
+        .json({
+          success: false,
+          message: "Overlapping event already scheduled at this facility.",
+        });
     }
 
     // === Step 4: Add new event ===
@@ -144,13 +175,13 @@ router.post("/events", authenticate, async (req, res) => {
       event: responseEvent,
       message: "Event successfully created",
     });
-
   } catch (error) {
     console.error("Error creating event:", error);
-    return res.status(500).json({ success: false, message: "Internal server error" });
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
   }
 });
-
 
 // Get all users - Admin SDK version
 router.get("/users", async (req, res) => {
@@ -177,40 +208,47 @@ router.get("/users", async (req, res) => {
   }
 });
 
-
 router.put("/events/:id", authenticate, async (req, res) => {
   try {
     const userRef = admin.firestore().collection("users").doc(req.user.email);
     const snap = await userRef.get();
 
     if (!snap.exists) {
-      return res.status(404).json({ success: false, message: "User not found." });
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found." });
     }
 
     const userData = snap.data();
     if (userData.role !== "admin") {
-      return res.status(403).json({ success: false, message: "Access denied. Admins only." });
+      return res
+        .status(403)
+        .json({ success: false, message: "Access denied. Admins only." });
     }
 
     const eventId = req.params.id;
-    const {
-      eventName,
-      facility,
-      facilityId,
-      description,
-      startTime,
-      endTime,
-    } = req.body;
+    const { eventName, facility, facilityId, description, startTime, endTime } =
+      req.body;
 
     // === Step 1: Validate input ===
     if (
-      !eventName || typeof eventName !== "string" ||
-      !facility || typeof facility !== "string" ||
-      !facilityId || typeof facilityId !== "string" ||
-      !description || typeof description !== "string" ||
-      !startTime || !endTime
+      !eventName ||
+      typeof eventName !== "string" ||
+      !facility ||
+      typeof facility !== "string" ||
+      !facilityId ||
+      typeof facilityId !== "string" ||
+      !description ||
+      typeof description !== "string" ||
+      !startTime ||
+      !endTime
     ) {
-      return res.status(400).json({ success: false, message: "Missing or invalid required fields." });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "Missing or invalid required fields.",
+        });
     }
 
     const start = new Date(startTime);
@@ -218,22 +256,36 @@ router.put("/events/:id", authenticate, async (req, res) => {
     const now = new Date();
 
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      return res.status(400).json({ success: false, message: "Invalid date format." });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid date format." });
     }
 
     if (start >= end) {
-      return res.status(400).json({ success: false, message: "Start time must be before end time." });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "Start time must be before end time.",
+        });
     }
 
     if (start < now) {
-      return res.status(400).json({ success: false, message: "Cannot update event to a past time." });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "Cannot update event to a past time.",
+        });
     }
 
     const eventRef = admin.firestore().collection("admin-events").doc(eventId);
     const existingSnap = await eventRef.get();
 
     if (!existingSnap.exists) {
-      return res.status(404).json({ success: false, message: "Event not found." });
+      return res
+        .status(404)
+        .json({ success: false, message: "Event not found." });
     }
 
     const eventCollectionRef = admin.firestore().collection("admin-events");
@@ -245,9 +297,15 @@ router.put("/events/:id", authenticate, async (req, res) => {
       .where("startTime", "==", start.toISOString())
       .get();
 
-    const isDuplicate = duplicateSnap.docs.some(doc => doc.id !== eventId);
+    const isDuplicate = duplicateSnap.docs.some((doc) => doc.id !== eventId);
     if (isDuplicate) {
-      return res.status(409).json({ success: false, message: "Duplicate event with same name and start time at this facility." });
+      return res
+        .status(409)
+        .json({
+          success: false,
+          message:
+            "Duplicate event with same name and start time at this facility.",
+        });
     }
 
     // === Step 3: Check for overlapping time at the same facility (excluding current) ===
@@ -257,9 +315,16 @@ router.put("/events/:id", authenticate, async (req, res) => {
       .where("endTime", ">", start.toISOString())
       .get();
 
-    const isOverlapping = overlappingSnap.docs.some(doc => doc.id !== eventId);
+    const isOverlapping = overlappingSnap.docs.some(
+      (doc) => doc.id !== eventId
+    );
     if (isOverlapping) {
-      return res.status(409).json({ success: false, message: "Overlapping event exists at this facility." });
+      return res
+        .status(409)
+        .json({
+          success: false,
+          message: "Overlapping event exists at this facility.",
+        });
     }
 
     // === Step 4: Update event ===
@@ -291,10 +356,11 @@ router.put("/events/:id", authenticate, async (req, res) => {
       event: updatedEvent,
       message: "Event successfully updated",
     });
-
   } catch (error) {
     console.error("Error updating event:", error);
-    return res.status(500).json({ success: false, message: "Internal server error" });
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
   }
 });
 
@@ -304,7 +370,9 @@ router.delete("/events/:id", authenticate, async (req, res) => {
     const snap = await userRef.get();
 
     if (!snap.exists || snap.data().role !== "admin") {
-      return res.status(403).json({ success: false, message: "Access denied. Admins only." });
+      return res
+        .status(403)
+        .json({ success: false, message: "Access denied. Admins only." });
     }
 
     const eventId = req.params.id;
@@ -312,18 +380,73 @@ router.delete("/events/:id", authenticate, async (req, res) => {
     const doc = await eventRef.get();
 
     if (!doc.exists) {
-      return res.status(404).json({ success: false, message: "Event not found." });
+      return res
+        .status(404)
+        .json({ success: false, message: "Event not found." });
     }
 
     await eventRef.delete();
 
-    return res.status(200).json({ success: true, message: "Event successfully deleted." });
+    return res
+      .status(200)
+      .json({ success: true, message: "Event successfully deleted." });
   } catch (error) {
     console.error("Error deleting event:", error);
-    return res.status(500).json({ success: false, message: "Internal server error." });
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error." });
   }
 });
 
+// POST /api/admin/block-slot
+router.post("/block-slot", authenticate, async (req, res) => {
+  try {
+    // 0. admin‐only guard (reuse the user → role check you already wrote)
+    const userRef = admin.firestore().collection("users").doc(req.user.email);
+    const userSnap = await userRef.get();
+    if (!userSnap.exists || userSnap.data().role !== "admin")
+      return res.status(403).json({ success: false, message: "Admins only" });
+
+    // 1. validate body
+    const { facilityId, facilityName, slot, date } = req.body;
+    if (!facilityId || !slot || !date || !facilityName)
+      return res
+        .status(400)
+        .json({ success: false, message: "Missing fields" });
+
+    const bookingsRef = admin.firestore().collection("bookings");
+
+    // 2. reject if someone already booked it on that day
+    const clashSnap = await bookingsRef
+      .where("facilityId", "==", facilityId)
+      .where("date", "==", date)
+      .where("slot", "==", slot)
+      .get();
+
+    if (!clashSnap.empty)
+      return res
+        .status(409)
+        .json({ success: false, message: "Slot already taken" });
+
+    // 3. write booking, status = approved
+    await bookingsRef.add({
+      facilityId,
+      facilityName,
+      slot,
+      date,
+      userId: req.user.uid,
+      userName: req.user.email,
+      status: "approved",
+      createdByRole: "admin",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    res.status(201).json({ success: true, message: "Timeslot blocked" });
+  } catch (err) {
+    console.error("Block‑slot error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
 
 // Fetch all admin events
 router.get("/events", authenticate, async (req, res) => {
@@ -378,7 +501,6 @@ router.get("/events", authenticate, async (req, res) => {
       count: events.length,
       events,
     });
-
   } catch (error) {
     console.error("Error fetching admin events:", error);
 
@@ -398,14 +520,17 @@ router.get("/events", authenticate, async (req, res) => {
   }
 });
 
-
 // 🛠 GET maintenance issue summary
 router.get("/maintenance-summary", authenticate, async (req, res) => {
   const { facility, dateRange } = req.query;
 
   try {
     // Step 1: Ensure the requester is an admin
-    const userSnap = await admin.firestore().collection("users").doc(req.user.email).get();
+    const userSnap = await admin
+      .firestore()
+      .collection("users")
+      .doc(req.user.email)
+      .get();
     if (!userSnap.exists || userSnap.data().role !== "admin") {
       return res.status(403).json({ message: "Access denied. Admins only." });
     }
@@ -436,17 +561,15 @@ router.get("/maintenance-summary", authenticate, async (req, res) => {
     const grouped = {};
 
     for (const issue of issues) {
-    
       if (issue.status === "opened") summary.openCount++;
       else if (issue.status === "closed") summary.closedCount++;
-    
+
       if (facility == null) {
         const f = issue.facilityName || "Unknown";
         grouped[f] = grouped[f] || { opened: 0, closed: 0 };
         grouped[f][issue.status] = (grouped[f][issue.status] || 0) + 1;
       }
     }
-    
 
     // Step 4: Return response
     const response = {
@@ -467,14 +590,21 @@ router.get("/maintenance-summary", authenticate, async (req, res) => {
 
 router.get("/maintenance-reports", authenticate, async (req, res) => {
   try {
-    const userSnap = await admin.firestore().collection("users").doc(req.user.email).get();
+    const userSnap = await admin
+      .firestore()
+      .collection("users")
+      .doc(req.user.email)
+      .get();
 
     if (!userSnap.exists || userSnap.data().role !== "admin") {
       return res.status(403).json({ message: "Access denied. Admins only." });
     }
 
-    const snapshot = await admin.firestore().collection("maintenance-reports").get();
-    const reports = snapshot.docs.map(doc => ({
+    const snapshot = await admin
+      .firestore()
+      .collection("maintenance-reports")
+      .get();
+    const reports = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     }));
@@ -482,15 +612,20 @@ router.get("/maintenance-reports", authenticate, async (req, res) => {
     res.status(200).json({ success: true, reports });
   } catch (error) {
     console.error("Error fetching maintenance reports:", error);
-    res.status(500).json({ success: false, message: "Failed to fetch maintenance reports" });
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to fetch maintenance reports" });
   }
 });
 
 router.get("/facilities", authenticate, async (req, res) => {
   try {
-    const snapshot = await admin.firestore().collection("facilities-test").get();
+    const snapshot = await admin
+      .firestore()
+      .collection("facilities-test")
+      .get();
 
-    const facilities = snapshot.docs.map(doc => ({
+    const facilities = snapshot.docs.map((doc) => ({
       id: doc.id,
       name: doc.data().name,
     }));
@@ -498,9 +633,10 @@ router.get("/facilities", authenticate, async (req, res) => {
     res.status(200).json({ success: true, facilities });
   } catch (error) {
     console.error("Error fetching facilities:", error);
-    res.status(500).json({ success: false, message: "Failed to fetch facilities" });
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to fetch facilities" });
   }
 });
-
 
 module.exports = router;
