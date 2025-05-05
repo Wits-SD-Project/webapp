@@ -1,5 +1,25 @@
 // __mocks__/firebase.js
-const firestoreData = new Map();
+
+/* ---------------------------------------------------------- */
+/*  Jest helper – make expect(...).toBeFalse() available      */
+/* ---------------------------------------------------------- */
+if (typeof expect !== 'undefined' && typeof expect.toBeFalse !== 'function') {
+  expect.extend({
+    toBeFalse(received) {
+      const pass = received === false;
+      return {
+        pass,
+        message: () =>
+          `expected ${received} ${pass ? 'not ' : ''}to be strictly false`,
+      };
+    },
+  });
+}
+/* ---------------------------------------------------------- */
+
+
+const firestoreData = global.__FIRESTORE_DATA__ || new Map();
+if (!global.__FIRESTORE_DATA__) global.__FIRESTORE_DATA__ = firestoreData;
 
 const authMethods = {
   verifyIdToken: jest.fn((token) => {
