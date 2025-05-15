@@ -16,97 +16,145 @@
       • A single staff user may not create two facilities with identical
         (name + type). Different staff may reuse the same pair.                  */
    router.post('/upload', authenticate, async (req, res) => {
-     /* 1️⃣ basic validation ---------------------------------------------------- */
-     const { name, type, isOutdoors, availability, location, imageUrls } = req.body;
-   
-     if (!name || !type || typeof isOutdoors === 'undefined')
-       return res.status(400).json({
-         success: false,
-         message: 'Missing required fields (name, type, isOutdoors)',
-         errorCode: 'MISSING_REQUIRED_FIELDS',
-       });
-   
-     if (typeof name !== 'string' || typeof type !== 'string' || typeof isOutdoors !== 'boolean')
-       return res.status(400).json({
-         success: false,
-         message: 'Invalid field types',
-         errorCode: 'INVALID_FIELD_TYPES',
-       });
-   
-     const cleanName = name.trim();
-     const cleanType = type.trim();
-     if (cleanName.length > 100 || cleanType.length > 50)
-       return res.status(400).json({
-         success: false,
-         message: 'Name or type exceeds maximum length',
-         errorCode: 'FIELD_TOO_LONG',
-       });
-   
-     /* 2️⃣ build payload ------------------------------------------------------- */
-     const facilities = admin.firestore().collection('facilities-test');
-     const payload = {
-       name          : cleanName,
-       name_lower    : cleanName.toLowerCase(),
-       type          : cleanType,
-       type_lower    : cleanType.toLowerCase(),
-       isOutdoors,
-       availability  : availability ? availability.trim() : '',
-       location      : location     ? location.trim()     : '',
-       imageUrls     : imageUrls || [],
-       timeslots     : [],
-       created_by    : req.user.uid,
-       created_at    : admin.firestore.FieldValue.serverTimestamp(),
-     };
-   
-     try {
-       /* 3️⃣ duplicate guard (creator-scoped) ---------------------------------- */
+    /* 1️⃣ basic validation ---------------------------------------------------- */
+    const { 
+        name, 
+        type, 
+        isOutdoors, 
+        availability, 
+        location, 
+        imageUrls,
+        description = '',  // New field with default
+        features = []      // New field with default
+    } = req.body;
+
+    if (!name || !type || typeof isOutdoors === 'undefined')
+        return res.status(400).json({
+            success: false,
+            message: 'Missing required fields (name, type, isOutdoors)',
+            errorCode: 'MISSING_REQUIRED_FIELDS',
+        });
+
+    if (typeof name !== 'string' || typeof type !== 'string' || typeof isOutdoors !== 'boolean')
+        return res.status(400).json({
+            success: false,
+            message: 'Invalid field types',
+            errorCode: 'INVALID_FIELD_TYPES',
+        });
+
+    // Validate new fields
+    if (description && typeof description !== 'string') {
+        return res.status(400).json({
+            success: false,
+            message: 'Description must be a string',
+            errorCode: 'INVALID_DESCRIPTION',
+        });
+    }
+
+    if (features && (!Array.isArray(features) || features.some(f => typeof f !== 'string'))) {
+        return res.status(400).json({
+            success: false,
+            message: 'Features must be an array of strings',
+            errorCode: 'INVALID_FEATURES',
+        });
+    }
+
+    const cleanName = name.trim();
+    const cleanType = type.trim();
+    const cleanDescription = description.trim();
+    
+    if (cleanName.length > 100 || cleanType.length > 50)
+        return res.status(400).json({
+            success: false,
+            message: 'Name or type exceeds maximum length',
+            errorCode: 'FIELD_TOO_LONG',
+        });
+
+    if (cleanDescription.length > 500) {
+        return res.status(400).json({
+            success: false,
+            message: 'Description exceeds maximum length of 500 characters',
+            errorCode: 'DESCRIPTION_TOO_LONG',
+        });
+    }
+
+    /* 2️⃣ build payload ------------------------------------------------------- */
+    const facilities = admin.firestore().collection('facilities-test');
+    const payload = {
+        name: cleanName,
+        name_lower: cleanName.toLowerCase(),
+        type: cleanType,
+        type_lower: cleanType.toLowerCase(),
+        isOutdoors,
+        availability: availability ? availability.trim() : '',
+        location: location ? location.trim() : '',
+        imageUrls: imageUrls || [],
+        description: cleanDescription,
+        features: features || [],
+        timeslots: [],
+        created_by: req.user.uid,
+        created_at: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    try {
+        /* 3️⃣ duplicate guard (creator-scoped) ---------------------------------- */
         const snap = await facilities.where('created_by', '==', req.user.uid).get();
 
         let duplicate = false;
         snap.forEach((d) => {
-          const f = d.data();
-          if (f.name_lower === payload.name_lower && f.type_lower === payload.type_lower) {
-            duplicate = true;
-          }
+            const f = d.data();
+            if (f.name_lower === payload.name_lower && f.type_lower === payload.type_lower) {
+                duplicate = true;
+            }
         });
 
         if (duplicate) {
-          return res.status(409).json({
-            success: false,
-            message: 'Facility with this name and type already exists',
-            errorCode: 'DUPLICATE_FACILITY',
-          });
+            return res.status(409).json({
+                success: false,
+                message: 'Facility with this name and type already exists',
+                errorCode: 'DUPLICATE_FACILITY',
+            });
         }
 
         /* 4️⃣ create the document  --------------------------------------------- */
-        /*    (plain .add plays nicely with the Jest Firestore mock)              */
         const docRef = await facilities.add(payload);
             
-       /* 5️⃣ success ----------------------------------------------------------- */
-       const saved = (await docRef.get()).data();
-       return res.status(201).json({
-         success : true,
-         facility: {
-           id          : docRef.id,
-           name        : saved.name,
-           type        : saved.type,
-           isOutdoors  : saved.isOutdoors ? 'Yes' : 'No',
-           availability: saved.availability,
-           location    : saved.location,
-           imageUrls   : saved.imageUrls,
-         },
-       });
-     } catch (err) {
-       if (err.message === 'DUPLICATE_FACILITY')
-         return res.status(409).json({
-           success: false,
-           message: 'Facility already exists',
-           errorCode: 'DUPLICATE_FACILITY',
-         });
-       console.error('Facility upload error:', err);
-       return res.status(500).json({ success: false, message: 'Server error' });
-     }
-   });
+        /* 5️⃣ success ----------------------------------------------------------- */
+        const saved = (await docRef.get()).data();
+        
+        // Maintain backward compatible response
+        const response = {
+            success: true,
+            facility: {
+                id: docRef.id,
+                name: saved.name,
+                type: saved.type,
+                isOutdoors: saved.isOutdoors ? 'Yes' : 'No',
+                availability: saved.availability,
+                location: saved.location,
+                imageUrls: saved.imageUrls,
+                // Include new fields in response if they exist
+                ...(saved.description && { description: saved.description }),
+                ...(saved.features && saved.features.length > 0 && { features: saved.features }),
+            },
+        };
+
+        return res.status(201).json(response);
+    } catch (err) {
+        if (err.message === 'DUPLICATE_FACILITY')
+            return res.status(409).json({
+                success: false,
+                message: 'Facility already exists',
+                errorCode: 'DUPLICATE_FACILITY',
+            });
+        console.error('Facility upload error:', err);
+        return res.status(500).json({ 
+            success: false, 
+            message: 'Server error',
+            errorDetails: process.env.NODE_ENV === 'development' ? err.message : undefined
+        });
+    }
+});
    
    /* ───────────────────────  POST /facilities/timeslots  ─────────────────────── */
    router.post('/timeslots', authenticate, async (req, res) => {
@@ -155,38 +203,101 @@
    });
    
    /* ──────────────────  PUT /facilities/updateFacility/:id  ──────────────────── */
-   router.put('/updateFacility/:id', authenticate, async (req, res) => {
-     try {
-       const ref  = admin.firestore().collection('facilities-test').doc(req.params.id);
-       const snap = await ref.get();
-       if (!snap.exists || snap.data().created_by !== req.user.uid)
-         return res.status(404).json({ success: false, message: 'Facility not found or unauthorized' });
-   
-       const { name, type, isOutdoors, availability } = req.body;
-       await ref.update({
-         name,
-         type,
-         isOutdoors: Boolean(isOutdoors),
-         availability,
-         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-       });
-   
-       const updated = (await ref.get()).data();
-       res.json({
-         success : true,
-         facility: {
-           id          : ref.id,
-           name        : updated.name,
-           type        : updated.type,
-           isOutdoors  : updated.isOutdoors ? 'Yes' : 'No',
-           availability: updated.availability,
-         },
-       });
-     } catch (e) {
-       console.error('Update facility error:', e);
-       res.status(500).json({ success: false, message: 'Server error' });
-     }
-   });
+  router.put('/updateFacility/:id', authenticate, async (req, res) => {
+    try {
+        const ref = admin.firestore().collection('facilities-test').doc(req.params.id);
+        const snap = await ref.get();
+        
+        if (!snap.exists || snap.data().created_by !== req.user.uid) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Facility not found or unauthorized' 
+            });
+        }
+
+        const { 
+            name, 
+            type, 
+            isOutdoors, 
+            availability, 
+            description, 
+            features 
+        } = req.body;
+
+        // Validate basic fields
+        if (!name || !type || typeof isOutdoors === 'undefined') {
+            return res.status(400).json({
+                success: false,
+                message: 'Missing required fields (name, type, isOutdoors)',
+                errorCode: 'MISSING_REQUIRED_FIELDS',
+            });
+        }
+
+        // Validate new fields if provided
+        if (description && typeof description !== 'string') {
+            return res.status(400).json({
+                success: false,
+                message: 'Description must be a string',
+                errorCode: 'INVALID_DESCRIPTION',
+            });
+        }
+
+        if (features && (!Array.isArray(features) || features.some(f => typeof f !== 'string'))) {
+            return res.status(400).json({
+                success: false,
+                message: 'Features must be an array of strings',
+                errorCode: 'INVALID_FEATURES',
+            });
+        }
+
+        // Prepare update data
+        const updateData = {
+            name: name.trim(),
+            type: type.trim(),
+            isOutdoors: Boolean(isOutdoors),
+            availability: availability ? availability.trim() : '',
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+
+        // Only update description if provided
+        if (typeof description !== 'undefined') {
+            updateData.description = description.trim();
+        }
+
+        // Only update features if provided
+        if (typeof features !== 'undefined') {
+            updateData.features = features;
+        }
+
+        await ref.update(updateData);
+
+        const updated = (await ref.get()).data();
+        
+        // Backward compatible response with new fields
+        const response = {
+            success: true,
+            facility: {
+                id: ref.id,
+                name: updated.name,
+                type: updated.type,
+                isOutdoors: updated.isOutdoors ? 'Yes' : 'No',
+                availability: updated.availability,
+                // Include new fields if they exist
+                ...(updated.description && { description: updated.description }),
+                ...(updated.features && { features: updated.features }),
+            },
+        };
+
+        res.json(response);
+    } catch (e) {
+        console.error('Update facility error:', e);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Server error',
+            ...(process.env.NODE_ENV === 'development' && { error: e.message })
+        });
+    }
+});
    
    /* ─────────────────────  DELETE /facilities/:id  ───────────────────────────── */
    router.delete('/:id', authenticate, async (req, res) => {

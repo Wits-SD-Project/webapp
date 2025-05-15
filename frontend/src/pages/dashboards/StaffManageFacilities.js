@@ -8,15 +8,17 @@ import { useNavigate } from "react-router-dom";
 import { getAuthToken } from "../../firebase";
 import { toast } from "react-toastify";
 import FacilityFormModal from "./FalicityFormModal";
+import FeatureFormModal from "./FeatureFormModal";
 
 export default function ManageFacilities() {
   const [facilities, setFacilities] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [originalFacilities, setOriginalFacilities] = useState({});
-  const [facilityName, setFacilityName] = useState("");
-  const [facilityType, setFacilityType] = useState("");
-  const [facilityDescription, setFacilityDescription] = useState("");
-  // const [isDeleting, setIsDeleting] = useState(false);
+  const [featureModalOpen, setFeatureModalOpen] = useState(false);
+  const [editFeatureModalOpen, setEditFeatureModalOpen] = useState(false);
+  const [tempFacilityData, setTempFacilityData] = useState(null);
+  const [editingFacilityId, setEditingFacilityId] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   const openModal = () => setModalOpen(true);
   const closeModal = () => setModalOpen(false);
@@ -41,35 +43,40 @@ export default function ManageFacilities() {
         if (!res.ok) throw new Error("Failed to fetch facilities");
 
         const data = await res.json();
-        // Add isEditing flag to all facilities
         setFacilities(data.facilities.map((f) => ({ ...f, isEditing: false })));
       } catch (err) {
         console.log(err);
         toast.error("Failed to load facilities: " + err.message);
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchFacilities();
   }, []);
-  
+
   const handleAddFacility = async (formData) => {
-    /* formData === {
-         name, type, isOutdoors, availability, location, imageUrls:[...]
-       } */
+    setTempFacilityData(formData);
+    setFeatureModalOpen(true);
+    closeModal();
+  };
+
+  const handleCompleteFacility = async (featureData) => {
     try {
       const token = await getAuthToken();
-      console.log(formData);
+      const completeData = {
+        ...tempFacilityData,
+        ...featureData,
+        isOutdoors: tempFacilityData.isOutdoors === "Yes",
+      };
+
       const res = await fetch("http://localhost:8080/api/facilities/upload", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-
-        body: JSON.stringify({
-          ...formData,
-          isOutdoors: formData.isOutdoors === "Yes",
-        }),
+        body: JSON.stringify(completeData),
       });
 
       const data = await res.json();
@@ -79,42 +86,52 @@ export default function ManageFacilities() {
         ...prev,
         { ...data.facility, isEditing: false },
       ]);
-      toast.success("Facility created");
+      toast.success("Facility created successfully");
     } catch (err) {
       toast.error(err.message);
+    } finally {
+      setFeatureModalOpen(false);
+      setTempFacilityData(null);
     }
   };
 
-  const handleCreateFacility = async (facilityData) => {
+  const handleUpdateFeatures = async (featureData) => {
     try {
       const token = await getAuthToken();
-      const res = await fetch("http://localhost:8080/api/facilities/upload", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          name: facilityData.name,
-          type: facilityData.type,
-          isOutdoors: facilityData.isOutdoors === "Yes",
-          availability: facilityData.availability,
-        }),
-      });
+      const facility = facilities.find(f => f.id === editingFacilityId);
+      
+      const res = await fetch(
+        `http://localhost:8080/api/facilities/updateFacility/${editingFacilityId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            ...facility,
+            description: featureData.description,
+            features: featureData.features,
+          }),
+        }
+      );
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
+      if (!res.ok) throw new Error(data.message || "Update failed");
 
-      // Replace temporary facility with the one from the server
       setFacilities((prev) =>
         prev.map((f) =>
-          f.id === facilityData.id ? { ...data.facility, isEditing: false } : f
+          f.id === editingFacilityId ? { ...data.facility, isEditing: false } : f
         )
       );
 
-      toast(data.message);
+      toast.success("Facility features updated successfully");
     } catch (err) {
-      toast(err.message);
+      console.error("Update features error:", err);
+      toast.error(err.message || "Failed to update features");
+    } finally {
+      setEditFeatureModalOpen(false);
+      setEditingFacilityId(null);
     }
   };
 
@@ -134,6 +151,8 @@ export default function ManageFacilities() {
             type: facility.type,
             isOutdoors: facility.isOutdoors === "Yes",
             availability: facility.availability,
+            description: facility.description,
+            features: facility.features,
           }),
         }
       );
@@ -141,14 +160,13 @@ export default function ManageFacilities() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Update failed");
 
-      // Update local state with modified facility
       setFacilities((prev) =>
         prev.map((f) =>
           f.id === facility.id ? { ...data.facility, isEditing: false } : f
         )
       );
 
-      toast.success(data.message);
+      toast.success("Facility updated successfully");
     } catch (err) {
       console.error("Update facility error:", err);
       toast.error(err.message || "Failed to update facility");
@@ -169,7 +187,6 @@ export default function ManageFacilities() {
       );
 
       const result = await response.json();
-
       if (!response.ok) {
         throw new Error(result.message || "Delete failed");
       }
@@ -193,7 +210,6 @@ export default function ManageFacilities() {
       prev.map((f) => (f.id === id ? { ...f, isEditing: true } : f))
     );
 
-    // Store a backup only if not already stored
     setOriginalFacilities((prev) => {
       const alreadyStored = prev[id];
       if (alreadyStored) return prev;
@@ -202,21 +218,23 @@ export default function ManageFacilities() {
     });
   };
 
+  const handleEditFeatures = (id) => {
+    setEditingFacilityId(id);
+    setEditFeatureModalOpen(true);
+  };
+
   const handleCancelEdit = (id) => {
     const facility = facilities.find((f) => f.id === id);
 
     if (facility.isNew) {
-      // Remove unsaved new facility
       setFacilities((prev) => prev.filter((f) => f.id !== id));
     } else {
-      // Restore backup and exit edit mode
       setFacilities((prev) =>
         prev.map((f) =>
           f.id === id ? { ...originalFacilities[id], isEditing: false } : f
         )
       );
 
-      // Remove backup from memory
       setOriginalFacilities((prev) => {
         const updated = { ...prev };
         delete updated[id];
@@ -231,28 +249,6 @@ export default function ManageFacilities() {
     );
   };
 
-  // const handleAddFacility = () => {
-  //   setFacilities((prev) => [
-  //     ...prev,
-  //     {
-  //       id: Date.now().toString(),
-  //       name: "",
-  //       type: "",
-  //       isOutdoors: "Yes",
-  //       availability: "Available",
-  //       isEditing: true,
-  //       isNew: true,
-  //     },
-  //   ]);
-
-  //   setTimeout(() => {
-  //     tableRef.current?.scrollTo({
-  //       top: tableRef.current.scrollHeight,
-  //       behavior: "smooth",
-  //     });
-  //   }, 100);
-  // };
-
   const getAvailabilityClass = (status) => {
     switch (status) {
       case "Available":
@@ -266,6 +262,27 @@ export default function ManageFacilities() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="manage-facilities">
+        <div className="container">
+          <Sidebar activeItem="manage facilities" />
+          <main className="main-content">
+            <header className="page-header">
+              <h1>Manage Facilities</h1>
+              <button className="add-btn" disabled>
+                Add New Facility
+              </button>
+            </header>
+            <div className="loading-placeholder">
+              <p>Loading facilities...</p>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <main className="manage-facilities">
       <FacilityFormModal
@@ -273,14 +290,34 @@ export default function ManageFacilities() {
         onClose={closeModal}
         onSubmit={handleAddFacility}
       />
+      
+      <FeatureFormModal
+        open={featureModalOpen}
+        onClose={() => {
+          setFeatureModalOpen(false);
+          setTempFacilityData(null);
+        }}
+        onSubmit={handleCompleteFacility}
+        facilityType={tempFacilityData?.type || "General"}
+      />
+
+      <FeatureFormModal
+        open={editFeatureModalOpen}
+        onClose={() => {
+          setEditFeatureModalOpen(false);
+          setEditingFacilityId(null);
+        }}
+        onSubmit={handleUpdateFeatures}
+        facilityType={facilities.find(f => f.id === editingFacilityId)?.type || "General"}
+        initialData={facilities.find(f => f.id === editingFacilityId)}
+        isEditMode={true}
+      />
+
       <div className="container">
         <Sidebar activeItem="manage facilities" />
         <main className="main-content">
           <header className="page-header">
             <h1>Manage Facilities</h1>
-            {/* <button className="add-btn" onClick={handleAddFacility}>
-              Add New Facility
-            </button> */}
             <button className="add-btn" onClick={openModal}>
               Add New Facility
             </button>
@@ -382,13 +419,21 @@ export default function ManageFacilities() {
                           })
                         }
                       />
+                      {!f.isEditing && (
+                        <button 
+                          className="features-btn"
+                          onClick={() => handleEditFeatures(f.id)}
+                        >
+                          Edit Features
+                        </button>
+                      )}
                       {f.isEditing ? (
                         <>
                           <button
                             className="save-btn"
                             onClick={() => {
                               if (f.isNew) {
-                                handleCreateFacility(f);
+                                handleAddFacility(f);
                               } else {
                                 handleUpdateFacility(f);
                               }

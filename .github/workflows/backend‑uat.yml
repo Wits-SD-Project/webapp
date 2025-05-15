@@ -50,7 +50,7 @@ jobs:
         with:
           name: backend-coverage
           path: |
-            server/coverage       # ≡ coverage/lcov.info & nice html
+            server/coverage
 
       # 6️⃣  (optional) upload lcov → Codecov
       # - name: 📈  Upload coverage to Codecov

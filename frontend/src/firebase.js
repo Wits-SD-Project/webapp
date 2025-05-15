@@ -1,30 +1,7 @@
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-<<<<<<< HEAD
-import { getFirestore } from "firebase/firestore";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { getFirestore, collection, addDoc, serverTimestamp} from "firebase/firestore";
 
-// Ibram replace with your config
-const firebaseConfig = {
-  apiKey: "AIzaSyA_MjCm81gJVDzVav0kL_cgkzpdDEhmLBc",
-  authDomain: "sportssphere-c2046.firebaseapp.com",
-  projectId: "sportssphere-c2046",
-  storageBucket: "sportssphere-c2046.firebasestorage.app",
-  messagingSenderId: "295076511537",
-  appId: "1:295076511537:web:4578290d4431b09218fa10",
-  measurementId: "G-3YF5S1ZXTC",
-};
-
-const app = initializeApp(firebaseConfig);
-
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-=======
-import {
-  getFirestore,
-  collection,
-  addDoc,
-  serverTimestamp,
-} from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAhEqXvmStTF2_IA7-fAxT074w27ZTubmA",
@@ -35,15 +12,32 @@ const firebaseConfig = {
   appId: "1:575568726090:web:6d92dbc812222646c3beb3",
 };
 
-export async function getAuthToken(forceRefresh = true) {
-  const user = auth.currentUser;
-  if (!user) return "";
-  return user.getIdToken(forceRefresh);
+
+
+export async function getAuthToken() {
+  const auth = getAuth();
+
+  // If the user is already available, refresh the token immediately.
+  if (auth.currentUser) {
+    return await auth.currentUser.getIdToken(true); // true → force refresh
+  }
+
+  // First page-load: wait until Firebase finishes hydrating auth state.
+  return new Promise((resolve, reject) => {
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      unsub();
+      if (!user) {
+        reject(new Error("User not signed in"));
+        return;
+      }
+      resolve(await user.getIdToken(true));
+    });
+  });
 }
+
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-export { auth, db };
->>>>>>> 92d8f6e676a8150809db3ec0d9b73ef5820641fc
+export { auth, db};
