@@ -1,10 +1,25 @@
+<<<<<<< HEAD
+import { createContext, useContext, useState } from "react";
+=======
 import { createContext, useContext, useState, useEffect } from "react";
 import { auth } from "../firebase"; // Import your Firebase auth instance
+>>>>>>> 92d8f6e676a8150809db3ec0d9b73ef5820641fc
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [authUser, setAuthUser] = useState(null);
+<<<<<<< HEAD
+
+  return (
+    <AuthContext.Provider value={{ authUser, setAuthUser }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => useContext(AuthContext);
+=======
   const [loading, setLoading] = useState(true);
 
   // Check for existing session on initial load
@@ -54,3 +69,4 @@ export const AuthProvider = ({ children }) => {
 };
 
 export const useAuth = () => useContext(AuthContext);
+>>>>>>> 92d8f6e676a8150809db3ec0d9b73ef5820641fc
