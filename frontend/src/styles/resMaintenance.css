@@ -1,0 +1,165 @@
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  
+  .staff-maintenance .container {
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+  }
+  
+  .main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 2rem;
+    overflow: hidden;
+  }
+  
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+  }
+  
+  .page-header h1 {
+    font-size: 1.8rem;
+  }
+  
+  .search-box {
+    padding: 0.5rem 1rem;
+    border-radius: 999px;
+    border: 2px solid #ddd;
+    font-size: 1rem;
+  }
+  
+  .report-form {
+    background-color: #f9f9f9;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+  }
+  
+  .report-form h2 {
+    margin-bottom: 1rem;
+    font-size: 1.3rem;
+  }
+  
+  .form-group {
+    margin-bottom: 1rem;
+  }
+  
+  .form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+  }
+  
+  .form-group select,
+  .form-group textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: inherit;
+  }
+  
+  .form-group textarea {
+    min-height: 100px;
+    resize: vertical;
+  }
+  
+  .submit-button {
+    background-color: green;
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background-color 0.3s ease;
+  }
+  
+  .submit-button:hover {
+    background-color: #00b369;
+  }
+  
+  .table-section {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: auto;
+    border-radius: 12px;
+    border: 1px solid #eee;
+  }
+  
+  .maintenance-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 700px;
+  }
+  
+  .maintenance-table th,
+  .maintenance-table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+  }
+  
+  .maintenance-table th {
+    background-color: #f4f4f4;
+    color: #2c003e;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+  
+  .maintenance-table td {
+    color: #333;
+  }
+  
+  .status {
+    font-weight: bold;
+    text-transform: capitalize;
+  }
+  
+  .status.open {
+    color: orange;
+  }
+  
+  .status.in-progress {
+    color: #0066cc;
+  }
+  
+  .status.closed {
+    color: green;
+  }
+  
+  @media (max-width: 768px) {
+    .container {
+      flex-direction: column;
+    }
+  
+    .main-content {
+      padding: 1rem;
+    }
+  
+    .page-header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  
+    .search-box {
+      width: 100%;
+      margin-top: 1rem;
+    }
+  
+    .maintenance-table {
+      min-width: unset;
+    }
+  }

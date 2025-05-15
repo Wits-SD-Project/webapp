@@ -1,0 +1,64 @@
+.dashboard {
+  display: flex;
+  min-height: 100vh;
+  overflow: auto;
+  background-color: #f0f4f8;
+}
+
+.main-content {
+  flex: 1;
+  padding: 2rem;
+  color: #333;
+  z-index: 1;
+}
+
+.main-content h2 {
+  font-size: 2rem;
+  font-weight: bold;
+  margin-bottom: 1.5rem;
+  color: #1a202c;
+}
+
+.main-content ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.main-content li {
+  margin-bottom: 20px;
+  padding: 1.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background-color: #ffffff;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease-in-out;
+}
+
+.main-content li:hover {
+  transform: translateY(-3px);
+}
+
+.event-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #2d3748;
+}
+
+.event-datetime {
+  font-style: italic;
+  font-size: 0.95rem;
+  color: #4a5568;
+  margin-bottom: 0.5rem;
+}
+
+.event-facility {
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+}
+
+.event-description {
+  color: #555;
+  line-height: 1.4;
+}

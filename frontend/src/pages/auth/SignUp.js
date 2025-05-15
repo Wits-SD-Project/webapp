@@ -1,6 +1,7 @@
 import "../../styles/signin.css";
 import logo from "../../assets/logo.png";
 import { useState } from "react";
+<<<<<<< HEAD
 import { useNavigate } from "react-router-dom";
 import { MenuItem, Select, FormControl, InputLabel } from "@mui/material";
 import { signUpUser } from "../../auth/auth";
@@ -11,11 +12,27 @@ export default function SignUp() {
   const [role, setRole] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+=======
+import { MenuItem, Select, FormControl, InputLabel } from "@mui/material";
+import { signUpWithThirdParty } from "../../auth/auth";
+import { ClipLoader } from "react-spinners";
+import { toast } from "react-toastify";
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { auth } from "../../firebase";
+import { useNavigate } from "react-router-dom";
+
+export default function SignUp() {
+  const navigate = useNavigate();
+  const [role, setRole] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [providerLoading, setProviderLoading] = useState(null);
+>>>>>>> 92d8f6e676a8150809db3ec0d9b73ef5820641fc
 
   const handleRoleChange = (event) => {
     setRole(event.target.value);
   };
 
+<<<<<<< HEAD
   const handleSignUp = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -35,6 +52,44 @@ export default function SignUp() {
       toast.error("Signup failed: " + err.message);
     } finally {
       setLoading(false);
+=======
+  const handleThirdPartySignUp = async (provider) => {
+    if (!role) {
+      toast.error("Please select a role first");
+      return;
+    }
+
+    try {
+      setProviderLoading(provider);
+      let result;
+
+      if (provider === "google") {
+        result = await signInWithPopup(auth, new GoogleAuthProvider());
+        const credential = GoogleAuthProvider.credentialFromResult(result);
+        if (!credential) throw new Error("No credential returned");
+
+        const idToken = await result.user.getIdToken();
+        const user = await signUpWithThirdParty({
+          idToken,
+          provider: "google",
+          role: role,
+        });
+
+        toast.success(
+          `Account created for ${user.email}. Awaiting admin approval.`
+        );
+        navigate("/signin");
+      }
+    } catch (err) {
+      console.error("Signup error:", err);
+      if (err.code === "auth/popup-closed-by-user") {
+        toast.error("Signup canceled");
+      } else {
+        toast.error("Signup failed: " + (err.message || "Please try again"));
+      }
+    } finally {
+      setProviderLoading(null);
+>>>>>>> 92d8f6e676a8150809db3ec0d9b73ef5820641fc
     }
   };
 
@@ -48,6 +103,7 @@ export default function SignUp() {
         <h1 id="signup-heading">Create your account</h1>
         <p>Join the Sports Sphere community</p>
 
+<<<<<<< HEAD
         <form className="login-form" onSubmit={handleSignUp}>
           <label htmlFor="name" className="visually-hidden">
             Name
@@ -91,6 +147,9 @@ export default function SignUp() {
             </button>
           </div>
 
+=======
+        <form className="login-form"s>
+>>>>>>> 92d8f6e676a8150809db3ec0d9b73ef5820641fc
           <FormControl
             required
             fullWidth
@@ -117,6 +176,7 @@ export default function SignUp() {
               onChange={handleRoleChange}
               displayEmpty
             >
+<<<<<<< HEAD
               <MenuItem value="user">User</MenuItem>
               <MenuItem value="staff">Facility Staff</MenuItem>
             </Select>
@@ -125,14 +185,34 @@ export default function SignUp() {
           <button type="submit" className="btn primary" disabled={loading}>
             {loading ? <ClipLoader size={20} color="#fff" /> : "Sign up"}
           </button>
+=======
+              <MenuItem value="resident">Resident</MenuItem>
+              <MenuItem value="staff">Facility Staff</MenuItem>
+            </Select>
+          </FormControl>
+>>>>>>> 92d8f6e676a8150809db3ec0d9b73ef5820641fc
         </form>
 
         <div className="divider-text" role="separator">
           Or continue with
         </div>
 
+<<<<<<< HEAD
         <button className="btn secondary" type="button">
           Google
+=======
+        <button
+          className="btn secondary"
+          type="button"
+          onClick={() => handleThirdPartySignUp("google")}
+          disabled={providerLoading === "google"}
+        >
+          {providerLoading === "google" ? (
+            <ClipLoader size={20} color="#000" />
+          ) : (
+            "Google"
+          )}
+>>>>>>> 92d8f6e676a8150809db3ec0d9b73ef5820641fc
         </button>
 
         <p className="register-text">

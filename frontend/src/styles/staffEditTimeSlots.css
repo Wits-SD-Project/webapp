@@ -1,0 +1,108 @@
+.semantic-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  
+  .semantic-table th, .semantic-table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+    vertical-align: middle;
+  }
+  
+  .slot-pill-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  
+  .slot-pill {
+    padding: 0.4rem 0.8rem;
+    background-color: white;
+    border: 2px solid #1b1b4d;
+    border-radius: 30px;
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: #1b1b4d;
+  }
+  
+  .icon-actions {
+    display: flex;
+    gap: 0.6rem;
+    align-items: center;
+  }
+  
+  .red-icon {
+    filter: brightness(0) saturate(100%) invert(22%) sepia(96%) saturate(6477%) hue-rotate(357deg) brightness(97%) contrast(126%);
+  }
+  
+  .main-content {
+    flex-grow: 1;
+    padding: 2rem;
+    overflow-y: auto;
+  }
+  
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #ccc;
+  }
+  
+  .back-btn {
+    background-color: transparent;
+    border: 2px solid #00c0df;
+    border-radius: 20px;
+    padding: 0.4rem 1.2rem;
+    color: #00c0df;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  
+  .back-btn:hover {
+    background-color: #00c0df;
+    color: white;
+  }
+  
+  .time-picker-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000; /* 👈 Add this */
+  }
+  
+  
+  .modal-content {
+    background-color: white;
+    padding: 2rem;
+    border-radius: 8px;
+    max-width: 400px;
+    width: 100%;
+    text-align: center;
+  }
+  
+  .modal-actions button {
+    margin-top: 1rem;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  
+  .modal-actions button:hover {
+    background-color: #00c0df;
+    color: white;
+  }
+  
