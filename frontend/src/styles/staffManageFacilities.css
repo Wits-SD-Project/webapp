@@ -172,6 +172,16 @@ body {
   cursor: pointer;
   transition: background 0.3s ease;
 }
+.features-btn {
+  background-color: #17055e;
+  color: white;
+  padding: 0.4rem 0.8rem;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
 
 .save-btn:hover {
   background-color: #1e7e34;

@@ -2,6 +2,8 @@
 import { Routes, Route } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import FacilityDetail from "./pages/dashboards/FacilityDetail";
+
 
 // Auth & Context
 import SignIn from "./pages/auth/SignIn";
@@ -180,6 +182,14 @@ function App() {
           element={
             <ProtectedRoute requiredRole="staff">
               <StaffMaintenance />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/facility/:id"
+          element={
+            <ProtectedRoute requiredRole="resident">
+              <FacilityDetail />
             </ProtectedRoute>
           }
         />
