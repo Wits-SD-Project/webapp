@@ -1,30 +1,41 @@
-const express      = require("express");
-const cors         = require("cors");
+/* ──────────────  core imports ────────────── */
+const express = require("express");
+const cors = require("cors");
 const cookieParser = require("cookie-parser");
 
-///////////////////////////////////////////////////////////////////////////////
-// Jest helper – provide expect.toBeFalse() when jest-extended isn’t loaded  //
-///////////////////////////////////////////////////////////////////////////////
-if (typeof expect !== 'undefined' && typeof expect.toBeFalse !== 'function') {
-  expect.extend({
-    toBeFalse(received) {
-      const pass = received === false;
-      return {
-        pass,
-        message: () =>
-          `expected ${received} ${pass ? 'not ' : ''}to be strictly false`,
-      };
-    },
-  });
-}
+/* ──────────────  env helpers ────────────── */
+require("dotenv").config(); // optional • reads .env in local dev
 
+/* ──────────────  app setup ────────────── */
 const app = express();
+
+/**
+ * Build an allow‑list the nice way:
+ *   ALLOWED_ORIGINS=http://localhost:3000,https://lively-island-05ba7a810.6.azurestaticapps.net
+ */
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || "")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+console.log("CORS allow‑list:", allowedOrigins);
+
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: (origin, cb) => {
+      // no Origin header ⇒ allow tools like curl / Postman
+      if (!origin) return cb(null, true);
+      if (allowedOrigins.includes(origin)) return cb(null, true);
+      return cb(new Error(`Origin ${origin} not allowed by CORS`));
+    },
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"],
+    optionsSuccessStatus: 204, // some old browsers choke on 204
   })
 );
+
+app.use(cookieParser());
 app.use(express.json());
 app.use(cookieParser());
 
@@ -32,33 +43,22 @@ app.use(cookieParser());
 // Routes
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Default route
-app.get("/", (req, res) => {
-  res.send("Hello World!");
-  console.log("Hello");
-});
+/* ──────────────  health routes ────────────── */
+app.get("/", (_, res) => res.send("Hello World!"));
+app.get("/health", (_, res) => res.status(200).json({ status: "ok" }));
 
-// Health check
-app.get("/health", (req, res) => {
-  res.status(200).json({ status: "ok" });
-});
+/* ──────────────  feature routes ────────────── */
+app.use("/api/auth", require("./routes/auth"));
+app.use("/api/admin", require("./routes/admin"));
+app.use("/api/facilities", require("./routes/facilities"));
 
-// Feature routes
-const authRoutes       = require("./routes/auth");
-const adminRoutes      = require("./routes/admin");
-const facilitiesRoutes = require("./routes/facilities");
-
-app.use("/api/auth",       authRoutes);
-app.use("/api/admin",      adminRoutes);
-app.use("/api/facilities", facilitiesRoutes);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Server bootstrap
-// ─────────────────────────────────────────────────────────────────────────────
+/* ──────────────  start server ────────────── */
 const PORT = process.env.PORT || 8080;
 
-module.exports = app;
-
 if (require.main === module) {
-  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+  app.listen(PORT, () =>
+    console.log(`🚀  API listening on http://localhost:${PORT}`)
+  );
 }
+
+module.exports = app;

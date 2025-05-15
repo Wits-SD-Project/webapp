@@ -22,6 +22,9 @@ import { db, auth } from "../../firebase";
 import { collection, getDocs } from "firebase/firestore";
 import Sidebar from "../../components/ResSideBar";
 import "../../styles/userDashboard.css";
+import { useNavigate } from "react-router-dom";
+
+
 
 const placeholder =
   "https://images.unsplash.com/photo-1527767654427-1790d8ff3745?q=80&w=2574&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
@@ -33,6 +36,7 @@ export default function UserDashboard() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchFacilities = async () => {
@@ -179,7 +183,7 @@ export default function UserDashboard() {
                       )}
                       <button
                         className="book-button"
-                        onClick={() => openDrawer(facility)}
+                        onClick={() => navigate(`/facility/${facility.id}`)}
                       >
                         Book Now
                       </button>

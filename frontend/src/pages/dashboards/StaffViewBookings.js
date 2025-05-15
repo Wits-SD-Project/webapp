@@ -1,6 +1,6 @@
-import { useEffect, useState, useCallback } from 'react';
-import Sidebar from '../../components/StaffSideBar.js';
-import '../../styles/staffViewBookings.css';
+import { useEffect, useState, useCallback } from "react";
+import Sidebar from "../../components/StaffSideBar.js";
+import "../../styles/staffViewBookings.css";
 
 import {
   addDoc,
@@ -10,19 +10,19 @@ import {
   getDocs,
   query,
   where,
-  serverTimestamp
-} from 'firebase/firestore';
-import { db, auth } from '../../firebase';
+  serverTimestamp,
+} from "firebase/firestore";
+import { db, auth } from "../../firebase";
 
 export default function ViewBookings() {
-  const [bookings, setBookings]   = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [bookings, setBookings] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
 
   /* ───── helper: fetch bookings for the signed-in staff member ───── */
   const fetchBookings = useCallback(async (uid) => {
     if (!uid) return;
     const snap = await getDocs(
-      query(collection(db, 'bookings'), where('facilityStaff', '==', uid))
+      query(collection(db, "bookings"), where("facilityStaff", "==", uid))
     );
     setBookings(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
   }, []);
@@ -43,33 +43,37 @@ export default function ViewBookings() {
 
     try {
       /* 1. update booking doc */
-      await updateDoc(doc(db, 'bookings', bookingId), { status: newStatus });
+      await updateDoc(doc(db, "bookings", bookingId), { status: newStatus });
 
       /* 2. push notification */
-      await addDoc(collection(db, 'notifications'), {
-        userName    : booking.userName ?? booking.user ?? 'Unknown',
+      await addDoc(collection(db, "notifications"), {
+        userName: booking.userName ?? booking.user ?? "Unknown",
         facilityName: booking.facilityName,
-        status      : newStatus,
-        slot        : booking.slot ?? booking.datetime ?? '',
-        createdAt   : serverTimestamp(),
-        read        : false,
+        status: newStatus,
+        slot: booking.slot ?? booking.datetime ?? "",
+        createdAt: serverTimestamp(),
+        read: false,
       });
 
       /* 3. if approved → mark slot as booked */
-      if (newStatus === 'approved') {
+      if (newStatus === "approved") {
         const facSnap = await getDocs(
           query(
-            collection(db, 'facilities-test'),
-            where('name', '==', booking.facilityName)
+            collection(db, "facilities-test"),
+            where("name", "==", booking.facilityName)
           )
         );
         const facDoc = facSnap.docs[0];
         if (facDoc) {
-          const facRef  = facDoc.ref;
+          const facRef = facDoc.ref;
           const facData = facDoc.data();
           const updatedSlots = (facData.timeslots ?? []).map((s) =>
             `${s.start} - ${s.end}` === booking.slot
-              ? { ...s, isBooked: true, bookedBy: booking.userName ?? booking.user ?? 'Unknown' }
+              ? {
+                  ...s,
+                  isBooked: true,
+                  bookedBy: booking.userName ?? booking.user ?? "Unknown",
+                }
               : s
           );
           await updateDoc(facRef, { timeslots: updatedSlots });
@@ -81,7 +85,7 @@ export default function ViewBookings() {
         prev.map((b) => (b.id === bookingId ? { ...b, status: newStatus } : b))
       );
     } catch (err) {
-      console.error('updateBookingStatus error:', err); // eslint-disable-line no-console
+      console.error("updateBookingStatus error:", err); // eslint-disable-line no-console
     }
   };
 
@@ -120,33 +124,41 @@ export default function ViewBookings() {
                   .filter((b) => {
                     const q = searchQuery.toLowerCase();
                     return (
-                      (b.facilityName ?? '').toLowerCase().includes(q) ||
-                      (b.userName ?? b.user ?? '').toLowerCase().includes(q) ||
-                      (b.date ? b.date.toString() : '').toLowerCase().includes(q) ||
-                      (b.slot ?? '').toLowerCase().includes(q) ||
-                      (b.status ?? '').toLowerCase().includes(q)
+                      (b.facilityName ?? "").toLowerCase().includes(q) ||
+                      (b.userName ?? b.user ?? "").toLowerCase().includes(q) ||
+                      (b.date ? b.date.toString() : "")
+                        .toLowerCase()
+                        .includes(q) ||
+                      (b.slot ?? "").toLowerCase().includes(q) ||
+                      (b.status ?? "").toLowerCase().includes(q)
                     );
                   })
                   .sort((a, b) => weight(a.status) - weight(b.status))
                   .map((b) => (
                     <tr key={b.id}>
                       <td>{b.facilityName}</td>
-                      <td>{b.userName ?? b.user ?? '—'}</td>
-                      <td>{b.date ?? '—'}</td>
-                      <td>{b.slot ?? '—'}</td>
-                      <td className={`status ${b.status?.toLowerCase()}`}>{b.status}</td>
+                      <td>{b.userName ?? b.user ?? "—"}</td>
+                      <td>{b.date ?? "—"}</td>
+                      <td>{b.slot ?? "—"}</td>
+                      <td className={`status ${b.status?.toLowerCase()}`}>
+                        {b.status}
+                      </td>
                       <td className="actions">
-                        {b.status === 'pending' ? (
+                        {b.status === "pending" ? (
                           <>
                             <button
                               className="approve"
-                              onClick={() => updateBookingStatus(b.id, 'approved')}
+                              onClick={() =>
+                                updateBookingStatus(b.id, "approved")
+                              }
                             >
                               Approve
                             </button>
                             <button
                               className="reject"
-                              onClick={() => updateBookingStatus(b.id, 'rejected')}
+                              onClick={() =>
+                                updateBookingStatus(b.id, "rejected")
+                              }
                             >
                               Reject
                             </button>

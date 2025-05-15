@@ -9,7 +9,7 @@ const firebaseConfig = {
   projectId: "sportssphere-58736",
   storageBucket: "sportssphere-58736.firebasestorage.app",
   messagingSenderId: "575568726090",
-  appId: "1:575568726090:web:6d92dbc812222646c3beb3"
+  appId: "1:575568726090:web:6d92dbc812222646c3beb3",
 };
 
 
