@@ -1,24 +1,6 @@
-<<<<<<< HEAD
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-import SignIn from "./pages/auth/SignIn";
-import SignUp from "./pages/auth/SignUp";
-import Home from "./pages/Home";
-import { AuthProvider } from "./context/AuthContext";
-import ProtectedRoute from "./components/ProtectedRoute";
-
-// Dummy dashboard pages for now
-import AdminDashboard from "./pages/dashboards/AdminDashboard";
-import StaffDashboard from "./pages/dashboards/StaffDashboard";
-import UserDashboard from "./pages/dashboards/UserDashboard";
-=======
-// import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Routes, Route } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import FacilityDetail from "./pages/dashboards/FacilityDetail";
-
 
 // Auth & Context
 import SignIn from "./pages/auth/SignIn";
@@ -29,15 +11,13 @@ import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 // Admin Pages
-import AdminManageUsers from "./pages/dashboards/AdminManageUsers";
 import AdminDashboard from "./pages/dashboards/AdminDashboard";
+import AdminManageUsers from "./pages/dashboards/AdminManageUsers";
 import AdminManageEvents from "./pages/dashboards/AdminManageEvents";
 import AdminMaintenance from "./pages/dashboards/AdminMaintenance";
+import Reports from "./pages/dashboards/Reports"; 
 
-import UserDashboard from "./pages/dashboards/UserDashboard";
-
-
-//Staff Pages
+// Staff Pages
 import StaffDashboard from "./pages/dashboards/StaffDashboard";
 import StaffViewBookings from "./pages/dashboards/StaffViewBookings";
 import StaffUpcomingBookings from "./pages/dashboards/StaffUpcomingBookings";
@@ -45,61 +25,22 @@ import StaffEditTimeSlots from "./pages/dashboards/StaffEditTimeSlots";
 import StaffManageFacilities from "./pages/dashboards/StaffManageFacilities";
 import StaffMaintenance from "./pages/dashboards/StaffMaintenance";
 
-//Res Pages
+// Resident Pages
 import ResDashboard from "./pages/dashboards/ResDashboard";
 import ResNotifications from "./pages/dashboards/ResNotifications";
 import ResMaintenance from "./pages/dashboards/ResMaintenance";
 import ResEvents from "./pages/dashboards/ResEvents";
-
-// Resident Feature
+import UserDashboard from "./pages/dashboards/UserDashboard";
+import FacilityDetail from "./pages/dashboards/FacilityDetail";
 import ResidentBooking from "./components/ResidentBooking";
 
 // Styles
 import "./forgot.css";
 import "./reset.css";
 
->>>>>>> 92d8f6e676a8150809db3ec0d9b73ef5820641fc
-
 function App() {
   return (
     <AuthProvider>
-<<<<<<< HEAD
-      <Router>
-        <Routes>
-          <Route path="/" element={<SignIn />} />
-          <Route path="/signin" element={<SignIn />} />
-          <Route path="/signup" element={<SignUp />} />
-
-          <Route
-            path="/admin-dashboard"
-            element={
-              <ProtectedRoute requiredRole="admin">
-                <AdminDashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/staff-dashboard"
-            element={
-              <ProtectedRoute requiredRole="staff">
-                <StaffDashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/user-dashboard"
-            element={
-              <ProtectedRoute requiredRole="user">
-                <UserDashboard />
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
-
-        <ToastContainer position="top-center" autoClose={3000} />
-      </Router>
-=======
-      {/* <Router> */}
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<SignIn />} />
@@ -108,7 +49,15 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
 
-        {/* Protected Routes */}
+        {/* Admin Protected Routes */}
+        <Route
+          path="/admin-dashboard"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/admin-manage-users"
           element={
@@ -118,14 +67,6 @@ function App() {
           }
         />
         <Route
-          path="/admin-dashboard"
-          element={
-            <ProtectedRoute requiredRole="admin">
-              <AdminDashboard />
-            </ProtectedRoute>
-          }
-        />
-         <Route
           path="/admin-manage-events"
           element={
             <ProtectedRoute requiredRole="admin">
@@ -142,6 +83,16 @@ function App() {
           }
         />
         <Route
+          path="/admin/reports"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <Reports />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Staff Protected Routes */}
+        <Route
           path="/staff-dashboard"
           element={
             <ProtectedRoute requiredRole="staff">
@@ -149,6 +100,48 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/staff-view-bookings"
+          element={
+            <ProtectedRoute requiredRole="staff">
+              <StaffViewBookings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/staff-upcoming-bookings"
+          element={
+            <ProtectedRoute requiredRole="staff">
+              <StaffUpcomingBookings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/staff-manage-facilities"
+          element={
+            <ProtectedRoute requiredRole="staff">
+              <StaffManageFacilities />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/staff-edit-time-slots/:id"
+          element={
+            <ProtectedRoute requiredRole="staff">
+              <StaffEditTimeSlots />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/staff-maintenance"
+          element={
+            <ProtectedRoute requiredRole="staff">
+              <StaffMaintenance />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Resident Protected Routes */}
         <Route
           path="/res-dashboard"
           element={
@@ -198,46 +191,6 @@ function App() {
           }
         />
         <Route
-          path="/staff-view-bookings"
-          element={
-            <ProtectedRoute requiredRole="staff">
-              <StaffViewBookings />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/staff-upcoming-bookings"
-          element={
-            <ProtectedRoute requiredRole="staff">
-              <StaffUpcomingBookings />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/staff-manage-facilities"
-          element={
-            <ProtectedRoute requiredRole="staff">
-              <StaffManageFacilities />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/staff-edit-time-slots/:id"
-          element={
-            <ProtectedRoute requiredRole="staff">
-              <StaffEditTimeSlots />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/staff-maintenance"
-          element={
-            <ProtectedRoute requiredRole="staff">
-              <StaffMaintenance />
-            </ProtectedRoute>
-          }
-        />
-        <Route
           path="/facility/:id"
           element={
             <ProtectedRoute requiredRole="resident">
@@ -248,8 +201,6 @@ function App() {
       </Routes>
 
       <ToastContainer position="top-center" autoClose={3000} />
-      {/* </Router> */}
->>>>>>> 92d8f6e676a8150809db3ec0d9b73ef5820641fc
     </AuthProvider>
   );
 }
