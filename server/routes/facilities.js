@@ -536,7 +536,7 @@
         });
       }
   
-      // Check if the slot is fully booked
+      // Check if the slot is fully booked or blocked 
       const existingBookingsSnap = await bookingsRef
         .where("facilityId", "==", facilityId)
         .where("date", "==", selectedDate)
@@ -545,10 +545,12 @@
   
       const currentBookings = existingBookingsSnap.size;
   
-      if (currentBookings >= 1) {
+      if (currentBookings >= 200) {
         return res
           .status(409)
           .json({ success: false, message: "This slot is fully booked" });
+      }else{
+        
       }
   
       const docRef = admin
