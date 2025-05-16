@@ -8,6 +8,7 @@ import { toast } from "react-toastify";
 import { collection, addDoc, getDocs, query, where } from "firebase/firestore";
 import { db } from "../../firebase"; // Ensure this import exists at the top of the file
 import "./adminManageEvents.css";
+import EventFormModal from "./EventFormModal";
 
 export default function AdminManageEvents() {
   const [events, setEvents] = useState([]);
@@ -15,8 +16,9 @@ export default function AdminManageEvents() {
   const [showBlockRow, setShowBlockRow] = useState(false); // boolean
   const [blockSlotStr, setBlockSlotStr] = useState(""); // string
   const [blockDate, setBlockDate] = useState("");
-  const [originalEvents, setOriginalEvents] = useState({});
   const [facilities, setFacilities] = useState([]);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState(null);
   const tableRef = useRef(null);
 
   const formatForInput = (date) => {
@@ -118,7 +120,6 @@ export default function AdminManageEvents() {
           ...event,
           startTime: new Date(event.startTime),
           endTime: new Date(event.endTime),
-          isEditing: false,
         }));
 
         setEvents(formatted);
@@ -162,69 +163,33 @@ export default function AdminManageEvents() {
     })();
   }, [blockFacility]);
 
-  const handleAddEvent = () => {
-    const newEvent = {
-      id: Date.now().toString(),
-      eventName: "",
-      facility: "",
-      description: "",
-      startTime: new Date(),
-      endTime: new Date(Date.now() + 3600000),
-      isEditing: true,
-      isNew: true,
-    };
-
-    setEvents((prev) => [...prev, newEvent]);
-    setOriginalEvents((prev) => ({ ...prev, [newEvent.id]: { ...newEvent } }));
-
-    setTimeout(() => {
-      tableRef.current?.scrollTo({
-        top: tableRef.current.scrollHeight,
-        behavior: "smooth",
-      });
-    }, 100);
+   const handleOpenModal = (event = null) => {
+    setSelectedEvent(event);
+    setModalOpen(true);
   };
 
-  const handleFieldChange = (id, field, value) => {
-    setEvents((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, [field]: value } : e))
-    );
-  };
 
-  const handleCancelEdit = (id) => {
-    const event = events.find((e) => e.id === id);
-    if (event.isNew) {
-      setEvents((prev) => prev.filter((e) => e.id !== id));
-    } else {
-      setEvents((prev) =>
-        prev.map((e) =>
-          e.id === id ? { ...originalEvents[id], isEditing: false } : e
-        )
-      );
-    }
-  };
-
-  const handleSaveEvent = async (eventId) => {
-    const event = events.find((e) => e.id === eventId);
-    if (!event) return;
-
-    const payload = {
-      eventName: event.eventName,
-      facility: event.facility.name,
-      facilityId: event.facility.id,
-      description: event.description,
-      startTime: new Date(event.startTime).toISOString(),
-      endTime: new Date(event.endTime).toISOString(),
-    };
-
+ const handleSaveEvent = async (formData) => {
     try {
       const token = await getAuthToken();
-      const url = event.isNew
-        ? "http://localhost:8080/api/admin/events"
-        : `http://localhost:8080/api/admin/events/${eventId}`;
+      const payload = {
+        eventName: formData.eventName,
+        facilityId: formData.facility.id,
+        facilityName: formData.facility.name,
+        description: formData.description,
+        startTime: formData.startTime.toISOString(),
+        endTime: formData.endTime.toISOString(),
+        posterImage: formData.posterImage
+      };
+
+      const url = selectedEvent 
+        ? `http://localhost:8080/api/admin/events/${selectedEvent.id}`
+        : "http://localhost:8080/api/admin/events";
+
+      const method = selectedEvent ? "PUT" : "POST";
 
       const res = await fetch(url, {
-        method: event.isNew ? "POST" : "PUT",
+        method,
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
@@ -233,7 +198,20 @@ export default function AdminManageEvents() {
       });
 
       const result = await res.json();
-      if (!res.ok) throw new Error(result.message || "Something went wrong");
+      if (!res.ok) throw new Error(result.message);
+
+      // Update events state
+      if (selectedEvent) {
+        setEvents(prev => prev.map(e => 
+          e.id === selectedEvent.id ? { ...result.event, startTime: new Date(result.event.startTime), endTime: new Date(result.event.endTime) } : e
+        ));
+      } else {
+        setEvents(prev => [...prev, { 
+          ...result.event, 
+          startTime: new Date(result.event.startTime),
+          endTime: new Date(result.event.endTime)
+        }]);
+      }
 
       // Push a notification to each resident
       try {
@@ -261,23 +239,8 @@ export default function AdminManageEvents() {
         console.error("Error sending event notifications:", notifyErr);
       }
 
-      const updatedEvent = {
-        ...result.event,
-        startTime: new Date(result.event.startTime),
-        endTime: new Date(result.event.endTime),
-        isEditing: false,
-      };
-
-      setEvents((prev) =>
-        prev.map((e) => (e.id === eventId ? updatedEvent : e))
-      );
-
-      setOriginalEvents((prev) => ({
-        ...prev,
-        [eventId]: updatedEvent,
-      }));
-
       toast.success(result.message || "Event saved successfully");
+      setModalOpen(false);
     } catch (error) {
       console.error("Save error:", error);
       toast.error(error.message);
@@ -321,13 +284,20 @@ export default function AdminManageEvents() {
 
   return (
     <main className="manage-events">
+       <EventFormModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSubmit={handleSaveEvent}
+        facilities={facilities}
+        eventData={selectedEvent}
+      />
       <div className="container">
         <Sidebar activeItem="manage events" />
         <main className="main-content">
           <header className="page-header">
             <h1>Manage Events</h1>
             <div className="header-actions">
-              <button className="action-btn" onClick={handleAddEvent}>
+              <button className="action-btn" onClick={() => handleOpenModal()}>
                 Add New Event
               </button>
 
@@ -355,148 +325,24 @@ export default function AdminManageEvents() {
               <tbody>
                 {events.map((e) => (
                   <tr key={e.id}>
-                    <td>
-                      {e.isEditing ? (
-                        <input
-                          type="text"
-                          value={e.eventName}
-                          onChange={(ev) =>
-                            handleFieldChange(
-                              e.id,
-                              "eventName",
-                              ev.target.value
-                            )
-                          }
-                          placeholder="Event Name"
-                        />
-                      ) : (
-                        e.eventName
-                      )}
-                    </td>
-                    <td>
-                      {e.isEditing ? (
-                        <select
-                          value={e.facility?.id || ""}
-                          onChange={(ev) => {
-                            const selected = facilities.find(
-                              (f) => f.id === ev.target.value
-                            );
-                            if (selected)
-                              handleFieldChange(e.id, "facility", selected);
-                          }}
-                        >
-                          <option value="" disabled>
-                            Select Facility
-                          </option>
-                          {facilities.map((f) => (
-                            <option key={f.id} value={f.id}>
-                              {f.name}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        e.facility?.name
-                      )}
-                    </td>
-                    <td>
-                      {e.isEditing ? (
-                        <textarea
-                          value={e.description}
-                          onChange={(ev) =>
-                            handleFieldChange(
-                              e.id,
-                              "description",
-                              ev.target.value
-                            )
-                          }
-                          placeholder="Event Description"
-                          rows={2}
-                        />
-                      ) : (
-                        e.description
-                      )}
-                    </td>
-                    <td>
-                      {e.isEditing ? (
-                        <input
-                          type="datetime-local"
-                          value={formatForInput(e.startTime)}
-                          onChange={(ev) =>
-                            handleFieldChange(
-                              e.id,
-                              "startTime",
-                              parseInputDate(ev.target.value)
-                            )
-                          }
-                        />
-                      ) : (
-                        formatDateTime(e.startTime)
-                      )}
-                    </td>
-                    <td>
-                      {e.isEditing ? (
-                        <input
-                          type="datetime-local"
-                          value={formatForInput(e.endTime)}
-                          onChange={(ev) =>
-                            handleFieldChange(
-                              e.id,
-                              "endTime",
-                              parseInputDate(ev.target.value)
-                            )
-                          }
-                          min={formatForInput(e.startTime)}
-                        />
-                      ) : (
-                        formatDateTime(e.endTime)
-                      )}
-                    </td>
-                    <td className="actions">
-                      {e.isEditing ? (
-                        <>
-                          <button
-                            className="save-btn"
-                            onClick={() => handleSaveEvent(e.id)}
-                          >
-                            Save
-                          </button>
-                          <button
-                            className="cancel-btn"
-                            onClick={() => handleCancelEdit(e.id)}
-                          >
-                            Cancel
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <img
-                            src={editIcon}
-                            alt="edit"
-                            className="icon-btn"
-                            onClick={() => {
-                              setOriginalEvents((prev) => ({
-                                ...prev,
-                                [e.id]: { ...e },
-                              }));
-                              handleFieldChange(e.id, "isEditing", true);
-                            }}
-                          />
-                          <img
-                            src={binIcon}
-                            alt="delete"
-                            className="icon-btn"
-                            onClick={() => {
-                              if (
-                                window.confirm(
-                                  `Are you sure you want to delete "${e.eventName}"?`
-                                )
-                              ) {
-                                handleDeleteEvent(e.id);
-                              }
-                            }}
-                          />
-                        </>
-                      )}
+                    <td>{e.eventName}</td>
+                    <td>{e.facility?.name}</td>
+                    <td>{e.description}</td>
+                    <td>{formatDateTime(e.startTime)}</td>
+                    <td>{formatDateTime(e.endTime)}</td>
+                   <td className="actions">
+                      <img
+                        src={editIcon}
+                        alt="edit"
+                        className="icon-btn"
+                        onClick={() => handleOpenModal(e)}
+                      />
+                      <img
+                        src={binIcon}
+                        alt="delete"
+                        className="icon-btn"
+                        onClick={() => handleDeleteEvent(e.id)}
+                      />
                     </td>
                   </tr>
                 ))}

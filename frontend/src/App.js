@@ -2,8 +2,6 @@
 import { Routes, Route } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import FacilityDetail from "./pages/dashboards/FacilityDetail";
-
 
 // Auth & Context
 import SignIn from "./pages/auth/SignIn";
@@ -14,15 +12,13 @@ import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 // Admin Pages
-import AdminManageUsers from "./pages/dashboards/AdminManageUsers";
 import AdminDashboard from "./pages/dashboards/AdminDashboard";
+import AdminManageUsers from "./pages/dashboards/AdminManageUsers";
 import AdminManageEvents from "./pages/dashboards/AdminManageEvents";
 import AdminMaintenance from "./pages/dashboards/AdminMaintenance";
+import Reports from "./pages/dashboards/Reports"; 
 
-import UserDashboard from "./pages/dashboards/UserDashboard";
-
-
-//Staff Pages
+// Staff Pages
 import StaffDashboard from "./pages/dashboards/StaffDashboard";
 import StaffViewBookings from "./pages/dashboards/StaffViewBookings";
 import StaffUpcomingBookings from "./pages/dashboards/StaffUpcomingBookings";
@@ -30,13 +26,13 @@ import StaffEditTimeSlots from "./pages/dashboards/StaffEditTimeSlots";
 import StaffManageFacilities from "./pages/dashboards/StaffManageFacilities";
 import StaffMaintenance from "./pages/dashboards/StaffMaintenance";
 
-//Res Pages
+// Resident Pages
 import ResDashboard from "./pages/dashboards/ResDashboard";
 import ResNotifications from "./pages/dashboards/ResNotifications";
 import ResMaintenance from "./pages/dashboards/ResMaintenance";
 import ResEvents from "./pages/dashboards/ResEvents";
-
-// Resident Feature
+import UserDashboard from "./pages/dashboards/UserDashboard";
+import FacilityDetail from "./pages/dashboards/FacilityDetail";
 import ResidentBooking from "./components/ResidentBooking";
 
 // Styles
@@ -56,7 +52,15 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
 
-        {/* Protected Routes */}
+        {/* Admin Protected Routes */}
+        <Route
+          path="/admin-dashboard"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/admin-manage-users"
           element={
@@ -66,14 +70,6 @@ function App() {
           }
         />
         <Route
-          path="/admin-dashboard"
-          element={
-            <ProtectedRoute requiredRole="admin">
-              <AdminDashboard />
-            </ProtectedRoute>
-          }
-        />
-         <Route
           path="/admin-manage-events"
           element={
             <ProtectedRoute requiredRole="admin">
@@ -90,6 +86,16 @@ function App() {
           }
         />
         <Route
+          path="/admin/reports"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <Reports />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Staff Protected Routes */}
+        <Route
           path="/staff-dashboard"
           element={
             <ProtectedRoute requiredRole="staff">
@@ -97,6 +103,48 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/staff-view-bookings"
+          element={
+            <ProtectedRoute requiredRole="staff">
+              <StaffViewBookings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/staff-upcoming-bookings"
+          element={
+            <ProtectedRoute requiredRole="staff">
+              <StaffUpcomingBookings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/staff-manage-facilities"
+          element={
+            <ProtectedRoute requiredRole="staff">
+              <StaffManageFacilities />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/staff-edit-time-slots/:id"
+          element={
+            <ProtectedRoute requiredRole="staff">
+              <StaffEditTimeSlots />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/staff-maintenance"
+          element={
+            <ProtectedRoute requiredRole="staff">
+              <StaffMaintenance />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Resident Protected Routes */}
         <Route
           path="/res-dashboard"
           element={
@@ -142,46 +190,6 @@ function App() {
           element={
             <ProtectedRoute requiredRole="resident">
               <ResidentBooking />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/staff-view-bookings"
-          element={
-            <ProtectedRoute requiredRole="staff">
-              <StaffViewBookings />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/staff-upcoming-bookings"
-          element={
-            <ProtectedRoute requiredRole="staff">
-              <StaffUpcomingBookings />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/staff-manage-facilities"
-          element={
-            <ProtectedRoute requiredRole="staff">
-              <StaffManageFacilities />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/staff-edit-time-slots/:id"
-          element={
-            <ProtectedRoute requiredRole="staff">
-              <StaffEditTimeSlots />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/staff-maintenance"
-          element={
-            <ProtectedRoute requiredRole="staff">
-              <StaffMaintenance />
             </ProtectedRoute>
           }
         />
