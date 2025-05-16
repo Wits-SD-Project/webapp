@@ -421,6 +421,7 @@ router.post("/block-slot", authenticate, async (req, res) => {
       status: "approved",
       createdByRole: "admin",
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      isBlocked:true,
     });
 
     res.status(201).json({ success: true, message: "Timeslot blocked" });
