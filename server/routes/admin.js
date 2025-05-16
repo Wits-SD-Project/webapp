@@ -50,15 +50,14 @@ router.post("/events", authenticate, async (req, res) => {
         .json({ success: false, message: "Access denied. Admins only." });
     }
 
-    const { eventName, facility, facilityId, description, startTime, endTime } =
+    const { eventName, facilityName,facilityId, description, startTime, endTime ,posterImage} =
       req.body;
 
     // === Step 1: Validate input ===
     if (
       !eventName ||
-      typeof eventName !== "string" ||
-      !facility ||
-      typeof facility !== "string" ||
+      typeof eventName !== "string" ||!facilityName ||
+      typeof facilityName !== "string" ||
       !facilityId ||
       typeof facilityId !== "string" ||
       !description ||
@@ -140,11 +139,12 @@ router.post("/events", authenticate, async (req, res) => {
     // === Step 4: Add new event ===
     const newEventDoc = await eventRef.add({
       eventName,
-      facility,
       facilityId,
+      facilityName,
       description,
       startTime: start.toISOString(),
       endTime: end.toISOString(),
+      posterImage: posterImage || null, // New field
       createdBy: req.user.uid,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
@@ -154,11 +154,12 @@ router.post("/events", authenticate, async (req, res) => {
       eventName,
       facility: {
         id: facilityId,
-        name: facility,
+        name: facilityName,
       },
       description,
       startTime: start,
       endTime: end,
+      posterImage: posterImage || null, // Include in response
       isEditing: false,
     };
 
@@ -209,15 +210,22 @@ router.put("/events/:id", authenticate, async (req, res) => {
     }
 
     const eventId = req.params.id;
-    const { eventName, facility, facilityId, description, startTime, endTime } =
-      req.body;
+    const { 
+      eventName, 
+      facilityName, 
+      facilityId, 
+      description, 
+      startTime, 
+      endTime,
+      posterImage // Add new field
+    } = req.body;
 
     // === Step 1: Validate input ===
     if (
       !eventName ||
       typeof eventName !== "string" ||
-      !facility ||
-      typeof facility !== "string" ||
+      !facilityName ||
+      typeof facilityName !== "string" ||
       !facilityId ||
       typeof facilityId !== "string" ||
       !description ||
@@ -312,12 +320,14 @@ router.put("/events/:id", authenticate, async (req, res) => {
     // === Step 4: Update event ===
     await eventRef.update({
       eventName,
-      facility,
+      facilityName,
       facilityId,
       description,
       startTime: start.toISOString(),
       endTime: end.toISOString(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      // Add posterImage if provided, otherwise maintain existing
+      ...(posterImage !== undefined && { posterImage })
     });
 
     const updatedEvent = {
@@ -325,11 +335,12 @@ router.put("/events/:id", authenticate, async (req, res) => {
       eventName,
       facility: {
         id: facilityId,
-        name: facility,
+        name: facilityName,
       },
       description,
       startTime: start,
       endTime: end,
+      posterImage: posterImage || existingSnap.data().posterImage || null, // Maintain backward compatibility
       isEditing: false,
     };
 
@@ -432,10 +443,7 @@ router.post("/block-slot", authenticate, async (req, res) => {
 });
 
 // Fetch all admin events
-router.get('/events', authenticate, async (req, res) => {
-  const me = await admin.firestore().collection('users').doc(req.user.email).get();
-  if (!me.exists || me.data().role !== 'admin') return res.sendStatus(403);
-
+router.get('/events', async (req, res) => {
   try {
     const snap = await admin.firestore().collection('admin-events').orderBy('startTime').get();
 
@@ -445,10 +453,11 @@ router.get('/events', authenticate, async (req, res) => {
       .map((e) => ({
         id: e.id,
         eventName: e.eventName,
-        facility: { id: e.facilityId, name: e.facility },
+        facility: { id: e.facilityId, name: e.facilityName || e.facility || 'Unknown Facility' },
         description: e.description,
         startTime: new Date(e.startTime),
         endTime: new Date(e.endTime),
+        posterImage: e.posterImage || null, // Add to response
         isEditing: false,
       }));
 

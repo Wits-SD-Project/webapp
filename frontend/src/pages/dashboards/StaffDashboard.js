@@ -1,15 +1,3 @@
-<<<<<<< HEAD
-import Navbar from "../../components/Navbar";
-
-export default function StaffDashboard() {
-  return (
-    <>
-      <Navbar />
-      <main style={{ padding: "2rem" }}>
-        <h1>Welcome Staff</h1>
-      </main>
-    </>
-=======
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../../components/StaffSideBar.js";
@@ -126,6 +114,5 @@ export default function StaffDashboard() {
         </main>
       </div>
     </main>
->>>>>>> 92d8f6e676a8150809db3ec0d9b73ef5820641fc
   );
 }

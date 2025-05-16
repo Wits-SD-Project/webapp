@@ -1,18 +1,6 @@
 import "../../styles/signin.css";
 import logo from "../../assets/logo.png";
 import { useState } from "react";
-<<<<<<< HEAD
-import { useNavigate } from "react-router-dom";
-import { MenuItem, Select, FormControl, InputLabel } from "@mui/material";
-import { signUpUser } from "../../auth/auth";
-import { ClipLoader } from "react-spinners";
-import { toast } from "react-toastify";
-
-export default function SignUp() {
-  const [role, setRole] = useState("");
-  const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
-=======
 import { MenuItem, Select, FormControl, InputLabel } from "@mui/material";
 import { signUpWithThirdParty } from "../../auth/auth";
 import { ClipLoader } from "react-spinners";
@@ -26,33 +14,11 @@ export default function SignUp() {
   const [role, setRole] = useState("");
   const [loading, setLoading] = useState(false);
   const [providerLoading, setProviderLoading] = useState(null);
->>>>>>> 92d8f6e676a8150809db3ec0d9b73ef5820641fc
 
   const handleRoleChange = (event) => {
     setRole(event.target.value);
   };
 
-<<<<<<< HEAD
-  const handleSignUp = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const form = e.target;
-      const user = await signUpUser({
-        name: form.name.value,
-        email: form.email.value,
-        password: form.password.value,
-        role,
-      });
-
-      toast.success(
-        `Account created for ${user.email}. Awaiting admin approval.`
-      );
-    } catch (err) {
-      toast.error("Signup failed: " + err.message);
-    } finally {
-      setLoading(false);
-=======
   const handleThirdPartySignUp = async (provider) => {
     if (!role) {
       toast.error("Please select a role first");
@@ -89,7 +55,6 @@ export default function SignUp() {
       }
     } finally {
       setProviderLoading(null);
->>>>>>> 92d8f6e676a8150809db3ec0d9b73ef5820641fc
     }
   };
 
@@ -103,53 +68,7 @@ export default function SignUp() {
         <h1 id="signup-heading">Create your account</h1>
         <p>Join the Sports Sphere community</p>
 
-<<<<<<< HEAD
-        <form className="login-form" onSubmit={handleSignUp}>
-          <label htmlFor="name" className="visually-hidden">
-            Name
-          </label>
-          <input
-            type="text"
-            id="name"
-            name="name"
-            placeholder="Full Name"
-            required
-          />
-
-          <label htmlFor="email" className="visually-hidden">
-            Email
-          </label>
-          <input
-            type="email"
-            id="email"
-            name="email"
-            placeholder="Email"
-            required
-          />
-
-          <label htmlFor="password" className="visually-hidden">
-            Password
-          </label>
-          <div className="password-wrapper">
-            <input
-              type="password"
-              id="password"
-              name="password"
-              placeholder="Password"
-              required
-            />
-            <button
-              type="button"
-              className="eye-icon"
-              aria-label="Show password"
-            >
-              👁️
-            </button>
-          </div>
-
-=======
         <form className="login-form"s>
->>>>>>> 92d8f6e676a8150809db3ec0d9b73ef5820641fc
           <FormControl
             required
             fullWidth
@@ -176,31 +95,16 @@ export default function SignUp() {
               onChange={handleRoleChange}
               displayEmpty
             >
-<<<<<<< HEAD
-              <MenuItem value="user">User</MenuItem>
-              <MenuItem value="staff">Facility Staff</MenuItem>
-            </Select>
-          </FormControl>
-
-          <button type="submit" className="btn primary" disabled={loading}>
-            {loading ? <ClipLoader size={20} color="#fff" /> : "Sign up"}
-          </button>
-=======
               <MenuItem value="resident">Resident</MenuItem>
               <MenuItem value="staff">Facility Staff</MenuItem>
             </Select>
           </FormControl>
->>>>>>> 92d8f6e676a8150809db3ec0d9b73ef5820641fc
         </form>
 
         <div className="divider-text" role="separator">
           Or continue with
         </div>
 
-<<<<<<< HEAD
-        <button className="btn secondary" type="button">
-          Google
-=======
         <button
           className="btn secondary"
           type="button"
@@ -212,7 +116,6 @@ export default function SignUp() {
           ) : (
             "Google"
           )}
->>>>>>> 92d8f6e676a8150809db3ec0d9b73ef5820641fc
         </button>
 
         <p className="register-text">
