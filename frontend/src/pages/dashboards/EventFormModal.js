@@ -1,3 +1,4 @@
+// components/EventFormModal.jsx
 import { useState, useEffect } from "react";
 import {
   Dialog,
@@ -19,7 +20,6 @@ import {
 import CloudinaryUploadWidget from "./CloudinaryUploadWidget";
 import { toast } from "react-toastify";
 import DeleteIcon from "@mui/icons-material/DeleteForever";
-import "../../styles/eventFormModal.css";
 
 export default function EventFormModal({ 
   open, 
@@ -56,7 +56,8 @@ export default function EventFormModal({
     )}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
   };
 
-  useEffect(() => {
+  // Initialize form with eventData when modal opens or data changes
+   useEffect(() => {
     if (eventData) {
       setFormState({
         eventName: eventData.eventName || "",
@@ -67,8 +68,9 @@ export default function EventFormModal({
         posterImage: eventData.posterImage || ""
       });
     } else {
+      // Set default values for new event
       const now = new Date();
-      const defaultEnd = new Date(now.getTime() + 60 * 60 * 1000);
+      const defaultEnd = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour later
       
       setFormState({
         eventName: "",
@@ -116,21 +118,38 @@ export default function EventFormModal({
     });
   };
 
+  // Style constants to match FacilityFormModal
+  const dialogStyle = {
+    PaperProps: { 
+      sx: { 
+        borderRadius: 4, 
+        p: 1,
+        minWidth: 600 
+      } 
+    }
+  };
+
+  const inputStyle = {
+    "& .MuiOutlinedInput-root": {
+      borderRadius: 2,
+      "& fieldset": { borderRadius: 2, borderWidth: 2 }
+    }
+  };
+
   return (
     <Dialog
       open={open}
       onClose={onClose}
       fullWidth
       maxWidth="md"
-      PaperProps={{ sx: { borderRadius: "16px" } }}
+      PaperProps={dialogStyle.PaperProps}
     >
-      <DialogTitle className="event-form-title">
+      <DialogTitle sx={{ fontWeight: 600, p: 3 }}>
         {eventData ? "✏️ Edit Event" : "➕ Create New Event"}
       </DialogTitle>
 
-      <DialogContent dividers className="event-form-content">
-        <Grid container spacing={3} className="event-form-grid">
-          {/* Event Name */}
+      <DialogContent dividers sx={{ p: 3 }}>
+        <Grid container spacing={3}>
           <Grid item xs={12}>
             <TextField
               fullWidth
@@ -141,14 +160,13 @@ export default function EventFormModal({
                 eventName: e.target.value 
               }))}
               variant="outlined"
-              className="event-form-field"
+              sx={inputStyle}
               required
             />
           </Grid>
 
-          {/* Facility Selection */}
           <Grid item xs={12}>
-            <FormControl fullWidth className="event-form-field">
+            <FormControl fullWidth sx={inputStyle}>
               <InputLabel>Facility *</InputLabel>
               <Select
                 value={formState.facility}
@@ -168,41 +186,38 @@ export default function EventFormModal({
             </FormControl>
           </Grid>
 
-          {/* Date & Time */}
-          <Grid item xs={12} container spacing={2}>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Start Time *"
-                type="datetime-local"
-                value={formState.startTime}
-                onChange={(e) => setFormState(prev => ({ 
-                  ...prev, 
-                  startTime: e.target.value 
-                }))}
-                InputLabelProps={{ shrink: true }}
-                className="event-form-field"
-                required
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="End Time *"
-                type="datetime-local"
-                value={formState.endTime}
-                onChange={(e) => setFormState(prev => ({ 
-                  ...prev, 
-                  endTime: e.target.value 
-                }))}
-                InputLabelProps={{ shrink: true }}
-                className="event-form-field"
-                required
-              />
-            </Grid>
+          <Grid item xs={6}>
+            <TextField
+              fullWidth
+              label="Start Time *"
+              type="datetime-local"
+              value={formState.startTime}
+              onChange={(e) => setFormState(prev => ({ 
+                ...prev, 
+                startTime: e.target.value 
+              }))}
+              InputLabelProps={{ shrink: true }}
+              sx={inputStyle}
+              required
+            />
           </Grid>
 
-          {/* Description */}
+          <Grid item xs={6}>
+            <TextField
+              fullWidth
+              label="End Time *"
+              type="datetime-local"
+              value={formState.endTime}
+              onChange={(e) => setFormState(prev => ({ 
+                ...prev, 
+                endTime: e.target.value 
+              }))}
+              InputLabelProps={{ shrink: true }}
+              sx={inputStyle}
+              required
+            />
+          </Grid>
+
           <Grid item xs={12}>
             <TextField
               fullWidth
@@ -214,13 +229,12 @@ export default function EventFormModal({
                 ...prev, 
                 description: e.target.value 
               }))}
-              className="event-form-field"
+              sx={inputStyle}
             />
           </Grid>
 
-          {/* Poster Image */}
           <Grid item xs={12}>
-            <Typography variant="subtitle2" className="event-form-section-title">
+            <Typography variant="subtitle2" gutterBottom>
               Event Poster
             </Typography>
             <CloudinaryUploadWidget 
@@ -229,15 +243,25 @@ export default function EventFormModal({
               buttonText="Upload Poster Image"
             />
             {formState.posterImage && (
-              <Box className="event-form-image-container">
+              <Box mt={2} display="flex" alignItems="center">
                 <Avatar
                   src={formState.posterImage}
                   variant="rounded"
-                  className="event-form-image-preview"
+                  sx={{ 
+                    width: 100, 
+                    height: 100, 
+                    mr: 2,
+                    borderRadius: 2,
+                    boxShadow: 1
+                  }}
                 />
                 <IconButton 
                   onClick={handleRemoveImage}
-                  className="event-form-delete-btn"
+                  sx={{
+                    bgcolor: 'error.main',
+                    color: '#fff',
+                    '&:hover': { bgcolor: 'error.dark' }
+                  }}
                 >
                   <DeleteIcon />
                 </IconButton>
@@ -247,18 +271,18 @@ export default function EventFormModal({
         </Grid>
       </DialogContent>
 
-      <DialogActions className="event-form-actions">
+      <DialogActions sx={{ p: 3 }}>
         <Button 
           onClick={onClose} 
           color="secondary"
-          className="event-form-cancel-btn"
+          sx={{ borderRadius: 3 }}
         >
           Cancel
         </Button>
         <Button
           variant="contained"
           onClick={handleSubmit}
-          className="event-form-submit-btn"
+          sx={{ borderRadius: 3 }}
         >
           {eventData ? "Save Changes" : "Create Event"}
         </Button>
