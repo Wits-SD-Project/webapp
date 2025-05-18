@@ -22,7 +22,8 @@ export default function ResDashboard() {
 
     const eventsRef = collection(db, "admin-events");
     const unsubscribe = onSnapshot(eventsRef, (snapshot) => {
-      const eventData = snapshot.docs.map(doc => doc.data());
+      const now = new Date();
+      const eventData = snapshot.docs.map(doc => doc.data()).filter(event => new Date(event.startTime) > now);
       setEvents(eventData);
 
       const lastSeenCount = parseInt(localStorage.getItem("lastSeenEventCount") || "0", 10);

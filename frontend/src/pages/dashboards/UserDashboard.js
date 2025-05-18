@@ -47,7 +47,6 @@ export default function UserDashboard() {
           ...doc.data(),
         }));
         setFacilities(facilitiesData);
-        console.log(facilitiesData);
       } catch (error) {
         console.error("Error fetching facilities:", error);
       }
