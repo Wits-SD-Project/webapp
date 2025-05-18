@@ -32,7 +32,7 @@ import {
   Close,
   CalendarToday
 } from "@mui/icons-material";
-import "../../styles/userDashboard.css";
+import "../../styles/facilityDetail.css";
 
 export default function FacilityDetail() {
   const { id } = useParams();
@@ -42,6 +42,10 @@ export default function FacilityDetail() {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const placeholder =
+  "https://images.unsplash.com/photo-1527767654427-1790d8ff3745?q=80&w=2574&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
+
 
   useEffect(() => {
     const fetchFacility = async () => {
@@ -121,133 +125,125 @@ export default function FacilityDetail() {
 
   if (loading) {
     return (
-      <Container maxWidth="md" sx={{ py: 4 }}>
-        <Skeleton variant="rectangular" width="100%" height={400} sx={{ mb: 3, borderRadius: 2 }} />
-        <Skeleton variant="text" width="60%" height={50} />
-        <Skeleton variant="text" width="40%" height={30} />
-        <Grid container spacing={2} sx={{ mt: 2 }}>
-          {[1, 2, 3].map((i) => (
-            <Grid item xs={12} md={6} key={i}>
-              <Skeleton variant="rectangular" height={80} sx={{ borderRadius: 2 }} />
-            </Grid>
-          ))}
-        </Grid>
-      </Container>
+      <main className="dashboard">
+        <div className="container">
+          <Sidebar activeItem="facility bookings" />
+          <main className="main-content">
+            <div className="loading-container">
+              <Skeleton variant="rectangular" className="skeleton-main" />
+              <Skeleton variant="text" className="skeleton-title" />
+              <Skeleton variant="text" className="skeleton-subtitle" />
+              <div className="skeleton-grid">
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} variant="rectangular" className="skeleton-card" />
+                ))}
+              </div>
+            </div>
+          </main>
+        </div>
+      </main>
     );
   }
 
-  if (!facility) return <Typography variant="h6">Facility not found</Typography>;
+  if (!facility) {
+    return (
+      <main className="dashboard">
+        <div className="container">
+          <Sidebar activeItem="facility bookings" />
+          <main className="main-content">
+            <div className="error-message">
+              <Typography variant="h6">Facility not found</Typography>
+            </div>
+          </main>
+        </div>
+      </main>
+    );
+  }
 
   const groupedSlots = groupSlotsByDay(facility.timeslots || []);
   const days = Object.keys(groupedSlots);
 
   return (
-    <main className="user-dashboard">
+    <main className="dashboard">
       <div className="container">
         <Sidebar activeItem="facility bookings" />
 
         <main className="main-content">
-          <Container maxWidth="lg" sx={{ py: 4 }}>
-            {/* Header Section */}
-            <Box mb={4}>
-              <Typography variant="h3" fontWeight={700} gutterBottom>
-                {facility.name}
-              </Typography>
-              <Box display="flex" alignItems="center" gap={2} mb={2}>
-                <Chip
-                  icon={<LocationOn fontSize="small" />}
-                  label={facility.location || "Location not specified"}
-                  variant="outlined"
-                />
-                <Chip
-                  icon={<Info fontSize="small" />}
-                  label={facility.type || "General Facility"}
-                  color="primary"
-                />
-              </Box>
-              <Divider />
-            </Box>
+          <header className="page-header">
+            <h1>{facility.name}</h1>
+          </header>
 
-            {/* Image Gallery */}
-            <Grid container spacing={2} sx={{ mb: 4 }}>
-              <Grid item xs={12} md={8}>
-                <img
-                  src={facility.imageUrls?.[0] || "/placeholder.jpg"}
-                  alt="Main facility"
-                  style={{
-                    width: "100%",
-                    height: 400,
-                    objectFit: "cover",
-                    borderRadius: 12,
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12} md={4}>
-                <Grid container spacing={2}>
-                  {facility.imageUrls?.slice(1, 5).map((url, index) => (
-                    <Grid item xs={6} key={index}>
-                      <img
-                        src={url}
-                        alt={`Facility view ${index + 1}`}
-                        style={{
-                          width: "100%",
-                          height: 192,
-                          objectFit: "cover",
-                          borderRadius: 8,
-                        }}
-                      />
-                    </Grid>
-                  ))}
-                </Grid>
-              </Grid>
-            </Grid>
+          <div className="facility-chips">
+            <Chip
+              icon={<LocationOn fontSize="small" />}
+              label={facility.location || "Location not specified"}
+              variant="outlined"
+              className="facility-chip"
+            />
+            <Chip
+              icon={<Info fontSize="small" />}
+              label={facility.type || "General Facility"}
+              color="primary"
+              className="facility-chip"
+            />
+          </div>
+
+          <div className="facility-content">
 
             {/* Details Section */}
-            <Grid container spacing={4}>
-              <Grid item xs={12} md={8}>
-                <Paper elevation={0} sx={{ p: 3, borderRadius: 3, mb: 4, bgcolor: 'background.paper' }}>
-                  <Typography variant="h5" gutterBottom sx={{ mb: 3 }}>
+            <div className="details-section">
+              <div className="details-content">
+                <Paper elevation={0} className="details-paper">
+                  <Typography variant="h5" className="section-title">
                     About This Facility
                   </Typography>
-                  <Typography variant="body1" color="text.secondary" paragraph>
+                  <Typography variant="body1" className="facility-description">
                     {facility.description || "No description available."}
                   </Typography>
                   
-                  <Box sx={{ mt: 4 }}>
-                    <Typography variant="h6" gutterBottom>
+                  <div className="features-section">
+                    <Typography variant="h6" className="features-title">
                       Features
                     </Typography>
-                    <Grid container spacing={1}>
-                      {facility.features?.map((feature, index) => (
-                        <Grid item key={index}>
-                          <Chip label={feature} variant="outlined" />
-                        </Grid>
-                      ))}
-                    </Grid>
-                  </Box>
+                    {facility.features && facility.features.length > 0 ? (
+                      <div className="features-grid">
+                        {facility.features.map((feature, index) => (
+                          <div key={index} className="feature-chip-container">
+                            <Chip label={feature} variant="outlined" className="feature-chip" />
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <Typography variant="body2" color="textSecondary">
+                        No features added yet.
+                      </Typography>
+                    )}
+                  </div>
                 </Paper>
-              </Grid>
+              </div>
 
               {/* Booking Section */}
-              <Grid item xs={12} md={4}>
-                <Paper elevation={0} sx={{ p: 3, borderRadius: 3, bgcolor: 'background.paper' }}>
-                  <Typography variant="h5" gutterBottom sx={{ mb: 2 }}>
+              <div className="booking-section">
+                <Paper elevation={0} className="booking-paper">
+                  <Typography variant="h5" className="booking-title">
                     Availability
                   </Typography>
                   
-                  <Tabs
-                    value={activeTab}
-                    onChange={(e, newValue) => setActiveTab(newValue)}
-                    variant="scrollable"
-                    scrollButtons="auto"
-                    sx={{ mb: 2 }}
-                  >
-                    {days.map((day) => (
-                      <Tab label={day} key={day} />
-                    ))}
-                  </Tabs>
+                  <div className="booking-tabs">
+                    <Tabs
+                      value={activeTab}
+                      onChange={(e, newValue) => setActiveTab(newValue)}
+                      variant="scrollable"
+                      scrollButtons="auto"
+                      className="availability-tabs"
+                    >
+                      {days.map((day) => (
+                        <Tab label={day} key={day} className="day-tab" />
+                      ))}
+                    </Tabs>
+                  </div>
 
-                  <Box sx={{ maxHeight: 400, overflowY: 'auto' }}>
+                  <div className="slots-container">
                     {groupedSlots[days[activeTab]]?.map((slot, index) => (
                       <Button
                         fullWidth
@@ -255,43 +251,63 @@ export default function FacilityDetail() {
                         variant={selectedSlot?.id === slot.id ? "contained" : "outlined"}
                         startIcon={<Schedule />}
                         onClick={() => setSelectedSlot(slot)}
-                        sx={{
-                          mb: 1,
-                          justifyContent: 'space-between',
-                          py: 1.5,
-                          borderRadius: 2,
-                          textTransform: 'none',
-                        }}
+                        className={`slot-button ${selectedSlot?.id === slot.id ? 'selected' : ''}`}
                       >
                         <span>{slot.start} - {slot.end}</span>
                         <ChevronRight />
                       </Button>
                     ))}
-                  </Box>
+                  </div>
 
                   {selectedSlot && (
-                    <Box sx={{ mt: 3 }}>
-                      <Typography variant="subtitle1" gutterBottom>
+                    <div className="date-picker-section">
+                      <Typography variant="subtitle1" className="date-picker-title">
                         Select Date for {selectedSlot.day}
                       </Typography>
-                      <DatePicker
-                        selected={selectedDate}
-                        onChange={handleDateSelect}
-                        minDate={new Date()}
-                        inline
-                        filterDate={(date) =>
-                          date.toLocaleString('en-US', { weekday: 'long' }) === selectedSlot.day
-                        }
-                        dayClassName={(date) => {
-                          const day = date.toLocaleString('en-US', { weekday: 'long' });
-                          return day === selectedSlot.day ? 'highlight-day' : 'non-highlight-day';
-                        }}
-                      />
-                    </Box>
+                      <div className="date-picker-container">
+                        <DatePicker
+                          selected={selectedDate}
+                          onChange={handleDateSelect}
+                          minDate={new Date()}
+                          inline
+                          filterDate={(date) =>
+                            date.toLocaleString('en-US', { weekday: 'long' }) === selectedSlot.day
+                          }
+                          dayClassName={(date) => {
+                            const day = date.toLocaleString('en-US', { weekday: 'long' });
+                            return day === selectedSlot.day ? 'highlight-day' : 'non-highlight-day';
+                          }}
+                        />
+                      </div>
+                    </div>
                   )}
                 </Paper>
-              </Grid>
-            </Grid>
+              </div>
+            </div>
+
+            {/* Image Gallery */}
+            <div className="image-gallery">
+                <div className="main-image-container">
+                  <img
+                    src={facility.imageUrls?.[0] || placeholder}
+                    alt="Main facility"
+                    className="main-image"
+                  />
+                </div>
+                <div className="side-images-container">
+                  <div className="side-images-grid">
+                    {facility.imageUrls?.slice(1, 5).map((url, index) => (
+                      <div key={index} className="side-image-container">
+                        <img
+                          src={url}
+                          alt={`Facility view ${index + 1}`}
+                          className="side-image"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
 
             {/* Confirmation Dialog */}
             <Dialog
@@ -299,26 +315,27 @@ export default function FacilityDetail() {
               onClose={() => setShowConfirmation(false)}
               maxWidth="xs"
               fullWidth
+              className="confirmation-dialog"
             >
-              <DialogTitle>
-                <Box display="flex" justifyContent="space-between" alignItems="center">
+              <DialogTitle className="dialog-title">
+                <div className="dialog-header">
                   Confirm Booking
-                  <IconButton onClick={() => setShowConfirmation(false)}>
+                  <IconButton onClick={() => setShowConfirmation(false)} className="close-button">
                     <Close />
                   </IconButton>
-                </Box>
+                </div>
               </DialogTitle>
-              <DialogContent dividers>
-                <Grid container spacing={2}>
-                  <Grid item xs={12}>
-                    <Typography variant="subtitle1" fontWeight={600}>
+              <DialogContent dividers className="dialog-content">
+                <div className="booking-details">
+                  <div className="booking-detail-item">
+                    <Typography variant="subtitle1" className="facility-name">
                       {facility.name}
                     </Typography>
-                  </Grid>
-                  <Grid item xs={12}>
-                    <Box display="flex" alignItems="center" gap={1}>
+                  </div>
+                  <div className="booking-detail-item">
+                    <div className="booking-detail-row">
                       <CalendarToday fontSize="small" />
-                      <Typography>
+                      <Typography className="booking-detail-text">
                         {selectedDate?.toLocaleDateString('en-US', {
                           weekday: 'long',
                           year: 'numeric',
@@ -326,53 +343,35 @@ export default function FacilityDetail() {
                           day: 'numeric'
                         })}
                       </Typography>
-                    </Box>
-                  </Grid>
-                  <Grid item xs={12}>
-                    <Box display="flex" alignItems="center" gap={1}>
+                    </div>
+                  </div>
+                  <div className="booking-detail-item">
+                    <div className="booking-detail-row">
                       <Schedule fontSize="small" />
-                      <Typography>
+                      <Typography className="booking-detail-text">
                         {selectedSlot?.start} - {selectedSlot?.end}
                       </Typography>
-                    </Box>
-                  </Grid>
-                </Grid>
+                    </div>
+                  </div>
+                </div>
               </DialogContent>
-              <DialogActions>
-                <Button onClick={() => setShowConfirmation(false)}>
+              <DialogActions className="dialog-actions">
+                <Button onClick={() => setShowConfirmation(false)} className="cancel-button">
                   Cancel
                 </Button>
                 <Button
                   variant="contained"
                   onClick={confirmBooking}
                   autoFocus
+                  className="confirm-button"
                 >
                   Confirm Booking
                 </Button>
               </DialogActions>
             </Dialog>
-          </Container>
+          </div>
         </main>
       </div>
-
-      <style>{`
-        .react-datepicker {
-          border: none;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-          border-radius: 12px;
-          overflow: hidden;
-        }
-        
-        .highlight-day {
-          background-color: #e3f2fd;
-          font-weight: 600;
-        }
-        
-        .react-datepicker__day--selected {
-          background-color: #1976d2;
-          color: white;
-        }
-      `}</style>
     </main>
   );
 }
