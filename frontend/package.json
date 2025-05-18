@@ -3,14 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-<<<<<<< HEAD
-    "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.0",
-    "@mui/material": "^7.0.2",
-    "@testing-library/dom": "^10.4.0",
-    "@testing-library/user-event": "^13.5.0",
-    "firebase": "^11.6.0",
-=======
     "@cloudinary/react": "^1.14.1",
     "@cloudinary/url-gen": "^1.21.0",
     "@emotion/react": "^11.14.0",
@@ -25,7 +17,6 @@
     "framer-motion": "^12.9.2",
     "jspdf": "^3.0.1",
     "jspdf-autotable": "^5.0.2",
->>>>>>> 92d8f6e676a8150809db3ec0d9b73ef5820641fc
     "react": "^19.1.0",
     "react-chartjs-2": "^5.3.0",
     "react-datepicker": "^8.3.0",
@@ -35,6 +26,7 @@
     "react-slick": "^0.30.3",
     "react-spinners": "^0.15.0",
     "react-toastify": "^11.0.5",
+    "recharts": "^2.15.3",
     "slick-carousel": "^1.8.1",
     "web-vitals": "^2.1.4"
   },

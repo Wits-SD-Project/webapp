@@ -1,6 +1,6 @@
 import React from "react";
-import Sidebar from "../../../components/SideBar";
-import "../../../styles/staffDashboard.css";
+import Sidebar from "../../components/AdminSideBar.js";
+import "../../styles/staffDashboard.css";
 import {
   BarChart,
   Bar,
