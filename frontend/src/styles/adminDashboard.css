@@ -1,68 +1,85 @@
 /* Graph Section */
 .graph-container {
-    display: flex;
-    gap: 1.5rem;
-    flex-wrap: wrap;
-    margin-top: 2rem;
-    width: 100%;
-  }
-  
-  .graph-card {
-    background-color: #fff;
-    border-radius: 12px;
-    padding: 1.5rem;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    flex: 1 1 300px; /* Adjust the base width as needed */
-    display: flex;
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  margin-top: 2rem;
+  width: 100%;
+}
+
+.graph-card {
+  background-color: #fff;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  flex: 1 1 300px; /* Adjust the base width as needed */
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease; /* Added animation */
+}
+
+.graph-card:hover {
+  transform: translateY(-5px); /* Added hover effect */
+}
+
+.graph-card h3 {
+  font-size: 1.2rem;
+  margin-bottom: 1rem;
+}
+
+.graph-placeholder {
+  background-color: #f0f0f0;
+  color: #888;
+  text-align: center;
+  padding: 2rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  flex-grow: 1; /* Allows the placeholder to take up available vertical space */
+}
+
+/* Optional: center charts */
+.graph-placeholder canvas {
+  margin: 0 auto;
+}
+
+/* Export Buttons */
+.export-buttons {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.export-buttons button {
+  background-color: transparent;
+  border: 1px solid #00c0df;
+  color: #00c0df;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.export-buttons button:hover {
+  background-color: #00c0df;
+  color: #fff;
+}
+
+/* New: clickable card hover effect */
+.graph-card.clickable {
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.graph-card.clickable:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 16px rgba(0, 192, 223, 0.15);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .graph-container {
     flex-direction: column;
-    transition: transform 0.2s ease; /* Added animation */
   }
-  
-  .graph-card:hover {
-    transform: translateY(-5px); /* Added hover effect */
-  }
-  
-  .graph-card h3 {
-    font-size: 1.2rem;
-    margin-bottom: 1rem;
-  }
-  
-  .graph-placeholder {
-    background-color: #f0f0f0;
-    color: #888;
-    text-align: center;
-    padding: 2rem;
-    border-radius: 8px;
-    margin-bottom: 1rem;
-    flex-grow: 1; /* Allows the placeholder to take up available vertical space */
-  }
-  
-  .export-buttons {
-    display: flex;
-    gap: 0.5rem;
-    justify-content: flex-end;
-  }
-  
-  .export-buttons button {
-    background-color: transparent; /* Updated button style */
-    border: 1px solid #00c0df; /* Updated button style */
-    color: #00c0df; /* Updated button style */
-    padding: 0.5rem 1rem; /* Updated button style */
-    border-radius: 20px; /* Updated button style */
-    cursor: pointer;
-    font-weight: 600;
-    font-size: 0.9rem;
-    transition: background-color 0.3s ease, color 0.3s ease; /* Updated button style */
-  }
-  
-  .export-buttons button:hover {
-    background-color: #00c0df; /* Updated button style */
-    color: #fff; /* Updated button style */
-  }
-  
-  /* Responsive adjustments */
-  @media (max-width: 768px) {
-    .graph-container {
-      flex-direction: column;
-    }
-  }
+}

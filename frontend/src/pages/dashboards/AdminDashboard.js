@@ -1,117 +1,45 @@
-<<<<<<< HEAD
-import { useEffect, useState } from "react";
-import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
-import { db } from "../../firebase";
-import { toast } from "react-toastify";
-import "./AdminDashboard.css";
-import Navbar from "../../components/Navbar";
-
-export default function AdminDashboard() {
-  const [users, setUsers] = useState([]);
-
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const snapshot = await getDocs(collection(db, "users"));
-        const data = snapshot.docs
-          .map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }))
-          .filter((user) => user.email !== "admin@gmail.com");
-
-        setUsers(data);
-      } catch (err) {
-        toast.error("Failed to load users.");
-      }
-    };
-
-    fetchUsers();
-  }, []);
-
-  const toggleApproval = async (user) => {
-    const userRef = doc(db, "users", user.email);
-    const newStatus = !user.approved;
-
-    try {
-      await updateDoc(userRef, { approved: newStatus });
-      setUsers((prev) =>
-        prev.map((u) =>
-          u.email === user.email ? { ...u, approved: newStatus } : u
-        )
-      );
-      toast.success(
-        `${user.email} has been ${newStatus ? "approved" : "revoked"}`
-      );
-    } catch (err) {
-      toast.error("Failed to update status.");
-    }
-  };
-
-  return (
-    <main className="admin-dashboard">
-      <Navbar />
-      <h1>Admin Dashboard</h1>
-      <table className="user-table">
-        <thead>
-          <tr>
-            <th>Email</th>
-            <th>Role</th>
-            <th>Approved</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.map((user) => (
-            <tr key={user.email}>
-              <td>{user.email}</td>
-              <td>{user.role}</td>
-              <td>{user.approved ? "Yes" : "No"}</td>
-              <td>
-                <button
-                  className={`btn ${user.approved ? "revoke" : "approve"}`}
-                  onClick={() => toggleApproval(user)}
-                >
-                  {user.approved ? "Revoke" : "Approve"}
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-=======
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../../components/AdminSideBar.js";
-import "../../styles/staffDashboard.css"; //dont delete
+import "../../styles/staffDashboard.css";
 import "../../styles/adminDashboard.css";
 import { useAuth } from "../../context/AuthContext.js";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { db, auth } from "../../firebase";
-import { motion, AnimatePresence } from "framer-motion";
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import { Doughnut } from "react-chartjs-2";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { Doughnut, Bar } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   ArcElement,
   Tooltip,
-  Legend
+  Legend,
+  CategoryScale,
+  LinearScale,
+  BarElement,
 } from "chart.js";
 
-ChartJS.register(ArcElement, Tooltip, Legend);
+ChartJS.register(
+  ArcElement,
+  Tooltip,
+  Legend,
+  CategoryScale,
+  LinearScale,
+  BarElement
+);
 
-
-export default function StaffDashboard() {
+export default function AdminDashboard() {
   const navigate = useNavigate();
   const { authUser } = useAuth();
   const username = authUser?.name || "Admin";
-  const [maintenanceSummary, setMaintenanceSummary] = useState({ openCount: 0, closedCount: 0 });
+  const [maintenanceSummary, setMaintenanceSummary] = useState({
+    openCount: 0,
+    closedCount: 0,
+  });
 
   const handleExportMaintenancePDF = async () => {
     const user = auth.currentUser;
     if (!user) return;
-  
+
     try {
       const token = await user.getIdToken();
       const res = await fetch("http://localhost:8080/api/admin/maintenance-reports", {
@@ -119,11 +47,9 @@ export default function StaffDashboard() {
           Authorization: `Bearer ${token}`,
         },
       });
-  
+
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to fetch reports");
-      
-      console.log("CreatedAt values:", data.reports.map(r => r.createdAt));
 
       const doc = new jsPDF();
       doc.text("Maintenance Report", 14, 15);
@@ -137,7 +63,7 @@ export default function StaffDashboard() {
             month: "2-digit",
             day: "2-digit",
             hour: "2-digit",
-            minute: "2-digit"
+            minute: "2-digit",
           });
         } catch {
           return "-";
@@ -151,29 +77,15 @@ export default function StaffDashboard() {
           report.facilityName || "Unknown",
           report.description || "-",
           report.status || "-",
-          formatDate(report.createdAt)
+          formatDate(report.createdAt),
         ]),
-      });      
-  
+      });
+
       doc.save("Maintenance_Report.pdf");
     } catch (error) {
       console.error("PDF export error:", error.message);
     }
   };
-
-  useEffect(() => {
-    const user = auth.currentUser;
-    if (!user) {
-      console.warn("No user is currently logged in.");
-      return;
-    }
-
-    user.getIdToken()
-      .then((token) => {
-        console.log("Admin token:", token);
-      })
-      .catch((err) => console.error("Failed to get token:", err));
-  }, [authUser]);
 
   useEffect(() => {
     const fetchMaintenanceSummary = async () => {
@@ -206,6 +118,17 @@ export default function StaffDashboard() {
     fetchMaintenanceSummary();
   }, []);
 
+  const barData = {
+    labels: ["Tennis", "Soccer", "Basketball", "Swimming"],
+    datasets: [
+      {
+        label: "Bookings",
+        data: [25, 40, 20, 15],
+        backgroundColor: "#00c0df",
+      },
+    ],
+  };
+
   const chartData = {
     labels: ["Open Issues", "Closed Issues"],
     datasets: [
@@ -217,7 +140,7 @@ export default function StaffDashboard() {
       },
     ],
   };
-  
+
   const chartOptions = {
     responsive: true,
     plugins: {
@@ -226,7 +149,6 @@ export default function StaffDashboard() {
       },
     },
   };
-  
 
   return (
     <main className="dashboard">
@@ -242,58 +164,55 @@ export default function StaffDashboard() {
           <div className="card-container">
             <div className="card">
               <h3>Upcoming events</h3>
-              <AnimatePresence mode="wait">
-                <motion.p>
-                  You have ?? upcoming events
-                </motion.p>
-              </AnimatePresence>
-              <button className="view-all-btn" onClick={() => navigate("/admin-manage-events")}>
+              <p>You have ?? upcoming events</p>
+              <button
+                className="view-all-btn"
+                onClick={() => navigate("/admin-manage-events")}
+              >
                 View all
               </button>
             </div>
 
             <div className="card">
               <h3>Pending Applications</h3>
-              <AnimatePresence mode="wait">
-                <motion.p>
-                  ?? users requests awaiting your approval
-                </motion.p>
-              </AnimatePresence>
-              <button className="view-all-btn" onClick={() => navigate("/admin-manage-users")}>
+              <p>?? users requests awaiting your approval</p>
+              <button
+                className="view-all-btn"
+                onClick={() => navigate("/admin-manage-users")}
+              >
                 View all
               </button>
             </div>
           </div>
 
           <div className="graph-container">
-            <div className="graph-card">
+            {/* Usage Trends Preview */}
+            <div className="graph-card clickable" onClick={() => navigate("/admin/reports")}>
               <h3>Usage Trends by Facility</h3>
-              <div className="graph-placeholder">graph here</div>
-              <div className="export-buttons">
-              <button>Export as PDF</button>
-              <button>Export as CSV</button>
+              <div className="graph-placeholder" style={{ backgroundColor: "#fff", padding: 0 }}>
+                <Bar data={barData} height={200} options={{ responsive: true, plugins: { legend: { display: false } } }} />
               </div>
+              <p style={{ textAlign: "center", color: "#00c0df", marginTop: "0.5rem" }}>
+                Click to view full reports
+              </p>
             </div>
 
+            {/* Maintenance Chart */}
             <div className="graph-card">
-  <h3>Maintenance Reports (Open vs. Closed Issues)</h3>
-  <div className="graph-placeholder">
-    <Doughnut data={chartData} options={chartOptions} />
-  </div>
-
-  <p>Open Issues: {maintenanceSummary.openCount}</p>
-  <p>Closed Issues: {maintenanceSummary.closedCount}</p>
-
-  <div className="export-buttons">
-    <button onClick={handleExportMaintenancePDF}>Export as PDF</button>
-    <button>Export as CSV</button>
-  </div>
-</div>
-
+              <h3>Maintenance Reports (Open vs. Closed Issues)</h3>
+              <div className="graph-placeholder">
+                <Doughnut data={chartData} options={chartOptions} />
+              </div>
+              <p>Open Issues: {maintenanceSummary.openCount}</p>
+              <p>Closed Issues: {maintenanceSummary.closedCount}</p>
+              <div className="export-buttons">
+                <button onClick={handleExportMaintenancePDF}>Export as PDF</button>
+                <button>Export as CSV</button>
+              </div>
+            </div>
           </div>
         </main>
       </div>
->>>>>>> 92d8f6e676a8150809db3ec0d9b73ef5820641fc
     </main>
   );
 }
