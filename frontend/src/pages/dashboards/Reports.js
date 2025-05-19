@@ -145,8 +145,8 @@ export default function Reports() {
 
         {/* Top Booked Facilities */}
         <div className="card" style={{ marginBottom: "2rem" }}>
-          <h3>Top Booked Facilities</h3>
-          <p>These are the most booked facilities based on current data.</p>
+          <h3>Facilities</h3>
+          <p>Number of times facilities were booked.</p>
           <ul style={{ listStyle: "none", padding: 0, marginTop: "1rem" }}>
             {topFacilities.map((facility, index) => {
               // Calculate percentage relative to the most booked facility
