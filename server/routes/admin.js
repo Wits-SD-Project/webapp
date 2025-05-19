@@ -562,4 +562,309 @@ router.get("/facilities", authenticate, async (req, res) => {
   }
 });
 
+router.post('/events/notify', async (req, res) => {
+   const formatDateTime = (date) => {
+    if (!date) return "";
+    return date.toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  try {
+    const { eventId, eventName, facilityName, startTime, endTime } = req.body;
+
+
+    // Validate required fields
+    if (!eventId || !eventName || !facilityName || !startTime || !endTime) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields for notification',
+      });
+    }
+
+    // Fetch all residents
+    const usersSnapshot = await admin.firestore()
+      .collection('users')
+      .where('role', '==', 'resident')
+      .get();
+
+    if (usersSnapshot.empty) {
+      return res.status(200).json({
+        success: true,
+        message: 'No residents found to notify',
+      });
+    }
+
+    // Prepare batch notification creation
+    const batch = admin.firestore().batch();
+    const notificationsRef = admin.firestore().collection('notifications');
+
+    usersSnapshot.forEach(docSnap => {
+      const resident = docSnap.data();
+      const newNotificationRef = notificationsRef.doc();
+
+      const notificationData = {
+        createdAt: new Date().toISOString(),
+        facilityName: facilityName || 'Unknown Facility',
+        slot: `${formatDateTime(new Date(startTime))} - ${formatDateTime(new Date(endTime))}`,
+        status: "new-event",
+        eventName: eventName || 'New Event',
+        userName: resident.email || 'unknown@email.com',
+        read: false,
+        type: "event",
+        startTime,
+        endTime,
+        eventId
+      };
+
+      // Optional: Remove undefined values
+      Object.keys(notificationData).forEach(key => {
+        if (notificationData[key] === undefined) {
+          delete notificationData[key];
+        }
+      });
+
+      batch.set(newNotificationRef, notificationData, { ignoreUndefinedProperties: true });
+    });
+
+    // Commit batch
+    await batch.commit();
+
+    res.status(200).json({
+      success: true,
+      message: `Notifications sent to ${usersSnapshot.size} residents`
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send notifications',
+      error: error.message
+    });
+  }
+});
+
+router.get('/upcoming', authenticate, async (req, res) => {
+  try {
+    const snapshot = await admin.firestore()
+      .collection('admin-events')
+      .get();
+
+    const now = new Date().toISOString(); // Current time as ISO string
+    const events = [];
+
+    snapshot.forEach(doc => {
+      const eventData = doc.data();
+      
+      // Since times are already ISO strings, we can use them directly
+      events.push({
+        id: doc.id,
+        ...eventData,
+        // No need to convert timestamps
+        startTime: eventData.startTime,
+        endTime: eventData.endTime
+      });
+    });
+
+    // Filter for upcoming events (compare ISO strings directly)
+    const upcomingEvents = events.filter(event => 
+      event.startTime && event.startTime > now
+    );
+
+    res.json({ events: upcomingEvents });
+  } catch (error) {
+    console.error('Error fetching events:', error);
+    res.status(500).json({ error: 'Failed to fetch events' });
+  }
+});
+
+router.get('/unread-count',authenticate, async (req, res) => {
+  try {
+    const userEmail = req.user.email; // Assuming you have auth middleware
+    const notificationsRef = admin.firestore().collection('notifications');
+    
+    const snapshot = await notificationsRef
+      .where('userName', '==', userEmail)
+      .where('read', '==', false)
+      .get();
+
+    res.json({ count: snapshot.size });
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    res.status(500).json({ error: 'Failed to fetch notifications' });
+  }
+});
+
+// Hourly bookings data
+router.get('/hourly-bookings', authenticate, async (req, res) => {
+  try {
+    // Get bookings from the last 7 days
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    
+    const bookingsSnapshot = await admin.firestore()
+      .collection('bookings')
+      .where('bookingDate', '>=', sevenDaysAgo.toISOString())
+      .get();
+
+    // Group bookings by hour
+    const hourlyCounts = Array(12).fill(0).map((_, i) => {
+      const hour = i + 6; // From 6 AM to 5 PM
+      return { hour: `${hour} ${hour < 12 ? 'AM' : 'PM'}`, bookings: 0 };
+    });
+
+    bookingsSnapshot.forEach(doc => {
+      const booking = doc.data();
+      const hour = new Date(booking.startTime).getHours();
+      const displayHour = hour > 12 ? hour - 12 : hour;
+      const period = hour >= 12 ? 'PM' : 'AM';
+      const hourLabel = `${displayHour} ${period}`;
+      
+      const hourIndex = hourlyCounts.findIndex(h => h.hour === hourLabel);
+      if (hourIndex !== -1) {
+        hourlyCounts[hourIndex].bookings++;
+      }
+    });
+
+    res.json({ hourlyBookings: hourlyCounts });
+  } catch (error) {
+    console.error('Error fetching hourly bookings:', error);
+    res.status(500).json({ error: 'Failed to fetch hourly bookings' });
+  }
+});
+
+// Top facilities data
+router.get('/top-facilities', authenticate, async (req, res) => {
+  try {
+    const facilitiesSnapshot = await admin.firestore()
+      .collection('facilities-test')
+      .get();
+
+    const bookingCounts = await Promise.all(
+      facilitiesSnapshot.docs.map(async doc => {
+        const bookings = await admin.firestore()
+          .collection('bookings')
+          .where('facilityId', '==', doc.id)
+          .get();
+        return {
+          name: doc.data().name,
+          bookings: bookings.size
+        };
+      })
+    );
+
+    // Sort by bookings descending and take top 4
+    const topFacilities = bookingCounts
+      .sort((a, b) => b.bookings - a.bookings)
+      .slice(0, 4);
+
+    res.json({ topFacilities });
+  } catch (error) {
+    console.error('Error fetching top facilities:', error);
+    res.status(500).json({ error: 'Failed to fetch top facilities' });
+  }
+});
+
+// Daily bookings data
+router.get('/daily-bookings', authenticate, async (req, res) => {
+  try {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const dailyCounts = days.map(day => ({ day, bookings: 0 }));
+
+    // Get bookings from the last 7 days
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    
+    const bookingsSnapshot = await admin.firestore()
+      .collection('bookings')
+      .where('bookingDate', '>=', sevenDaysAgo.toISOString())
+      .get();
+
+    bookingsSnapshot.forEach(doc => {
+      const bookingDate = new Date(doc.data().bookingDate);
+      const dayIndex = bookingDate.getDay(); // 0 (Sun) to 6 (Sat)
+      dailyCounts[dayIndex].bookings++;
+    });
+
+    res.json({ dailyBookings: dailyCounts });
+  } catch (error) {
+    console.error('Error fetching daily bookings:', error);
+    res.status(500).json({ error: 'Failed to fetch daily bookings' });
+  }
+});
+
+// Summary statistics
+// routes/admin.js
+router.get('/summary-stats', authenticate, async (req, res) => {
+  try {
+    // Calculate start of current week (Sunday)
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - dayOfWeek);
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    // Total bookings this week
+    const bookingsThisWeek = await admin.firestore()
+      .collection('bookings')
+      .where('bookingDate', '>=', startOfWeek.toISOString())
+      .get();
+
+    // Most used facility
+    const facilities = await admin.firestore().collection('facilities').get();
+    const facilityBookings = await Promise.all(
+      facilities.docs.map(async doc => {
+        const bookings = await admin.firestore()
+          .collection('bookings')
+          .where('facilityId', '==', doc.id)
+          .get();
+        return {
+          name: doc.data().name,
+          count: bookings.size
+        };
+      })
+    );
+    const mostUsedFacility = facilityBookings.sort((a, b) => b.count - a.count)[0];
+
+    // Calculate peak hour directly instead of making another HTTP request
+    const hourlyBookings = Array(12).fill(0).map((_, i) => {
+      const hour = i + 6; // From 6 AM to 5 PM
+      return { hour: `${hour} ${hour < 12 ? 'AM' : 'PM'}`, bookings: 0 };
+    });
+
+    bookingsThisWeek.forEach(doc => {
+      const bookingDate = new Date(doc.data().startTime);
+      const hour = bookingDate.getHours();
+      if (hour >= 6 && hour <= 17) { // Only count hours between 6AM and 5PM
+        const displayHour = hour > 12 ? hour - 12 : hour;
+        const period = hour >= 12 ? 'PM' : 'AM';
+        const hourLabel = `${displayHour} ${period}`;
+        
+        const hourIndex = hourlyBookings.findIndex(h => h.hour === hourLabel);
+        if (hourIndex !== -1) {
+          hourlyBookings[hourIndex].bookings++;
+        }
+      }
+    });
+
+    const peakHour = hourlyBookings.sort((a, b) => b.bookings - a.bookings)[0].hour;
+
+    res.json({
+      totalBookings: bookingsThisWeek.size,
+      mostUsedFacility: mostUsedFacility?.name || "No data",
+      peakHour: peakHour || "No data"
+    });
+  } catch (error) {
+    console.error('Error fetching summary stats:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch summary stats',
+      details: error.message 
+    });
+  }
+});
+
+
 module.exports = router;

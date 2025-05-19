@@ -48,14 +48,6 @@ export default function FacilityFormModal({ open, onClose, onSubmit }) {
 
   const handleUploaded = (url) => setImages((prev) => [...prev, url]);
   /* ---------- helpers ---------- */
-  const reset = () => {
-    setName("");
-    setType("");
-    setIsOutdoors("Yes");
-    setAvail("Available");
-    setLocation("");
-    setImages([]);
-  };
   const handleSave = () => {
     if (!name || !type) {
       toast.error("Facility name and type are required 🤷‍♂️");

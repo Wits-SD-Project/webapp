@@ -5,10 +5,7 @@ import binIcon from "../../assets/bin.png";
 import "../../styles/adminManageEvents.css";
 import { getAuthToken } from "../../firebase";
 import { toast } from "react-toastify";
-import { collection, addDoc, getDocs, query, where } from "firebase/firestore";
-import { db } from "../../firebase"; // Ensure this import exists at the top of the file
-import "./adminManageEvents.css";
-import EventFormModal from "./EventFormModal";
+import EventFormModal from "../../components/EventFormModal";
 
 export default function AdminManageEvents() {
   const [events, setEvents] = useState([]);
@@ -21,20 +18,13 @@ export default function AdminManageEvents() {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const tableRef = useRef(null);
 
-  const formatForInput = (date) => {
-    if (!date) return "";
-    const pad = (num) => num.toString().padStart(2, "0");
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
-      date.getDate()
-    )}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-  };
 
   const confirmBlock = async () => {
     if (!blockFacility || !blockSlotStr || !blockDate) {
       toast.error("Fill all fields");
       return;
     }
-    const [day, slot] = blockSlotStr.split("|");
+    const [slot] = blockSlotStr.split("|");
     // optional: day-of-week guard like the resident flow
 
     try {
@@ -61,13 +51,6 @@ export default function AdminManageEvents() {
     }
   };
 
-  const parseInputDate = (value) => {
-    if (!value) return new Date();
-    const [datePart, timePart] = value.split("T");
-    const [year, month, day] = datePart.split("-").map(Number);
-    const [hours, minutes] = timePart.split(":").map(Number);
-    return new Date(year, month - 1, day, hours, minutes);
-  };
 
   useEffect(() => {
     const fetchFacilities = async () => {
@@ -213,30 +196,26 @@ export default function AdminManageEvents() {
         }]);
       }
 
-      // Push a notification to each resident
-      try {
-        const usersSnapshot = await getDocs(
-          query(collection(db, "users"), where("role", "==", "resident"))
-        );
-        usersSnapshot.forEach(async (docSnap) => {
-          const resident = docSnap.data();
-          await addDoc(collection(db, "notifications"), {
-            createdAt: new Date().toISOString(),
-            facilityName: result.event.facility.name,
-            slot: `${formatDateTime(
-              new Date(result.event.startTime)
-            )} - ${formatDateTime(new Date(result.event.endTime))}`,
-            status: "new-event",
-            eventName: result.event.eventName,
-            userName: resident.email,
-            read: false,
-            type: "event",
-            startTime: result.event.startTime,
-            endTime: result.event.endTime,
+      // Call the new notifications endpoint
+      if (!selectedEvent) { // Only send notifications for new events
+        try {
+          await fetch('http://localhost:8080/api/admin/events/notify', {
+            method: 'POST',
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              eventId: result.event.id,
+              eventName: result.event.eventName,
+              facilityName: result.event.facility.name,
+              startTime: result.event.startTime,
+              endTime: result.event.endTime
+            })
           });
-        });
-      } catch (notifyErr) {
-        console.error("Error sending event notifications:", notifyErr);
+        } catch (notifyErr) {
+          console.error("Error sending event notifications:", notifyErr);
+        }
       }
 
       toast.success(result.message || "Event saved successfully");
@@ -245,8 +224,7 @@ export default function AdminManageEvents() {
       console.error("Save error:", error);
       toast.error(error.message);
     }
-  };
-
+};
   const handleDeleteEvent = async (eventId) => {
     try {
       const token = await getAuthToken();
