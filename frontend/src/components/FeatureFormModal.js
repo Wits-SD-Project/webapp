@@ -11,7 +11,6 @@ import {
   Box,
   Typography,
   Autocomplete,
-  MenuItem,
 } from "@mui/material";
 import { toast } from "react-toastify";
 
@@ -24,33 +23,22 @@ const facilityFeatures = {
   "General": ["Parking", "Accessible Entrance", "Drinking Water", "Restrooms"]
 };
 
-const facilityTypes = Object.keys(facilityFeatures);
-
-export default function FeatureFormModal({
-  open,
-  onClose,
-  onSubmit,
-  facilityType = "General",
-  initialData = {},
-  isEditMode = false,
+export default function FeatureFormModal({ 
+  open, 
+  onClose, 
+  onSubmit, 
+  facilityType 
 }) {
-  const [name, setName] = useState(initialData.name || "");
-  const [type, setType] = useState(initialData.type || facilityType);
-  const [isOutdoors, setIsOutdoors] = useState(
-    initialData.isOutdoors === true || initialData.isOutdoors === "Yes" ? "Yes" : "No"
-  );
-  const [availability, setAvailability] = useState(initialData.availability || "Available");
-  const [description, setDescription] = useState(initialData.description || "");
-  const [features, setFeatures] = useState(initialData.features || []);
+  const [description, setDescription] = useState("");
+  const [features, setFeatures] = useState([]);
   const [inputValue, setInputValue] = useState("");
 
   useEffect(() => {
-    if (!isEditMode) {
-      setFeatures((prev) => [
-        ...new Set([...prev, ...(facilityFeatures.General || [])]),
-      ]);
-    }
-  }, [isEditMode]);
+    // Add general features by default
+    setFeatures(prev => [
+      ...new Set([...prev, ...(facilityFeatures.General || [])])
+    ]);
+  }, []);
 
   const handleAddFeature = (newFeature) => {
     if (newFeature && !features.includes(newFeature)) {
@@ -60,25 +48,11 @@ export default function FeatureFormModal({
   };
 
   const handleSubmit = () => {
-    if (description.trim().length < 50) {
-      toast.error("Description must be at least 50 characters.");
+    if (!description) {
+      toast.error("Please add a description");
       return;
     }
-    if (!name.trim()) {
-      toast.error("Facility name is required.");
-      return;
-    }
-
-    const facility = {
-      name,
-      type,
-      isOutdoors: isOutdoors === "Yes",
-      availability,
-      description,
-      features,
-    };
-
-    onSubmit(facility);
+    onSubmit({ description, features });
     onClose();
   };
 
@@ -88,90 +62,40 @@ export default function FeatureFormModal({
       onClose={onClose}
       fullWidth
       maxWidth="md"
-      PaperProps={{ sx: { borderRadius: 4, p: 2 } }}
+      PaperProps={{ sx: { borderRadius: 4, p: 1 } }}
     >
       <DialogTitle sx={{ fontWeight: 600 }}>
-        {isEditMode ? "Edit Facility" : "Create New Facility"}
+        🛠️ Add Features & Description for {facilityType}
       </DialogTitle>
-
+      
       <DialogContent dividers sx={{ p: 3 }}>
         <Grid container spacing={3}>
           <Grid item xs={12}>
             <TextField
-              label="Facility Name"
-              fullWidth
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </Grid>
-
-          <Grid item xs={12}>
-            <TextField
-              select
-              label="Facility Type"
-              fullWidth
-              value={type}
-              onChange={(e) => setType(e.target.value)}
-            >
-              {facilityTypes.map((ftype) => (
-                <MenuItem key={ftype} value={ftype}>
-                  {ftype}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-
-          <Grid item xs={12}>
-            <TextField
-              select
-              label="Is Outdoors?"
-              fullWidth
-              value={isOutdoors}
-              onChange={(e) => setIsOutdoors(e.target.value)}
-            >
-              <MenuItem value="Yes">Yes</MenuItem>
-              <MenuItem value="No">No</MenuItem>
-            </TextField>
-          </Grid>
-
-          <Grid item xs={12}>
-            <TextField
-              select
-              label="Availability"
-              fullWidth
-              value={availability}
-              onChange={(e) => setAvailability(e.target.value)}
-            >
-              <MenuItem value="Available">Available</MenuItem>
-              <MenuItem value="Closed">Closed</MenuItem>
-              <MenuItem value="Under Maintenance">Under Maintenance</MenuItem>
-            </TextField>
-          </Grid>
-
-          <Grid item xs={12}>
-            <TextField
-              label="Facility Description"
+              label="Description 📝"
               multiline
               rows={4}
               fullWidth
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              variant="outlined"
               placeholder="Describe the facility (minimum 50 characters)"
             />
           </Grid>
 
           <Grid item xs={12}>
-            <Box mb={1}>
+            <Box mb={2}>
               <Typography variant="subtitle2" mb={1}>
-                Suggested Features ({type})
+                Suggested Features ({facilityType})
               </Typography>
-              <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-                {facilityFeatures[type]?.map((feature, index) => (
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                {facilityFeatures[facilityType]?.map((feature, index) => (
                   <Chip
                     key={index}
                     label={feature}
                     onClick={() => handleAddFeature(feature)}
                     color={features.includes(feature) ? "primary" : "default"}
+                    
                   />
                 ))}
               </Box>
@@ -187,25 +111,23 @@ export default function FeatureFormModal({
               renderInput={(params) => (
                 <TextField
                   {...params}
-                  label="Add custom feature"
-                  onKeyDown={(e) => {
+                  label="Add Custom Feature, Click enter to add"
+                  variant="outlined"
+                  onKeyPress={(e) => {
                     if (e.key === "Enter") {
-                      e.preventDefault();
                       handleAddFeature(inputValue);
                     }
                   }}
                 />
               )}
             />
-
-            <Box mt={2} sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+            
+            <Box mt={2} sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
               {features.map((feature, index) => (
                 <Chip
                   key={index}
                   label={feature}
-                  onDelete={() =>
-                    setFeatures(features.filter((f) => f !== feature))
-                  }
+                  onDelete={() => setFeatures(features.filter((f) => f !== feature))}
                 />
               ))}
             </Box>
@@ -214,26 +136,17 @@ export default function FeatureFormModal({
       </DialogContent>
 
       <DialogActions sx={{ p: 3 }}>
-        <Button
-          onClick={onClose}
-          variant="outlined"
-          color="inherit"
-          sx={{ borderRadius: 2, textTransform: "none" }}
-        >
+        <Button onClick={onClose} color="secondary">
           Cancel
         </Button>
-        <Button
-          variant="contained"
-          color="primary"
+        <Button 
+          variant="contained" 
           onClick={handleSubmit}
-          disabled={description.trim().length < 50 || !name.trim()}
-          sx={{ borderRadius: 2, textTransform: "none" }}
+          disabled={description.length < 50}
         >
-          {isEditMode ? "Save Changes" : "Create Facility"}
+          Complete Facility Setup 🏁
         </Button>
       </DialogActions>
     </Dialog>
   );
 }
-
-
