@@ -699,18 +699,21 @@ router.get('/unread-count',authenticate, async (req, res) => {
 });
 
 // Hourly bookings data
+// server/routes/admin.js
+
+// Hourly bookings data
 router.get('/hourly-bookings', authenticate, async (req, res) => {
   try {
-    // Get bookings from the last 7 days
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    
+
     const bookingsSnapshot = await admin.firestore()
       .collection('bookings')
-      .where('bookingDate', '>=', sevenDaysAgo.toISOString())
+      // Assuming you've also fixed Issue 1 (using 'date' field and correct comparison)
+      // For example, if 'date' is "YYYY-MM-DD":
+      .where('date', '>=', sevenDaysAgo.toISOString().split('T')[0])
       .get();
 
-    // Group bookings by hour
     const hourlyCounts = Array(12).fill(0).map((_, i) => {
       const hour = i + 6; // From 6 AM to 5 PM
       return { hour: `${hour} ${hour < 12 ? 'AM' : 'PM'}`, bookings: 0 };
@@ -718,14 +721,37 @@ router.get('/hourly-bookings', authenticate, async (req, res) => {
 
     bookingsSnapshot.forEach(doc => {
       const booking = doc.data();
-      const hour = new Date(booking.startTime).getHours();
-      const displayHour = hour > 12 ? hour - 12 : hour;
-      const period = hour >= 12 ? 'PM' : 'AM';
-      const hourLabel = `${displayHour} ${period}`;
-      
-      const hourIndex = hourlyCounts.findIndex(h => h.hour === hourLabel);
-      if (hourIndex !== -1) {
-        hourlyCounts[hourIndex].bookings++;
+      if (booking.date && booking.slot) { // Ensure necessary fields exist
+        try {
+          const slotStartTime = booking.slot.split(' - ')[0]; // Get "09:00" from "09:00 - 10:00"
+          // Construct a full ISO-like string that new Date() can parse reliably
+          const bookingDateTimeString = `${booking.date}T${slotStartTime}:00`;
+          const bookingDateObject = new Date(bookingDateTimeString);
+
+          if (!isNaN(bookingDateObject.getTime())) { // Check if the date is valid
+            const hour = bookingDateObject.getHours(); // This will now be the correct hour
+
+            // Your existing logic to map to displayHour and hourLabel
+            const displayHour = hour === 0 ? 12 : (hour > 12 ? hour - 12 : hour); // Handle midnight as 12 AM
+            const period = hour < 12 || hour === 24 ? 'AM' : 'PM'; // Adjust period for midnight/noon if needed
+            // Ensure consistent hour formatting in hourLabel, especially for single-digit hours if not padded
+            // The hourlyCounts array uses non-padded hours like "6 AM", "7 AM" etc.
+            const hourLabel = `${displayHour} ${period}`;
+
+            const hourIndex = hourlyCounts.findIndex(h => h.hour === hourLabel);
+            if (hourIndex !== -1) {
+              hourlyCounts[hourIndex].bookings++;
+            } else {
+              // This might happen if a booking hour is outside your 6 AM - 5 PM window
+              // Or if the hourLabel formatting here doesn't exactly match what's in hourlyCounts
+              console.warn(`Could not find hourIndex for hourLabel: ${hourLabel} from booking hour: ${hour}`);
+            }
+          } else {
+            console.warn(`Could not parse date for booking ID ${doc.id}: ${bookingDateTimeString}`);
+          }
+        } catch (e) {
+          console.warn(`Error processing slot for booking ID ${doc.id}: ${booking.slot}`, e);
+        }
       }
     });
 
@@ -735,13 +761,17 @@ router.get('/hourly-bookings', authenticate, async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch hourly bookings' });
   }
 });
-
-// Top facilities data
+// ------------------------------
+// [2] Top Facilities
+// ------------------------------
 router.get('/top-facilities', authenticate, async (req, res) => {
+  console.log('[GET] /top-facilities accessed');
   try {
     const facilitiesSnapshot = await admin.firestore()
       .collection('facilities-test')
       .get();
+
+    console.log(`Fetched ${facilitiesSnapshot.size} facilities`);
 
     const bookingCounts = await Promise.all(
       facilitiesSnapshot.docs.map(async doc => {
@@ -749,6 +779,7 @@ router.get('/top-facilities', authenticate, async (req, res) => {
           .collection('bookings')
           .where('facilityId', '==', doc.id)
           .get();
+        console.log(`Facility "${doc.data().name}" has ${bookings.size} bookings`);
         return {
           name: doc.data().name,
           bookings: bookings.size
@@ -756,11 +787,11 @@ router.get('/top-facilities', authenticate, async (req, res) => {
       })
     );
 
-    // Sort by bookings descending and take top 4
     const topFacilities = bookingCounts
       .sort((a, b) => b.bookings - a.bookings)
       .slice(0, 4);
 
+    console.log('Top 4 facilities:', topFacilities);
     res.json({ topFacilities });
   } catch (error) {
     console.error('Error fetching top facilities:', error);
@@ -768,27 +799,34 @@ router.get('/top-facilities', authenticate, async (req, res) => {
   }
 });
 
-// Daily bookings data
+// ------------------------------
+// [3] Daily Bookings
+// ------------------------------
 router.get('/daily-bookings', authenticate, async (req, res) => {
+  console.log('[GET] /daily-bookings accessed');
   try {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const dailyCounts = days.map(day => ({ day, bookings: 0 }));
 
-    // Get bookings from the last 7 days
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    
+    console.log('Fetching bookings from:', sevenDaysAgo.toISOString());
+
     const bookingsSnapshot = await admin.firestore()
       .collection('bookings')
-      .where('bookingDate', '>=', sevenDaysAgo.toISOString())
+      .where('date', '>=', sevenDaysAgo.toISOString())
       .get();
 
+    console.log(`Fetched ${bookingsSnapshot.size} bookings`);
+
     bookingsSnapshot.forEach(doc => {
-      const bookingDate = new Date(doc.data().bookingDate);
-      const dayIndex = bookingDate.getDay(); // 0 (Sun) to 6 (Sat)
+      const date = new Date(doc.data().date);
+      const dayIndex = date.getDay();
       dailyCounts[dayIndex].bookings++;
+      console.log(`Booking on ${days[dayIndex]} (index ${dayIndex})`);
     });
 
+    console.log('Daily bookings breakdown:', dailyCounts);
     res.json({ dailyBookings: dailyCounts });
   } catch (error) {
     console.error('Error fetching daily bookings:', error);
@@ -796,61 +834,86 @@ router.get('/daily-bookings', authenticate, async (req, res) => {
   }
 });
 
-// Summary statistics
-// routes/admin.js
+// ------------------------------
+// [4] Summary Statistics
+// ------------------------------
 router.get('/summary-stats', authenticate, async (req, res) => {
+  console.log('[GET] /summary-stats accessed');
   try {
-    // Calculate start of current week (Sunday)
     const today = new Date();
     const dayOfWeek = today.getDay();
     const startOfWeek = new Date(today);
     startOfWeek.setDate(today.getDate() - dayOfWeek);
     startOfWeek.setHours(0, 0, 0, 0);
+    console.log('Start of week:', startOfWeek.toISOString());
 
-    // Total bookings this week
     const bookingsThisWeek = await admin.firestore()
       .collection('bookings')
-      .where('bookingDate', '>=', startOfWeek.toISOString())
+      .where('date', '>=', startOfWeek.toISOString())
       .get();
 
-    // Most used facility
-    const facilities = await admin.firestore().collection('facilities').get();
+    console.log(`Total bookings this week: ${bookingsThisWeek.size}`);
+
+    const facilities = await admin.firestore().collection('facilities-test').get();
+    console.log(`Fetched ${facilities.size} facilities`);
+
     const facilityBookings = await Promise.all(
       facilities.docs.map(async doc => {
         const bookings = await admin.firestore()
           .collection('bookings')
           .where('facilityId', '==', doc.id)
           .get();
+        console.log(`Facility "${doc.data().name}" has ${bookings.size} bookings`);
         return {
           name: doc.data().name,
           count: bookings.size
         };
       })
     );
-    const mostUsedFacility = facilityBookings.sort((a, b) => b.count - a.count)[0];
 
-    // Calculate peak hour directly instead of making another HTTP request
-    const hourlyBookings = Array(12).fill(0).map((_, i) => {
+    const mostUsedFacility = facilityBookings.sort((a, b) => b.count - a.count)[0];
+    console.log('Most used facility:', mostUsedFacility);
+const hourlyBookings = Array(12).fill(0).map((_, i) => {
       const hour = i + 6; // From 6 AM to 5 PM
       return { hour: `${hour} ${hour < 12 ? 'AM' : 'PM'}`, bookings: 0 };
     });
 
     bookingsThisWeek.forEach(doc => {
-      const bookingDate = new Date(doc.data().startTime);
-      const hour = bookingDate.getHours();
-      if (hour >= 6 && hour <= 17) { // Only count hours between 6AM and 5PM
-        const displayHour = hour > 12 ? hour - 12 : hour;
-        const period = hour >= 12 ? 'PM' : 'AM';
-        const hourLabel = `${displayHour} ${period}`;
-        
-        const hourIndex = hourlyBookings.findIndex(h => h.hour === hourLabel);
-        if (hourIndex !== -1) {
-          hourlyBookings[hourIndex].bookings++;
+      const bookingData = doc.data();
+      if (bookingData.date && bookingData.slot) { // Ensure necessary fields exist
+        try {
+          const slotStartTime = bookingData.slot.split(' - ')[0]; // "09:00"
+          const bookingDateTimeString = `${bookingData.date}T${slotStartTime}:00`;
+          const bookingDateObject = new Date(bookingDateTimeString);
+
+          if (!isNaN(bookingDateObject.getTime())) { // Check if the date is valid
+            const hour = bookingDateObject.getHours();
+
+            if (hour >= 6 && hour <= 17) { // Only count hours between 6AM and 5PM
+              const displayHour = hour === 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+              const period = hour < 12 || hour === 24 ? 'AM' : 'PM';
+              const hourLabel = `${displayHour} ${period}`;
+
+              const hourIndex = hourlyBookings.findIndex(h => h.hour === hourLabel);
+              if (hourIndex !== -1) {
+                hourlyBookings[hourIndex].bookings++;
+              } else {
+                 console.warn(`Summary: Could not find hourIndex for hourLabel: ${hourLabel} from booking hour: ${hour}`);
+              }
+            }
+          } else {
+            console.warn(`Summary: Could not parse date for booking ID ${doc.id}: ${bookingDateTimeString}`);
+          }
+        } catch (e) {
+          console.warn(`Summary: Error processing slot for booking ID ${doc.id}: ${bookingData.slot}`, e);
         }
       }
     });
 
-    const peakHour = hourlyBookings.sort((a, b) => b.bookings - a.bookings)[0].hour;
+    const sortedHourlyBookings = [...hourlyBookings].sort((a, b) => b.bookings - a.bookings);
+    const peakHour = sortedHourlyBookings.length > 0 && sortedHourlyBookings[0].bookings > 0
+                     ? sortedHourlyBookings[0].hour
+                     : "No data";
 
     res.json({
       totalBookings: bookingsThisWeek.size,
@@ -859,9 +922,9 @@ router.get('/summary-stats', authenticate, async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching summary stats:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to fetch summary stats',
-      details: error.message 
+      details: error.message
     });
   }
 });

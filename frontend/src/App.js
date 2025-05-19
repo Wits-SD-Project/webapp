@@ -37,6 +37,7 @@ import ResDashboard from "./pages/dashboards/ResDashboard";
 import ResNotifications from "./pages/dashboards/ResNotifications";
 import ResMaintenance from "./pages/dashboards/ResMaintenance";
 import ResEvents from "./pages/dashboards/ResEvents";
+import FacilityDetail from "./pages/dashboards/FacilityDetail"
 
 // Resident Feature
 import ResidentBooking from "./components/ResidentBooking";
@@ -203,8 +204,16 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+        path="/facility/:id"
+        element={
+          <ProtectedRoute requiredRole="resident">
+            <FacilityDetail/> 
+          </ProtectedRoute>
+        }
+      />
       </Routes>
-
+      
       <ToastContainer position="top-center" autoClose={3000} />
       {/* </Router> */}
     </AuthProvider>
