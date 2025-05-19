@@ -97,14 +97,14 @@
     color: white;
     border: none;
     border-radius: 6px;
-    font-weight: 500;
+    font-weight: 1000;
     cursor: pointer;
     transition: background-color 0.2s;
     margin-top: auto; /* Added - this pushes the button to the bottom */
   }
   
   .book-button:hover {
-    background-color: #339af0;
+    background-color: #05ABC4;
   }
   
   @media (max-width: 768px) {

@@ -117,7 +117,7 @@ export default function ResMaintenance() {
             <h1>My Maintenance Reports</h1>
             <input 
               type="search" 
-              placeholder="Search" 
+              placeholder="Search reports..." 
               className="search-box" 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
