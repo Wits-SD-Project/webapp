@@ -6,19 +6,22 @@ import "react-toastify/dist/ReactToastify.css";
 // Auth & Context
 import SignIn from "./pages/auth/SignIn";
 import SignUp from "./pages/auth/SignUp";
+import LandingPage from "./pages/auth/LandingPage";
 import ForgotPassword from "./ForgotPassword";
 import ResetPassword from "./pages/auth/ResetPassword";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 // Admin Pages
-import AdminDashboard from "./pages/dashboards/AdminDashboard";
 import AdminManageUsers from "./pages/dashboards/AdminManageUsers";
+import AdminDashboard from "./pages/dashboards/AdminDashboard";
 import AdminManageEvents from "./pages/dashboards/AdminManageEvents";
 import AdminMaintenance from "./pages/dashboards/AdminMaintenance";
-import Reports from "./pages/dashboards/Reports"; 
 
-// Staff Pages
+import UserDashboard from "./pages/dashboards/UserDashboard";
+
+
+//Staff Pages
 import StaffDashboard from "./pages/dashboards/StaffDashboard";
 import StaffViewBookings from "./pages/dashboards/StaffViewBookings";
 import StaffUpcomingBookings from "./pages/dashboards/StaffUpcomingBookings";
@@ -26,13 +29,13 @@ import StaffEditTimeSlots from "./pages/dashboards/StaffEditTimeSlots";
 import StaffManageFacilities from "./pages/dashboards/StaffManageFacilities";
 import StaffMaintenance from "./pages/dashboards/StaffMaintenance";
 
-// Resident Pages
+//Res Pages
 import ResDashboard from "./pages/dashboards/ResDashboard";
 import ResNotifications from "./pages/dashboards/ResNotifications";
 import ResMaintenance from "./pages/dashboards/ResMaintenance";
 import ResEvents from "./pages/dashboards/ResEvents";
-import UserDashboard from "./pages/dashboards/UserDashboard";
-import FacilityDetail from "./pages/dashboards/FacilityDetail";
+
+// Resident Feature
 import ResidentBooking from "./components/ResidentBooking";
 
 // Styles
@@ -46,21 +49,13 @@ function App() {
       {/* <Router> */}
       <Routes>
         {/* Public Routes */}
-        <Route path="/" element={<SignIn />} />
+        <Route path="/" element={<LandingPage />}   />  
         <Route path="/signin" element={<SignIn />} />
         <Route path="/signup" element={<SignUp />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
 
-        {/* Admin Protected Routes */}
-        <Route
-          path="/admin-dashboard"
-          element={
-            <ProtectedRoute requiredRole="admin">
-              <AdminDashboard />
-            </ProtectedRoute>
-          }
-        />
+        {/* Protected Routes */}
         <Route
           path="/admin-manage-users"
           element={
@@ -70,6 +65,14 @@ function App() {
           }
         />
         <Route
+          path="/admin-dashboard"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+         <Route
           path="/admin-manage-events"
           element={
             <ProtectedRoute requiredRole="admin">
@@ -86,16 +89,6 @@ function App() {
           }
         />
         <Route
-          path="/admin/reports"
-          element={
-            <ProtectedRoute requiredRole="admin">
-              <Reports />
-            </ProtectedRoute>
-          }
-        />
-
-        {/* Staff Protected Routes */}
-        <Route
           path="/staff-dashboard"
           element={
             <ProtectedRoute requiredRole="staff">
@@ -103,48 +96,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/staff-view-bookings"
-          element={
-            <ProtectedRoute requiredRole="staff">
-              <StaffViewBookings />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/staff-upcoming-bookings"
-          element={
-            <ProtectedRoute requiredRole="staff">
-              <StaffUpcomingBookings />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/staff-manage-facilities"
-          element={
-            <ProtectedRoute requiredRole="staff">
-              <StaffManageFacilities />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/staff-edit-time-slots/:id"
-          element={
-            <ProtectedRoute requiredRole="staff">
-              <StaffEditTimeSlots />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/staff-maintenance"
-          element={
-            <ProtectedRoute requiredRole="staff">
-              <StaffMaintenance />
-            </ProtectedRoute>
-          }
-        />
-
-        {/* Resident Protected Routes */}
         <Route
           path="/res-dashboard"
           element={
@@ -194,10 +145,42 @@ function App() {
           }
         />
         <Route
-          path="/facility/:id"
+          path="/staff-view-bookings"
           element={
-            <ProtectedRoute requiredRole="resident">
-              <FacilityDetail />
+            <ProtectedRoute requiredRole="staff">
+              <StaffViewBookings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/staff-upcoming-bookings"
+          element={
+            <ProtectedRoute requiredRole="staff">
+              <StaffUpcomingBookings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/staff-manage-facilities"
+          element={
+            <ProtectedRoute requiredRole="staff">
+              <StaffManageFacilities />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/staff-edit-time-slots/:id"
+          element={
+            <ProtectedRoute requiredRole="staff">
+              <StaffEditTimeSlots />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/staff-maintenance"
+          element={
+            <ProtectedRoute requiredRole="staff">
+              <StaffMaintenance />
             </ProtectedRoute>
           }
         />
