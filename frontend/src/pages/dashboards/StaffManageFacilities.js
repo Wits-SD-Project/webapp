@@ -70,6 +70,8 @@ export default function ManageFacilities() {
         isOutdoors: tempFacilityData.isOutdoors === "Yes",
       };
 
+      console.log("Uploading facility:", completeData);
+
       const res = await fetch("http://localhost:8080/api/facilities/upload", {
         method: "POST",
         headers: {
@@ -81,7 +83,7 @@ export default function ManageFacilities() {
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);
-
+      console.log(data);
       setFacilities((prev) => [
         ...prev,
         { ...data.facility, isEditing: false },
@@ -98,8 +100,8 @@ export default function ManageFacilities() {
   const handleUpdateFeatures = async (featureData) => {
     try {
       const token = await getAuthToken();
-      const facility = facilities.find(f => f.id === editingFacilityId);
-      
+      const facility = facilities.find((f) => f.id === editingFacilityId);
+
       const res = await fetch(
         `http://localhost:8080/api/facilities/updateFacility/${editingFacilityId}`,
         {
@@ -121,7 +123,9 @@ export default function ManageFacilities() {
 
       setFacilities((prev) =>
         prev.map((f) =>
-          f.id === editingFacilityId ? { ...data.facility, isEditing: false } : f
+          f.id === editingFacilityId
+            ? { ...data.facility, isEditing: false }
+            : f
         )
       );
 
@@ -290,7 +294,7 @@ export default function ManageFacilities() {
         onClose={closeModal}
         onSubmit={handleAddFacility}
       />
-      
+
       <FeatureFormModal
         open={featureModalOpen}
         onClose={() => {
@@ -308,8 +312,10 @@ export default function ManageFacilities() {
           setEditingFacilityId(null);
         }}
         onSubmit={handleUpdateFeatures}
-        facilityType={facilities.find(f => f.id === editingFacilityId)?.type || "General"}
-        initialData={facilities.find(f => f.id === editingFacilityId)}
+        facilityType={
+          facilities.find((f) => f.id === editingFacilityId)?.type || "General"
+        }
+        initialData={facilities.find((f) => f.id === editingFacilityId)}
         isEditMode={true}
       />
 
@@ -420,7 +426,7 @@ export default function ManageFacilities() {
                         }
                       />
                       {!f.isEditing && (
-                        <button 
+                        <button
                           className="features-btn"
                           onClick={() => handleEditFeatures(f.id)}
                         >

@@ -16,7 +16,8 @@ import AdminDashboard from "./pages/dashboards/AdminDashboard";
 import AdminManageUsers from "./pages/dashboards/AdminManageUsers";
 import AdminManageEvents from "./pages/dashboards/AdminManageEvents";
 import AdminMaintenance from "./pages/dashboards/AdminMaintenance";
-import Reports from "./pages/dashboards/Reports"; 
+import Reports from "./pages/dashboards/Reports";
+import "leaflet/dist/leaflet.css";
 
 // Staff Pages
 import StaffDashboard from "./pages/dashboards/StaffDashboard";
@@ -38,7 +39,6 @@ import ResidentBooking from "./components/ResidentBooking";
 // Styles
 import "./forgot.css";
 import "./reset.css";
-
 
 function App() {
   return (
