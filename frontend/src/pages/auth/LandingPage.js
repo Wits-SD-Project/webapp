@@ -1,5 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import logo from "../../assets/logo.png";
+import players from "../../assets/playing-basketball.jpg"
 
 const COLORS = {
   primary: "#00BCD4",
@@ -174,7 +176,11 @@ const styles = {
     color: COLORS.white,
     textDecoration: "none",
     fontSize: "1rem"
-  }
+  },
+  logoImg: {
+  height: "100px", // adjust as needed
+  width: "auto"
+}
 };
 
 export default function LandingPage() {
@@ -185,17 +191,7 @@ export default function LandingPage() {
       <div style={styles.body}>
         {/* Header */}
         <header style={styles.header}>
-          <span style={styles.logo}>SportEase</span>
-          <nav style={styles.nav}>
-            <a href="#" style={styles.navLink}>Home</a>
-            <a href="#" style={styles.navLink}>Facilities</a>
-            <a href="#" style={styles.navLink}>Bookings</a>
-            <a href="#" style={styles.navLink}>Events</a>
-            <a href="#" style={styles.navLink}>Contact</a>
-          </nav>
-          <button style={styles.ctaBtn} onClick={() => navigate("/signin")}>
-            Login / Sign Up
-          </button>
+            <img src={logo} alt="Sports Sphere Logo" style={styles.logoImg} />
         </header>
 
         {/* Hero */}
@@ -222,9 +218,9 @@ export default function LandingPage() {
             </div>
           </div>
           <img
-            style={styles.heroImg}
-            src="https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=400&q=80"
+            src={players}
             alt="People playing basketball"
+            style={styles.heroImg}
           />
         </section>
 
