@@ -562,4 +562,140 @@ router.get("/facilities", authenticate, async (req, res) => {
   }
 });
 
+router.post('/events/notify', async (req, res) => {
+   const formatDateTime = (date) => {
+    if (!date) return "";
+    return date.toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  try {
+    const { eventId, eventName, facilityName, startTime, endTime } = req.body;
+
+
+    // Validate required fields
+    if (!eventId || !eventName || !facilityName || !startTime || !endTime) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields for notification',
+      });
+    }
+
+    // Fetch all residents
+    const usersSnapshot = await admin.firestore()
+      .collection('users')
+      .where('role', '==', 'resident')
+      .get();
+
+    if (usersSnapshot.empty) {
+      return res.status(200).json({
+        success: true,
+        message: 'No residents found to notify',
+      });
+    }
+
+    // Prepare batch notification creation
+    const batch = admin.firestore().batch();
+    const notificationsRef = admin.firestore().collection('notifications');
+
+    usersSnapshot.forEach(docSnap => {
+      const resident = docSnap.data();
+      const newNotificationRef = notificationsRef.doc();
+
+      const notificationData = {
+        createdAt: new Date().toISOString(),
+        facilityName: facilityName || 'Unknown Facility',
+        slot: `${formatDateTime(new Date(startTime))} - ${formatDateTime(new Date(endTime))}`,
+        status: "new-event",
+        eventName: eventName || 'New Event',
+        userName: resident.email || 'unknown@email.com',
+        read: false,
+        type: "event",
+        startTime,
+        endTime,
+        eventId
+      };
+
+      // Optional: Remove undefined values
+      Object.keys(notificationData).forEach(key => {
+        if (notificationData[key] === undefined) {
+          delete notificationData[key];
+        }
+      });
+
+      batch.set(newNotificationRef, notificationData, { ignoreUndefinedProperties: true });
+    });
+
+    // Commit batch
+    await batch.commit();
+
+    res.status(200).json({
+      success: true,
+      message: `Notifications sent to ${usersSnapshot.size} residents`
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send notifications',
+      error: error.message
+    });
+  }
+});
+
+router.get('/upcoming', authenticate, async (req, res) => {
+  try {
+    const snapshot = await admin.firestore()
+      .collection('admin-events')
+      .get();
+
+    const now = new Date().toISOString(); // Current time as ISO string
+    const events = [];
+
+    snapshot.forEach(doc => {
+      const eventData = doc.data();
+      
+      // Since times are already ISO strings, we can use them directly
+      events.push({
+        id: doc.id,
+        ...eventData,
+        // No need to convert timestamps
+        startTime: eventData.startTime,
+        endTime: eventData.endTime
+      });
+    });
+
+    // Filter for upcoming events (compare ISO strings directly)
+    const upcomingEvents = events.filter(event => 
+      event.startTime && event.startTime > now
+    );
+
+    res.json({ events: upcomingEvents });
+  } catch (error) {
+    console.error('Error fetching events:', error);
+    res.status(500).json({ error: 'Failed to fetch events' });
+  }
+});
+
+router.get('/unread-count',authenticate, async (req, res) => {
+  try {
+    const userEmail = req.user.email; // Assuming you have auth middleware
+    const notificationsRef = admin.firestore().collection('notifications');
+    
+    const snapshot = await notificationsRef
+      .where('userName', '==', userEmail)
+      .where('read', '==', false)
+      .get();
+
+    res.json({ count: snapshot.size });
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    res.status(500).json({ error: 'Failed to fetch notifications' });
+  }
+});
+
 module.exports = router;

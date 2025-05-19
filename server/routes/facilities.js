@@ -688,6 +688,30 @@
       });
     }
   });
-   /* ------------------------------------------------------------------ */
-   module.exports = router;
+
+  router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const docRef = admin.firestore().collection('facilities-test').doc(id);
+    const snapshot = await docRef.get();
+
+    if (!snapshot.exists) {
+      return res.status(404).json({ message: 'Facility not found' });
+    }
+
+    const facilityData = {
+      id: snapshot.id,
+      ...snapshot.data()
+    };
+    
+    res.json(facilityData); // Changed from res.json({success: true, data: ...})
+    
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to load facility' });
+  }
+});
+
+ /* ------------------------------------------------------------------ */
+ module.exports = router;
    
