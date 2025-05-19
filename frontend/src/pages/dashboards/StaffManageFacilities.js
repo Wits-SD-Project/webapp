@@ -7,8 +7,8 @@ import "../../styles/staffManageFacilities.css";
 import { useNavigate } from "react-router-dom";
 import { getAuthToken } from "../../firebase";
 import { toast } from "react-toastify";
-import FacilityFormModal from "./FalicityFormModal";
-import FeatureFormModal from "./FeatureFormModal";
+import FacilityFormModal from "../../components/FalicityFormModal";
+import FeatureFormModal from "../../components/FeatureFormModal.js";
 
 export default function ManageFacilities() {
   const [facilities, setFacilities] = useState([]);
