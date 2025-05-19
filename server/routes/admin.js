@@ -789,7 +789,7 @@ router.get('/top-facilities', authenticate, async (req, res) => {
 
     const topFacilities = bookingCounts
       .sort((a, b) => b.bookings - a.bookings)
-      .slice(0, 4);
+      
 
     console.log('Top 4 facilities:', topFacilities);
     res.json({ topFacilities });
