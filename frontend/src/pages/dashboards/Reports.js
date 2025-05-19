@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Sidebar from "../../components/AdminSideBar.js";
 import "../../styles/staffDashboard.css";
 import {
@@ -12,42 +12,76 @@ import {
   LineChart,
   Line,
 } from "recharts";
-
-// Dummy hourly bookings data (replace with real backend data)
-const hourlyBookings = [
-  { hour: "6 AM", bookings: 2 },
-  { hour: "7 AM", bookings: 3 },
-  { hour: "8 AM", bookings: 5 },
-  { hour: "9 AM", bookings: 10 },
-  { hour: "10 AM", bookings: 8 },
-  { hour: "11 AM", bookings: 4 },
-  { hour: "12 PM", bookings: 6 },
-  { hour: "1 PM", bookings: 7 },
-  { hour: "2 PM", bookings: 3 },
-];
-
-// Dummy facility popularity (replace with backend logic)
-const topFacilities = [
-  { name: "Tennis Court", bookings: 40 },
-  { name: "Soccer Field", bookings: 30 },
-  { name: "Basketball Court", bookings: 20 },
-  { name: "Swimming Pool", bookings: 10 },
-];
-
-// Dummy daily booking stats
-const dailyBookings = [
-  { day: "Mon", bookings: 12 },
-  { day: "Tue", bookings: 9 },
-  { day: "Wed", bookings: 15 },
-  { day: "Thu", bookings: 8 },
-  { day: "Fri", bookings: 11 },
-  { day: "Sat", bookings: 18 },
-  { day: "Sun", bookings: 5 },
-];
+import { getAuthToken } from "../../firebase.js";
 
 export default function Reports() {
+  const [hourlyBookings, setHourlyBookings] = useState([]);
+  const [topFacilities, setTopFacilities] = useState([]);
+  const [dailyBookings, setDailyBookings] = useState([]);
+  const [summaryStats, setSummaryStats] = useState({
+    totalBookings: 0,
+    mostUsedFacility: "Loading...",
+    peakHour: "Loading..."
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchReportData = async () => {
+      try {
+        const token = await getAuthToken();
+        const headers = {
+          Authorization: `Bearer ${token}`,
+        };
+
+        // Fetch all data in parallel
+        const [hourlyRes, facilitiesRes, dailyRes, summaryRes] = await Promise.all([
+          fetch('http://localhost:8080/api/admin/hourly-bookings', { headers }),
+          fetch('http://localhost:8080/api/admin/top-facilities', { headers }),
+          fetch('http://localhost:8080/api/admin/daily-bookings', { headers }),
+          fetch('http://localhost:8080/api/admin/summary-stats', { headers })
+        ]);
+
+        if (!hourlyRes.ok || !facilitiesRes.ok || !dailyRes.ok || !summaryRes.ok) {
+          throw new Error('Failed to fetch report data');
+        }
+
+        const hourlyData = await hourlyRes.json();
+        const facilitiesData = await facilitiesRes.json();
+        const dailyData = await dailyRes.json();
+        const summaryData = await summaryRes.json();
+
+        setHourlyBookings(hourlyData.hourlyBookings);
+        setTopFacilities(facilitiesData.topFacilities);
+        setDailyBookings(dailyData.dailyBookings);
+        setSummaryStats({
+          totalBookings: summaryData.totalBookings,
+          mostUsedFacility: summaryData.mostUsedFacility,
+          peakHour: summaryData.peakHour
+        });
+      } catch (error) {
+        console.error('Error fetching report data:', error);
+        // You might want to set some error state here
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchReportData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div style={{ display: "flex", height: "100vh", width: "100vw" }}>
+        <Sidebar activeItem="reports" />
+        <div style={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center" }}>
+          <p>Loading reports...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ display: "flex", height: "100vh" }}>
+    <div style={{ display: "flex", height: "100vh", width: "100vw" }}>
       <Sidebar activeItem="reports" />
       <div
         style={{
@@ -58,7 +92,7 @@ export default function Reports() {
           fontFamily: "'Segoe UI', sans-serif",
         }}
       >
-        {/* Summary stats - replace these with backend data later */}
+        {/* Summary stats */}
         <div
           style={{
             display: "flex",
@@ -68,9 +102,9 @@ export default function Reports() {
           }}
         >
           {[
-            { title: "Total Bookings This Week", value: 78 },
-            { title: "Most Used Facility", value: "Tennis Court" },
-            { title: "Peak Hour", value: "9 AM" },
+            { title: "Total Bookings This Week", value: summaryStats.totalBookings },
+            { title: "Most Used Facility", value: summaryStats.mostUsedFacility },
+            { title: "Peak Hour", value: summaryStats.peakHour },
           ].map((stat, i) => (
             <div
               key={i}
@@ -114,41 +148,47 @@ export default function Reports() {
           <h3>Top Booked Facilities</h3>
           <p>These are the most booked facilities based on current data.</p>
           <ul style={{ listStyle: "none", padding: 0, marginTop: "1rem" }}>
-            {topFacilities.map((facility, index) => (
-              <li
-                key={index}
-                style={{
-                  marginBottom: "0.75rem",
-                  fontSize: "1rem",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <span>{facility.name}</span>
-                <div
+            {topFacilities.map((facility, index) => {
+              // Calculate percentage relative to the most booked facility
+              const maxBookings = topFacilities[0].bookings;
+              const percentage = Math.round((facility.bookings / maxBookings) * 100);
+              
+              return (
+                <li
+                  key={index}
                   style={{
-                    width: "60%",
-                    marginLeft: "1rem",
-                    background: "#e0e0e0",
-                    borderRadius: "20px",
-                    overflow: "hidden",
+                    marginBottom: "0.75rem",
+                    fontSize: "1rem",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
                   }}
                 >
+                  <span>{facility.name}</span>
                   <div
                     style={{
-                      width: `${facility.bookings}%`,
-                      background: "#00c0df",
-                      height: "12px",
+                      width: "60%",
+                      marginLeft: "1rem",
+                      background: "#e0e0e0",
                       borderRadius: "20px",
+                      overflow: "hidden",
                     }}
-                  />
-                </div>
-                <span style={{ marginLeft: "1rem", minWidth: "30px" }}>
-                  {facility.bookings}%
-                </span>
-              </li>
-            ))}
+                  >
+                    <div
+                      style={{
+                        width: `${percentage}%`,
+                        background: "#00c0df",
+                        height: "12px",
+                        borderRadius: "20px",
+                      }}
+                    />
+                  </div>
+                  <span style={{ marginLeft: "1rem", minWidth: "30px" }}>
+                    {facility.bookings}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         </div>
 

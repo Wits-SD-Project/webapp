@@ -1,15 +1,10 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { doc, getDoc } from "firebase/firestore";
-import { db, auth } from "../../firebase";
+import { auth ,getAuthToken} from "../../firebase";
 import {
-  Box,
   Typography,
-  Grid,
   Button,
-  Divider,
   Paper,
-  Container,
   Chip,
   Skeleton,
   Tabs,
@@ -57,24 +52,45 @@ export default function FacilityDetail() {
   const placeholder =
     "https://images.unsplash.com/photo-1527767654427-1790d8ff3745?q=80&w=2574&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
 
-  useEffect(() => {
-    const fetchFacility = async () => {
+
+ useEffect(() => {
+  const fetchFacility = async () => {
+    setLoading(true);
+    try {
+      // 1. Get authentication token
+      let token;
       try {
-        const docRef = doc(db, "facilities-test", id);
-        const snapshot = await getDoc(docRef);
-        console.log(snapshot);
-        if (snapshot.exists()) {
-          setFacility({ id: snapshot.id, ...snapshot.data() });
-        } else {
-          toast.error("Facility not found.");
-        }
-      } catch (err) {
-        toast.error("Failed to load facility.");
-        console.error("Error fetching facility:", err);
-      } finally {
-        setLoading(false);
+        token = await getAuthToken();
+        if (!token) throw new Error('No auth token available');
+      } catch (authError) {
+        throw new Error('Authentication failed: ' + authError.message);
       }
-    };
+
+      // 2. Make API request
+      const response = await fetch(`http://localhost:8080/api/facilities/${id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      // 3. Handle response
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || `HTTP error! status: ${response.status}`);
+      }
+
+      // 4. Update state
+      setFacility(data);
+      
+    } catch (err) {
+      toast.error(err.message || 'Failed to load facility details');
+      setFacility(null); // Clear any previous facility data
+    } finally {
+      setLoading(false);
+    }
+  };
 
     fetchFacility();
     console.log(facility);

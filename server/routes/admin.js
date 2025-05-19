@@ -562,4 +562,372 @@ router.get("/facilities", authenticate, async (req, res) => {
   }
 });
 
+router.post('/events/notify', async (req, res) => {
+   const formatDateTime = (date) => {
+    if (!date) return "";
+    return date.toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  try {
+    const { eventId, eventName, facilityName, startTime, endTime } = req.body;
+
+
+    // Validate required fields
+    if (!eventId || !eventName || !facilityName || !startTime || !endTime) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields for notification',
+      });
+    }
+
+    // Fetch all residents
+    const usersSnapshot = await admin.firestore()
+      .collection('users')
+      .where('role', '==', 'resident')
+      .get();
+
+    if (usersSnapshot.empty) {
+      return res.status(200).json({
+        success: true,
+        message: 'No residents found to notify',
+      });
+    }
+
+    // Prepare batch notification creation
+    const batch = admin.firestore().batch();
+    const notificationsRef = admin.firestore().collection('notifications');
+
+    usersSnapshot.forEach(docSnap => {
+      const resident = docSnap.data();
+      const newNotificationRef = notificationsRef.doc();
+
+      const notificationData = {
+        createdAt: new Date().toISOString(),
+        facilityName: facilityName || 'Unknown Facility',
+        slot: `${formatDateTime(new Date(startTime))} - ${formatDateTime(new Date(endTime))}`,
+        status: "new-event",
+        eventName: eventName || 'New Event',
+        userName: resident.email || 'unknown@email.com',
+        read: false,
+        type: "event",
+        startTime,
+        endTime,
+        eventId
+      };
+
+      // Optional: Remove undefined values
+      Object.keys(notificationData).forEach(key => {
+        if (notificationData[key] === undefined) {
+          delete notificationData[key];
+        }
+      });
+
+      batch.set(newNotificationRef, notificationData, { ignoreUndefinedProperties: true });
+    });
+
+    // Commit batch
+    await batch.commit();
+
+    res.status(200).json({
+      success: true,
+      message: `Notifications sent to ${usersSnapshot.size} residents`
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send notifications',
+      error: error.message
+    });
+  }
+});
+
+router.get('/upcoming', authenticate, async (req, res) => {
+  try {
+    const snapshot = await admin.firestore()
+      .collection('admin-events')
+      .get();
+
+    const now = new Date().toISOString(); // Current time as ISO string
+    const events = [];
+
+    snapshot.forEach(doc => {
+      const eventData = doc.data();
+      
+      // Since times are already ISO strings, we can use them directly
+      events.push({
+        id: doc.id,
+        ...eventData,
+        // No need to convert timestamps
+        startTime: eventData.startTime,
+        endTime: eventData.endTime
+      });
+    });
+
+    // Filter for upcoming events (compare ISO strings directly)
+    const upcomingEvents = events.filter(event => 
+      event.startTime && event.startTime > now
+    );
+
+    res.json({ events: upcomingEvents });
+  } catch (error) {
+    console.error('Error fetching events:', error);
+    res.status(500).json({ error: 'Failed to fetch events' });
+  }
+});
+
+router.get('/unread-count',authenticate, async (req, res) => {
+  try {
+    const userEmail = req.user.email; // Assuming you have auth middleware
+    const notificationsRef = admin.firestore().collection('notifications');
+    
+    const snapshot = await notificationsRef
+      .where('userName', '==', userEmail)
+      .where('read', '==', false)
+      .get();
+
+    res.json({ count: snapshot.size });
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    res.status(500).json({ error: 'Failed to fetch notifications' });
+  }
+});
+
+// Hourly bookings data
+// server/routes/admin.js
+
+// Hourly bookings data
+router.get('/hourly-bookings', authenticate, async (req, res) => {
+  try {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const bookingsSnapshot = await admin.firestore()
+      .collection('bookings')
+      // Assuming you've also fixed Issue 1 (using 'date' field and correct comparison)
+      // For example, if 'date' is "YYYY-MM-DD":
+      .where('date', '>=', sevenDaysAgo.toISOString().split('T')[0])
+      .get();
+
+    const hourlyCounts = Array(12).fill(0).map((_, i) => {
+      const hour = i + 6; // From 6 AM to 5 PM
+      return { hour: `${hour} ${hour < 12 ? 'AM' : 'PM'}`, bookings: 0 };
+    });
+
+    bookingsSnapshot.forEach(doc => {
+      const booking = doc.data();
+      if (booking.date && booking.slot) { // Ensure necessary fields exist
+        try {
+          const slotStartTime = booking.slot.split(' - ')[0]; // Get "09:00" from "09:00 - 10:00"
+          // Construct a full ISO-like string that new Date() can parse reliably
+          const bookingDateTimeString = `${booking.date}T${slotStartTime}:00`;
+          const bookingDateObject = new Date(bookingDateTimeString);
+
+          if (!isNaN(bookingDateObject.getTime())) { // Check if the date is valid
+            const hour = bookingDateObject.getHours(); // This will now be the correct hour
+
+            // Your existing logic to map to displayHour and hourLabel
+            const displayHour = hour === 0 ? 12 : (hour > 12 ? hour - 12 : hour); // Handle midnight as 12 AM
+            const period = hour < 12 || hour === 24 ? 'AM' : 'PM'; // Adjust period for midnight/noon if needed
+            // Ensure consistent hour formatting in hourLabel, especially for single-digit hours if not padded
+            // The hourlyCounts array uses non-padded hours like "6 AM", "7 AM" etc.
+            const hourLabel = `${displayHour} ${period}`;
+
+            const hourIndex = hourlyCounts.findIndex(h => h.hour === hourLabel);
+            if (hourIndex !== -1) {
+              hourlyCounts[hourIndex].bookings++;
+            } else {
+              // This might happen if a booking hour is outside your 6 AM - 5 PM window
+              // Or if the hourLabel formatting here doesn't exactly match what's in hourlyCounts
+              console.warn(`Could not find hourIndex for hourLabel: ${hourLabel} from booking hour: ${hour}`);
+            }
+          } else {
+            console.warn(`Could not parse date for booking ID ${doc.id}: ${bookingDateTimeString}`);
+          }
+        } catch (e) {
+          console.warn(`Error processing slot for booking ID ${doc.id}: ${booking.slot}`, e);
+        }
+      }
+    });
+
+    res.json({ hourlyBookings: hourlyCounts });
+  } catch (error) {
+    console.error('Error fetching hourly bookings:', error);
+    res.status(500).json({ error: 'Failed to fetch hourly bookings' });
+  }
+});
+// ------------------------------
+// [2] Top Facilities
+// ------------------------------
+router.get('/top-facilities', authenticate, async (req, res) => {
+  console.log('[GET] /top-facilities accessed');
+  try {
+    const facilitiesSnapshot = await admin.firestore()
+      .collection('facilities-test')
+      .get();
+
+    console.log(`Fetched ${facilitiesSnapshot.size} facilities`);
+
+    const bookingCounts = await Promise.all(
+      facilitiesSnapshot.docs.map(async doc => {
+        const bookings = await admin.firestore()
+          .collection('bookings')
+          .where('facilityId', '==', doc.id)
+          .get();
+        console.log(`Facility "${doc.data().name}" has ${bookings.size} bookings`);
+        return {
+          name: doc.data().name,
+          bookings: bookings.size
+        };
+      })
+    );
+
+    const topFacilities = bookingCounts
+      .sort((a, b) => b.bookings - a.bookings)
+      .slice(0, 4);
+
+    console.log('Top 4 facilities:', topFacilities);
+    res.json({ topFacilities });
+  } catch (error) {
+    console.error('Error fetching top facilities:', error);
+    res.status(500).json({ error: 'Failed to fetch top facilities' });
+  }
+});
+
+// ------------------------------
+// [3] Daily Bookings
+// ------------------------------
+router.get('/daily-bookings', authenticate, async (req, res) => {
+  console.log('[GET] /daily-bookings accessed');
+  try {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const dailyCounts = days.map(day => ({ day, bookings: 0 }));
+
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    console.log('Fetching bookings from:', sevenDaysAgo.toISOString());
+
+    const bookingsSnapshot = await admin.firestore()
+      .collection('bookings')
+      .where('date', '>=', sevenDaysAgo.toISOString())
+      .get();
+
+    console.log(`Fetched ${bookingsSnapshot.size} bookings`);
+
+    bookingsSnapshot.forEach(doc => {
+      const date = new Date(doc.data().date);
+      const dayIndex = date.getDay();
+      dailyCounts[dayIndex].bookings++;
+      console.log(`Booking on ${days[dayIndex]} (index ${dayIndex})`);
+    });
+
+    console.log('Daily bookings breakdown:', dailyCounts);
+    res.json({ dailyBookings: dailyCounts });
+  } catch (error) {
+    console.error('Error fetching daily bookings:', error);
+    res.status(500).json({ error: 'Failed to fetch daily bookings' });
+  }
+});
+
+// ------------------------------
+// [4] Summary Statistics
+// ------------------------------
+router.get('/summary-stats', authenticate, async (req, res) => {
+  console.log('[GET] /summary-stats accessed');
+  try {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - dayOfWeek);
+    startOfWeek.setHours(0, 0, 0, 0);
+    console.log('Start of week:', startOfWeek.toISOString());
+
+    const bookingsThisWeek = await admin.firestore()
+      .collection('bookings')
+      .where('date', '>=', startOfWeek.toISOString())
+      .get();
+
+    console.log(`Total bookings this week: ${bookingsThisWeek.size}`);
+
+    const facilities = await admin.firestore().collection('facilities-test').get();
+    console.log(`Fetched ${facilities.size} facilities`);
+
+    const facilityBookings = await Promise.all(
+      facilities.docs.map(async doc => {
+        const bookings = await admin.firestore()
+          .collection('bookings')
+          .where('facilityId', '==', doc.id)
+          .get();
+        console.log(`Facility "${doc.data().name}" has ${bookings.size} bookings`);
+        return {
+          name: doc.data().name,
+          count: bookings.size
+        };
+      })
+    );
+
+    const mostUsedFacility = facilityBookings.sort((a, b) => b.count - a.count)[0];
+    console.log('Most used facility:', mostUsedFacility);
+const hourlyBookings = Array(12).fill(0).map((_, i) => {
+      const hour = i + 6; // From 6 AM to 5 PM
+      return { hour: `${hour} ${hour < 12 ? 'AM' : 'PM'}`, bookings: 0 };
+    });
+
+    bookingsThisWeek.forEach(doc => {
+      const bookingData = doc.data();
+      if (bookingData.date && bookingData.slot) { // Ensure necessary fields exist
+        try {
+          const slotStartTime = bookingData.slot.split(' - ')[0]; // "09:00"
+          const bookingDateTimeString = `${bookingData.date}T${slotStartTime}:00`;
+          const bookingDateObject = new Date(bookingDateTimeString);
+
+          if (!isNaN(bookingDateObject.getTime())) { // Check if the date is valid
+            const hour = bookingDateObject.getHours();
+
+            if (hour >= 6 && hour <= 17) { // Only count hours between 6AM and 5PM
+              const displayHour = hour === 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+              const period = hour < 12 || hour === 24 ? 'AM' : 'PM';
+              const hourLabel = `${displayHour} ${period}`;
+
+              const hourIndex = hourlyBookings.findIndex(h => h.hour === hourLabel);
+              if (hourIndex !== -1) {
+                hourlyBookings[hourIndex].bookings++;
+              } else {
+                 console.warn(`Summary: Could not find hourIndex for hourLabel: ${hourLabel} from booking hour: ${hour}`);
+              }
+            }
+          } else {
+            console.warn(`Summary: Could not parse date for booking ID ${doc.id}: ${bookingDateTimeString}`);
+          }
+        } catch (e) {
+          console.warn(`Summary: Error processing slot for booking ID ${doc.id}: ${bookingData.slot}`, e);
+        }
+      }
+    });
+
+    const sortedHourlyBookings = [...hourlyBookings].sort((a, b) => b.bookings - a.bookings);
+    const peakHour = sortedHourlyBookings.length > 0 && sortedHourlyBookings[0].bookings > 0
+                     ? sortedHourlyBookings[0].hour
+                     : "No data";
+
+    res.json({
+      totalBookings: bookingsThisWeek.size,
+      mostUsedFacility: mostUsedFacility?.name || "No data",
+      peakHour: peakHour || "No data"
+    });
+  } catch (error) {
+    console.error('Error fetching summary stats:', error);
+    res.status(500).json({
+      error: 'Failed to fetch summary stats',
+      details: error.message
+    });
+  }
+});
+
+
 module.exports = router;
