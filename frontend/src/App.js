@@ -17,6 +17,8 @@ import AdminManageUsers from "./pages/dashboards/AdminManageUsers";
 import AdminDashboard from "./pages/dashboards/AdminDashboard";
 import AdminManageEvents from "./pages/dashboards/AdminManageEvents";
 import AdminMaintenance from "./pages/dashboards/AdminMaintenance";
+import AdminReports from "./pages/dashboards/Reports";
+
 
 import UserDashboard from "./pages/dashboards/UserDashboard";
 
@@ -94,6 +96,14 @@ function App() {
           element={
             <ProtectedRoute requiredRole="admin">
               <AdminMaintenance />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/reports"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminReports />
             </ProtectedRoute>
           }
         />
