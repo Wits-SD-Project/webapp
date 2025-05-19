@@ -28,6 +28,7 @@ import StaffUpcomingBookings from "./pages/dashboards/StaffUpcomingBookings";
 import StaffEditTimeSlots from "./pages/dashboards/StaffEditTimeSlots";
 import StaffManageFacilities from "./pages/dashboards/StaffManageFacilities";
 import StaffMaintenance from "./pages/dashboards/StaffMaintenance";
+import Reports from "./pages/dashboards/Reports";
 
 //Res Pages
 import ResDashboard from "./pages/dashboards/ResDashboard";
@@ -71,6 +72,14 @@ function App() {
               <AdminDashboard />
             </ProtectedRoute>
           }
+        />
+        <Route
+        path="/admin/reports"  // Or your desired path
+        element={
+        <ProtectedRoute requiredRole="admin">
+          <Reports />
+        </ProtectedRoute>
+          } 
         />
          <Route
           path="/admin-manage-events"

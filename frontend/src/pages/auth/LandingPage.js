@@ -13,6 +13,7 @@ const COLORS = {
 
 const styles = {
   body: {
+    width: "100vw",
     background: COLORS.background,
     color: COLORS.text,
     fontFamily: "'Segoe UI', sans-serif",

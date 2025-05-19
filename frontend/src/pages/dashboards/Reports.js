@@ -1,5 +1,5 @@
 import React from "react";
-import Sidebar from "../../components/AdminSideBar.js";
+import Sidebar from "../../components/StaffSideBar";
 import "../../styles/staffDashboard.css";
 import {
   BarChart,
@@ -47,7 +47,7 @@ const dailyBookings = [
 
 export default function Reports() {
   return (
-    <div style={{ display: "flex", height: "100vh" }}>
+    <div style={{ display: "flex", height: "100vh", width: "100vw" }}>
       <Sidebar activeItem="reports" />
       <div
         style={{
