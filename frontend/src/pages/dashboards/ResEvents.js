@@ -118,9 +118,11 @@ export default function ResEvents() {
 
     return (
         <div className="dashboard">
-            <Sidebar activeItem="events" />
+            <Sidebar activeItem="dashboard" />
             <div className="main-content">
-                <h1 className="events-page-title">Events</h1>
+            <header className="page-header">
+                <h1>Events</h1>
+            </header>
 
                 <section className="event-filters">
                     <div className="filter-group">

@@ -29,14 +29,18 @@ body {
     padding: 2rem;
     background-color: var(--light-bg); /* Uses --light-bg for consistency */
 }
-
-.events-page-title {
-    font-size: 2.5rem;
-    color: var(--primary-accent);
-    margin-bottom: 2rem;
-    text-align: center;
-    font-weight: 700;
-}
+  
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+  }
+  
+  .page-header h1 {
+    font-size: 1.8rem;
+  }
 
 /* --- Event Filtering and Search --- */
 .event-filters {

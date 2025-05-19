@@ -153,7 +153,7 @@ export default function UserDashboard() {
             <h1>Facility Bookings</h1>
             <input
               type="search"
-              placeholder="Search"
+              placeholder="Search facilities..."
               className="search-box"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}

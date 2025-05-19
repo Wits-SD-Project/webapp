@@ -210,17 +210,13 @@ export default function FacilityDetail() {
             <div className="details-section">
               <div className="details-content">
                 <Paper elevation={0} className="details-paper">
-                  <Typography variant="h5" className="section-title">
-                    About This Facility
-                  </Typography>
+                  <h3>About this facility</h3>
                   <Typography variant="body1" className="facility-description">
                     {facility.description || "No description available."}
                   </Typography>
                   
                   <div className="features-section">
-                    <Typography variant="h6" className="features-title">
-                      Features
-                    </Typography>
+                    <h3>Features</h3>
                     {facility.features && facility.features.length > 0 ? (
                       <div className="features-grid">
                         {facility.features.map((feature, index) => (
@@ -241,9 +237,7 @@ export default function FacilityDetail() {
               {/* Booking Section */}
               <div className="booking-section">
                 <Paper elevation={0} className="booking-paper">
-                  <Typography variant="h5" className="booking-title">
-                    Availability
-                  </Typography>
+                  <h3>Availability</h3>
                   
                   <div className="booking-tabs">
                     <Tabs
