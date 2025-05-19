@@ -17,6 +17,8 @@ import AdminManageUsers from "./pages/dashboards/AdminManageUsers";
 import AdminDashboard from "./pages/dashboards/AdminDashboard";
 import AdminManageEvents from "./pages/dashboards/AdminManageEvents";
 import AdminMaintenance from "./pages/dashboards/AdminMaintenance";
+import AdminReports from "./pages/dashboards/Reports";
+
 
 import UserDashboard from "./pages/dashboards/UserDashboard";
 
@@ -28,6 +30,7 @@ import StaffUpcomingBookings from "./pages/dashboards/StaffUpcomingBookings";
 import StaffEditTimeSlots from "./pages/dashboards/StaffEditTimeSlots";
 import StaffManageFacilities from "./pages/dashboards/StaffManageFacilities";
 import StaffMaintenance from "./pages/dashboards/StaffMaintenance";
+import Reports from "./pages/dashboards/Reports";
 
 //Res Pages
 import ResDashboard from "./pages/dashboards/ResDashboard";
@@ -72,6 +75,14 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+        path="/admin/reports"  // Or your desired path
+        element={
+        <ProtectedRoute requiredRole="admin">
+          <Reports />
+        </ProtectedRoute>
+          } 
+        />
          <Route
           path="/admin-manage-events"
           element={
@@ -85,6 +96,14 @@ function App() {
           element={
             <ProtectedRoute requiredRole="admin">
               <AdminMaintenance />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/reports"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminReports />
             </ProtectedRoute>
           }
         />
