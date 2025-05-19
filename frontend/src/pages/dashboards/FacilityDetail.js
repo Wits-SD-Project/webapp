@@ -1,6 +1,6 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { auth ,getAuthToken} from "../../firebase";
+import { auth, getAuthToken } from "../../firebase";
 import {
   Typography,
   Button,
@@ -55,45 +55,48 @@ export default function FacilityDetail() {
   const placeholder =
     "https://images.unsplash.com/photo-1527767654427-1790d8ff3745?q=80&w=2574&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
 
-
- useEffect(() => {
-  const fetchFacility = async () => {
-    setLoading(true);
-    try {
-      // 1. Get authentication token
-      let token;
+  useEffect(() => {
+    const fetchFacility = async () => {
+      setLoading(true);
       try {
-        token = await getAuthToken();
-        if (!token) throw new Error('No auth token available');
-      } catch (authError) {
-        throw new Error('Authentication failed: ' + authError.message);
-      }
-
-      // 2. Make API request
-      const response = await fetch(`http://localhost:8080/api/facilities/${id}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+        // 1. Get authentication token
+        let token;
+        try {
+          token = await getAuthToken();
+          if (!token) throw new Error("No auth token available");
+        } catch (authError) {
+          throw new Error("Authentication failed: " + authError.message);
         }
-      });
 
-      // 3. Handle response
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.message || `HTTP error! status: ${response.status}`);
+        // 2. Make API request
+        const response = await fetch(
+          `http://localhost:8080/api/facilities/${id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        // 3. Handle response
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data.message || `HTTP error! status: ${response.status}`
+          );
+        }
+
+        // 4. Update state
+        setFacility(data);
+      } catch (err) {
+        toast.error(err.message || "Failed to load facility details");
+        setFacility(null); // Clear any previous facility data
+      } finally {
+        setLoading(false);
       }
-
-      // 4. Update state
-      setFacility(data);
-      
-    } catch (err) {
-      toast.error(err.message || 'Failed to load facility details');
-      setFacility(null); // Clear any previous facility data
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
     fetchFacility();
     console.log(facility);

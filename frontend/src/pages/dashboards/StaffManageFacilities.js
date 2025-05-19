@@ -289,7 +289,11 @@ export default function ManageFacilities() {
                         alt="delete"
                         className="icon-btn"
                         onClick={() => {
-                          if (window.confirm("Are you sure you want to delete this facility?")) {
+                          if (
+                            window.confirm(
+                              "Are you sure you want to delete this facility?"
+                            )
+                          ) {
                             handleDelete(f.id);
                           }
                         }}

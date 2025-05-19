@@ -51,7 +51,7 @@ function App() {
       {/* <Router> */}
       <Routes>
         {/* Public Routes */}
-        <Route path="/" element={<LandingPage />}   />  
+        <Route path="/" element={<LandingPage />} />
         <Route path="/signin" element={<SignIn />} />
         <Route path="/signup" element={<SignUp />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -75,14 +75,14 @@ function App() {
           }
         />
         <Route
-        path="/admin/reports"  // Or your desired path
-        element={
-        <ProtectedRoute requiredRole="admin">
-          <Reports />
-        </ProtectedRoute>
-          } 
+          path="/admin/reports" // Or your desired path
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <Reports />
+            </ProtectedRoute>
+          }
         />
-         <Route
+        <Route
           path="/admin-manage-events"
           element={
             <ProtectedRoute requiredRole="admin">
