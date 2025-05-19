@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Sidebar from "../../components/StaffSideBar.js";
 import clockIcon from "../../assets/clock.png";
+import editIcon from "../../assets/edit.png"
 import binIcon from "../../assets/bin.png";
 import "../../styles/staffManageFacilities.css";
 import { useNavigate } from "react-router-dom";
@@ -53,6 +54,75 @@ export default function ManageFacilities() {
 
     fetchFacilities();
   }, []);
+  const handleUpdateFacility = async (facility) => {
+    try {
+      const token = await getAuthToken();
+      const res = await fetch(
+        `http://localhost:8080/api/facilities/updateFacility/${facility.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            name: facility.name,
+            type: facility.type,
+            isOutdoors: facility.isOutdoors === "Yes",
+            availability: facility.availability,
+            description: facility.description,
+            features: facility.features,
+          }),
+        }
+      );
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Update failed");
+
+      setFacilities((prev) =>
+        prev.map((f) =>
+          f.id === facility.id ? { ...data.facility, isEditing: false } : f
+        )
+      );
+
+      toast.success("Facility updated successfully");
+    } catch (err) {
+      console.error("Update facility error:", err);
+      toast.error(err.message || "Failed to update facility");
+    }
+  };
+   const handleCancelEdit = (id) => {
+    const facility = facilities.find((f) => f.id === id);
+
+    if (facility.isNew) {
+      setFacilities((prev) => prev.filter((f) => f.id !== id));
+    } else {
+      setFacilities((prev) =>
+        prev.map((f) =>
+          f.id === id ? { ...originalFacilities[id], isEditing: false } : f
+        )
+      );
+
+      setOriginalFacilities((prev) => {
+        const updated = { ...prev };
+        delete updated[id];
+        return updated;
+      });
+    }
+  };
+
+   const handleEditToggle = (id) => {
+    setFacilities((prev) =>
+      prev.map((f) => (f.id === id ? { ...f, isEditing: true } : f))
+    );
+
+    setOriginalFacilities((prev) => {
+      const alreadyStored = prev[id];
+      if (alreadyStored) return prev;
+      const original = facilities.find((f) => f.id === id);
+      return { ...prev, [id]: { ...original } };
+    });
+  };
 
   const handleAddFacility = async (formData) => {
     setTempFacilityData(formData);
@@ -278,12 +348,43 @@ export default function ManageFacilities() {
                           })
                         }
                       />
-                      <button 
-                        className="features-btn"
-                        onClick={() => handleEditFeatures(f.id)}
-                      >
-                        Edit Features
-                      </button>
+                      {!f.isEditing && (
+                        <button
+                          className="features-btn"
+                          onClick={() => handleEditFeatures(f.id)}
+                        >
+                          Edit Features
+                        </button>
+                      )}
+                      {f.isEditing ? (
+                        <>
+                          <button
+                            className="save-btn"
+                            onClick={() => {
+                              if (f.isNew) {
+                                handleAddFacility(f);
+                              } else {
+                                handleUpdateFacility(f);
+                              }
+                            }}
+                          >
+                            Save
+                          </button>
+                          <button
+                            className="cancel-btn"
+                            onClick={() => handleCancelEdit(f.id)}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <img
+                          src={editIcon}
+                          alt="edit"
+                          className="icon-btn"
+                          onClick={() => handleEditToggle(f.id)}
+                        />
+                      )}
                       <img
                         src={binIcon}
                         alt="delete"
