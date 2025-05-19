@@ -2,12 +2,11 @@
 import { Routes, Route } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import FacilityDetail from "./pages/dashboards/FacilityDetail";
-
 
 // Auth & Context
 import SignIn from "./pages/auth/SignIn";
 import SignUp from "./pages/auth/SignUp";
+import LandingPage from "./pages/auth/LandingPage";
 import ForgotPassword from "./ForgotPassword";
 import ResetPassword from "./pages/auth/ResetPassword";
 import { AuthProvider } from "./context/AuthContext";
@@ -18,7 +17,8 @@ import AdminManageUsers from "./pages/dashboards/AdminManageUsers";
 import AdminDashboard from "./pages/dashboards/AdminDashboard";
 import AdminManageEvents from "./pages/dashboards/AdminManageEvents";
 import AdminMaintenance from "./pages/dashboards/AdminMaintenance";
-
+import "leaflet/dist/leaflet.css";
+import AdminReports from "./pages/dashboards/Reports";
 import UserDashboard from "./pages/dashboards/UserDashboard";
 
 
@@ -29,12 +29,14 @@ import StaffUpcomingBookings from "./pages/dashboards/StaffUpcomingBookings";
 import StaffEditTimeSlots from "./pages/dashboards/StaffEditTimeSlots";
 import StaffManageFacilities from "./pages/dashboards/StaffManageFacilities";
 import StaffMaintenance from "./pages/dashboards/StaffMaintenance";
+import Reports from "./pages/dashboards/Reports";
 
 //Res Pages
 import ResDashboard from "./pages/dashboards/ResDashboard";
 import ResNotifications from "./pages/dashboards/ResNotifications";
 import ResMaintenance from "./pages/dashboards/ResMaintenance";
 import ResEvents from "./pages/dashboards/ResEvents";
+import FacilityDetail from "./pages/dashboards/FacilityDetail"
 
 // Resident Feature
 import ResidentBooking from "./components/ResidentBooking";
@@ -43,14 +45,13 @@ import ResidentBooking from "./components/ResidentBooking";
 import "./forgot.css";
 import "./reset.css";
 
-
 function App() {
   return (
     <AuthProvider>
       {/* <Router> */}
       <Routes>
         {/* Public Routes */}
-        <Route path="/" element={<SignIn />} />
+        <Route path="/" element={<LandingPage />} />
         <Route path="/signin" element={<SignIn />} />
         <Route path="/signup" element={<SignUp />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -73,7 +74,15 @@ function App() {
             </ProtectedRoute>
           }
         />
-         <Route
+        <Route
+          path="/admin/reports" // Or your desired path
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <Reports />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/admin-manage-events"
           element={
             <ProtectedRoute requiredRole="admin">
@@ -86,6 +95,14 @@ function App() {
           element={
             <ProtectedRoute requiredRole="admin">
               <AdminMaintenance />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/reports"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminReports />
             </ProtectedRoute>
           }
         />
@@ -186,15 +203,15 @@ function App() {
           }
         />
         <Route
-          path="/facility/:id"
-          element={
-            <ProtectedRoute requiredRole="resident">
-              <FacilityDetail />
-            </ProtectedRoute>
-          }
-        />
+        path="/facility/:id"
+        element={
+          <ProtectedRoute requiredRole="resident">
+            <FacilityDetail/> 
+          </ProtectedRoute>
+        }
+      />
       </Routes>
-
+      
       <ToastContainer position="top-center" autoClose={3000} />
       {/* </Router> */}
     </AuthProvider>

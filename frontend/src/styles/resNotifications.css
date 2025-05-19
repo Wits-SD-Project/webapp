@@ -1,108 +1,212 @@
+/* Universal Styles */
 * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
-  
-  body {
-    font-family: 'Segoe UI', sans-serif;
-    color: #2c003e;
-    background-color: #fff;
-    height: 100vh;
-    overflow: hidden;
-  }
-  
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Body and Container Layout */
+body {
+  font-family: 'Segoe UI', sans-serif;
+  color: #2c003e; /* Primary text color */
+  background-color: #f8f9fa; /* A slightly off-white for better contrast */
+  height: 100vh;
+  overflow: hidden; /* Prevents body scroll if child elements handle it */
+}
+
+.container {
+  display: flex;
+  height: 100vh;
+  overflow: hidden; /* Ensures the container itself doesn't scroll unnecessarily */
+}
+
+/* Main Content Area */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 2rem;
+  overflow-y: auto; /* Allow main content to scroll if its children exceed height */
+  overflow-x: hidden; /* Prevent horizontal scroll for main content */
+}
+
+/* Page Header (Title and Search) */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap; /* Allows items to wrap on smaller screens */
+  margin-bottom: 1.5rem; /* Increased space below header */
+  padding-bottom: 10px; /* Space below header for visual separation */
+  border-bottom: 1px solid #eee; /* Subtle line below header */
+}
+
+.page-header h1 {
+  font-size: 2.2rem; /* Slightly larger heading */
+  color: #2c003e; /* Consistent heading color */
+  margin-right: 1rem; /* Space between title and search on wider screens */
+}
+
+.search-box {
+  padding: 0.7rem 1.2rem; /* Slightly more padding for better touch targets */
+  border-radius: 999px; /* Pill shape */
+  border: 2px solid #ddd;
+  font-size: 1rem;
+  width: 300px; /* Increased default width */
+  max-width: 100%; /* Ensures it doesn't overflow on small screens */
+  transition: border-color 0.3s ease, box-shadow 0.3s ease; /* Smooth transition for focus */
+}
+
+.search-box:focus {
+  outline: none;
+  border-color: #007bff; /* Highlight border on focus */
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25); /* Subtle glow on focus */
+}
+
+/* Table Section Styling */
+.table-section {
+  margin-bottom: 2rem; /* Space between table sections */
+  background-color: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* More prominent shadow for card effect */
+  overflow: hidden; /* Ensures rounded corners apply to children */
+  display: flex;
+  flex-direction: column; /* Allows content within to stack */
+}
+
+.table-section h2 {
+  font-size: 1.6rem; /* Consistent heading size for sections */
+  color: #4a005c; /* Darker purple for section headings */
+  padding: 1rem 1.5rem; /* Padding inside the card header */
+  margin-bottom: 0; /* Remove default margin */
+  background-color: #f9f9f9; /* Light background for the section header */
+  border-bottom: 1px solid #eee; /* Separator below the section header */
+}
+
+/* Notifications Table */
+.notifications-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 700px; /* Ensures minimum width for responsiveness */
+}
+
+.notifications-table th,
+.notifications-table td {
+  padding: 1.2rem 1.5rem; /* Increased padding for better readability */
+  text-align: left;
+  border-bottom: 1px solid #eee; /* Lighter border for rows */
+}
+
+.notifications-table th {
+  background-color: #e9ecef; /* Slightly darker header background */
+  color: #343a40; /* Darker text for headers */
+  font-weight: 600;
+  text-transform: uppercase; /* Uppercase for headers */
+  font-size: 0.9em;
+  position: sticky; /* Keeps headers visible on scroll */
+  top: 0;
+  z-index: 1; /* Ensures header stays above content */
+}
+
+.notifications-table td {
+  color: #333;
+  font-size: 0.95em; /* Slightly smaller text for table content */
+}
+
+.notifications-table tbody tr:last-child td {
+  border-bottom: none; /* No border on the last row */
+}
+
+.notifications-table tbody tr:hover {
+  background-color: #f2f2f2; /* Subtle hover effect */
+}
+
+/* Styles for "New" Notifications */
+.notifications-table .notification-new {
+  background-color: #eaf6ff; /* A softer, more inviting light blue */
+  font-weight: 600; /* Make the text a bit bolder */
+  color: #004085; /* Darker blue text for contrast */
+  /* Add an accent border on the left */
+  border-left: 5px solid #007bff;
+}
+
+/* Empty State / Message Styles */
+.loading-message,
+.error-message,
+.no-notifications-message,
+.no-match-message {
+  padding: 25px; /* Increased padding */
+  background-color: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  margin-top: 1.5rem; /* Consistent spacing */
+  text-align: center;
+  color: #6c757d; /* Muted color for informational messages */
+  font-size: 1.1em;
+}
+
+.error-message {
+  background-color: #f8d7da; /* Light red background */
+  color: #721c24; /* Dark red text */
+  border: 1px solid #f5c6cb; /* Red border */
+}
+
+.no-notifications-message, .no-match-message {
+    font-style: italic;
+    color: #888;
+    background-color: #fcfcfc;
+    border: 1px solid #eee;
+    margin: 1rem 0 0 0; /* Adjust margin to fit inside table-section */
+    border-radius: 0 0 12px 12px; /* Round bottom corners if placed directly under h2 */
+    box-shadow: none; /* Remove shadow if it's part of the table-section box-shadow */
+}
+
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
   .container {
-    display: flex;
-    height: 100vh;
-    overflow: hidden;
-  }
-  
-  /* Main Content */
-  .main-content {
-    flex: 1;
-    display: flex;
     flex-direction: column;
-    padding: 2rem;
-    overflow: hidden;
   }
-  
+
+  .main-content {
+    padding: 1rem;
+  }
+
   .page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: flex-start;
     margin-bottom: 1rem;
+    border-bottom: none; /* Remove line on small screens if it looks cluttered */
   }
-  
+
   .page-header h1 {
     font-size: 1.8rem;
+    margin-bottom: 0.5rem; /* Space below title */
   }
-  
+
   .search-box {
-    padding: 0.5rem 1rem;
-    border-radius: 999px;
-    border: 2px solid #ddd;
-    font-size: 1rem;
-  }
-  
-  /* Scrollable table */
-  .table-section {
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: auto;
-    border-radius: 12px;
-    border: 1px solid #eee;
-  }
-  
-  /* Table */
-  .notifications-table {
     width: 100%;
-    border-collapse: collapse;
-    min-width: 700px;
+    margin-top: 0.5rem; /* Adjust margin */
   }
-  
+
+  /* Make tables horizontally scrollable on small screens if min-width is too large */
+  .table-section {
+    overflow-x: auto; /* Enables horizontal scroll for the table within this section */
+    margin-bottom: 1.5rem;
+  }
+
+  .notifications-table {
+    min-width: 600px; /* Can adjust this based on content to ensure readability */
+  }
+
   .notifications-table th,
   .notifications-table td {
-    padding: 1rem;
-    text-align: left;
-    border-bottom: 1px solid #ddd;
+    padding: 0.8rem 1rem; /* Reduced padding for smaller screens */
+    font-size: 0.85em; /* Slightly smaller text */
   }
-  
-  .notifications-table th {
-    background-color: #f4f4f4;
-    color: #2c003e;
-    font-weight: 600;
-    position: sticky;
-    top: 0;
-    z-index: 1;
+
+  .table-section h2 {
+      font-size: 1.4rem;
+      padding: 0.8rem 1rem;
   }
-  
-  .notifications-table td {
-    color: #333;
-  }
-  
-  /* Responsive adjustments */
-  @media (max-width: 768px) {
-    .container {
-      flex-direction: column;
-    }
-  
-    .main-content {
-      padding: 1rem;
-    }
-  
-    .page-header {
-      flex-direction: column;
-      align-items: flex-start;
-    }
-  
-    .search-box {
-      width: 100%;
-      margin-top: 1rem;
-    }
-  
-    .notifications-table {
-      min-width: unset;
-    }
-  }
+}

@@ -14,11 +14,14 @@ import {
   Avatar,
   IconButton,
   Tooltip,
+  Typography,
 } from "@mui/material";
+
 import CloudinaryUploadWidget from "./CloudinaryUploadWidget";
 import { toast } from "react-toastify";
 import DeleteIcon from "@mui/icons-material/DeleteForever";
 import ImageIcon from "@mui/icons-material/Image";
+import { SearchBox } from "@mapbox/search-js-react";
 
 export default function FacilityFormModal({ open, onClose, onSubmit }) {
   /* ---------- form state ---------- */
@@ -27,6 +30,7 @@ export default function FacilityFormModal({ open, onClose, onSubmit }) {
   const [isOutdoors, setIsOutdoors] = useState("Yes");
   const [availability, setAvail] = useState("Available");
   const [location, setLocation] = useState("");
+  const [coordinates, setCoordinates] = useState({ lat: null, lng: null });
   const [images, setImages] = useState([]);
 
   /* ---------- Cloudinary ---------- */
@@ -44,14 +48,6 @@ export default function FacilityFormModal({ open, onClose, onSubmit }) {
 
   const handleUploaded = (url) => setImages((prev) => [...prev, url]);
   /* ---------- helpers ---------- */
-  const reset = () => {
-    setName("");
-    setType("");
-    setIsOutdoors("Yes");
-    setAvail("Available");
-    setLocation("");
-    setImages([]);
-  };
   const handleSave = () => {
     if (!name || !type) {
       toast.error("Facility name and type are required 🤷‍♂️");
@@ -63,6 +59,7 @@ export default function FacilityFormModal({ open, onClose, onSubmit }) {
       isOutdoors,
       availability,
       location,
+      coordinates,
       imageUrls: images,
     });
     handleClose();
@@ -110,69 +107,94 @@ export default function FacilityFormModal({ open, onClose, onSubmit }) {
         🏟️ Add New Facility
       </DialogTitle>
 
-      <DialogContent dividers sx={{ p: 3 }}>
-        <Grid container spacing={2} sx={{ border: "none" }}>
-          {/* name */}
-          <Grid item xs={12} sx={{ border: "none" }}>
-            <TextField
-              label="Facility name 🏷️"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              fullWidth
-              variant="outlined"
-              sx={pill}
-            />
-          </Grid>
-
-          {/* type */}
+      <DialogContent dividers sx={{ p: 2.5 }}>
+        <Grid container alignItems="center" spacing={2} sx={{ border: "none" }}>
+          {/* Facility Name */}
           <Grid item xs={12}>
-            <TextField
-              label="Type (e.g. Tennis Court) 🏸"
-              variant="outlined"
-              value={type}
-              onChange={(e) => setType(e.target.value)}
-              fullWidth
-              sx={pill}
-            />
+            <Box>
+              <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+                Facility name 🏷️
+              </Typography>
+              <TextField
+                placeholder="E.g. Wits Courts"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                fullWidth
+                variant="outlined"
+                sx={pill}
+              />
+            </Box>
           </Grid>
 
-          {/* outdoors / availability */}
-          <Grid item xs={6}>
-            <Select
-              value={isOutdoors}
-              onChange={(e) => setIsOutdoors(e.target.value)}
-              fullWidth
-              displayEmpty
-              sx={pill}
-            >
-              <MenuItem value="Yes">🌳 Outdoors</MenuItem>
-              <MenuItem value="No">🏛️ Indoors</MenuItem>
-            </Select>
-          </Grid>
-
-          <Grid item xs={6}>
-            <Select
-              value={availability}
-              onChange={(e) => setAvail(e.target.value)}
-              fullWidth
-              displayEmpty
-              sx={pill}
-            >
-              <MenuItem value="Available">✅ Available</MenuItem>
-              <MenuItem value="Closed">⛔ Closed</MenuItem>
-              <MenuItem value="Under Maintenance">🛠️ Maintenance</MenuItem>
-            </Select>
-          </Grid>
-
-          {/* location */}
+          {/* Facility Type */}
           <Grid item xs={12}>
-            <TextField
-              label="Location 📍"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              fullWidth
-              sx={pill}
-            />
+            <Box>
+              <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+                Type (e.g. Tennis Court) 🏸
+              </Typography>
+              <TextField
+                placeholder="E.g. Stadium"
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+                fullWidth
+                variant="outlined"
+                sx={pill}
+              />
+            </Box>
+          </Grid>
+
+          {/* --- outdoors / availability wrapped as its own row --- */}
+          <Grid item xs={12}>
+            <Grid container spacing={2}>
+              <Grid item xs={6}>
+                <Select
+                  value={isOutdoors}
+                  onChange={(e) => setIsOutdoors(e.target.value)}
+                  fullWidth
+                  displayEmpty
+                  sx={pill}
+                >
+                  <MenuItem value="Yes">🌳 Outdoors</MenuItem>
+                  <MenuItem value="No">🏛️ Indoors</MenuItem>
+                </Select>
+              </Grid>
+
+              <Grid item xs={6}>
+                <Select
+                  value={availability}
+                  onChange={(e) => setAvail(e.target.value)}
+                  fullWidth
+                  displayEmpty
+                  sx={pill}
+                >
+                  <MenuItem value="Available">✅ Available</MenuItem>
+                  <MenuItem value="Closed">⛔ Closed</MenuItem>
+                  <MenuItem value="Under Maintenance">🛠️ Maintenance</MenuItem>
+                </Select>
+              </Grid>
+            </Grid>
+          </Grid>
+
+          {/* --- now the location search will drop down below --- */}
+          <Grid item xs={12}>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              <Box sx={{ width: "100%" }}>
+                <SearchBox
+                  accessToken="sk.eyJ1Ijoic2FjaGluc2R0ZXN0IiwiYSI6ImNtYXV2eWR0OTAxZmEyaXNkbTAwb3pvdmIifQ.EQKm2Xw8_7S6rOyjXKPicw"
+                  placeholder="Search for a location 📍"
+                  theme="light"
+                  value={location}
+                  onRetrieve={(res) => {
+                    const place = res.features[0];
+                    setLocation(place.properties.name);
+                    setCoordinates({
+                      lat: place.geometry.coordinates[1],
+                      lng: place.geometry.coordinates[0],
+                    });
+                  }}
+                />
+              </Box>
+            </Box>
           </Grid>
 
           {/* upload */}

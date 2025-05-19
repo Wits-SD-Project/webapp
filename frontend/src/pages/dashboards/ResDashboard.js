@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Sidebar from "../../components/ResSideBar.js";
 import "../../styles/staffDashboard.css";
 import { useAuth } from "../../context/AuthContext.js";
-import { db, auth } from "../../firebase";
+import { db, auth ,getAuthToken} from "../../firebase";
 import { motion, AnimatePresence } from "framer-motion";
 import { collection, onSnapshot } from "firebase/firestore";
 
@@ -17,46 +17,66 @@ export default function ResDashboard() {
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    const user = auth.currentUser;
-    if (!user) return;
+  const fetchEvents = async () => {
+    try {
+      const token = await getAuthToken();
+      const response = await fetch('http://localhost:8080/api/admin/upcoming', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-    const eventsRef = collection(db, "admin-events");
-    const unsubscribe = onSnapshot(eventsRef, (snapshot) => {
-      const eventData = snapshot.docs.map(doc => doc.data());
-      setEvents(eventData);
+      if (!response.ok) throw new Error('Failed to fetch events');
+      
+      const { events } = await response.json();
+      const now = new Date();
+      const upcomingEvents = events.filter(event => new Date(event.startTime) > now);
+      
+      setEvents(upcomingEvents);
 
       const lastSeenCount = parseInt(localStorage.getItem("lastSeenEventCount") || "0", 10);
-
-      if (eventData.length > lastSeenCount) {
+      
+      if (upcomingEvents.length > lastSeenCount) {
         setShowNewEventBanner(true);
-
-        const timer = setTimeout(() => {
-          setShowNewEventBanner(false);
-        }, 8000);
-
-        return () => clearTimeout(timer);
+        setTimeout(() => setShowNewEventBanner(false), 8000);
       }
+    } catch (error) {
+      console.error("Error fetching events:", error);
+    }
+  };
 
-      prevEventCountRef.current = eventData.length;
-    });
+  // Polling instead of real-time (adjust interval as needed)
+  const pollInterval = setInterval(fetchEvents, 30000); // Every 30 seconds
+  fetchEvents(); // Initial fetch
+  
+  return () => clearInterval(pollInterval);
+}, [authUser]);
 
-    return () => unsubscribe();
-  }, [authUser]);
+useEffect(() => {
+  const fetchUnreadNotifications = async () => {
+    try {
+      const token = await getAuthToken();
+      const response = await fetch('http://localhost:8080/api/admin/unread-count', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-  useEffect(() => {
-    const user = auth.currentUser;
-    if (!user) return;
+      if (!response.ok) throw new Error('Failed to fetch notifications');
+      
+      const { count } = await response.json();
+      setUnreadCount(count);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+    }
+  };
 
-    const notificationsRef = collection(db, "notifications");
-    const unsubscribeNotifications = onSnapshot(notificationsRef, (snapshot) => {
-      const unread = snapshot.docs.filter(
-        (doc) => doc.data().userName === user.email && doc.data().read === false
-      );
-      setUnreadCount(unread.length);
-    });
-
-    return () => unsubscribeNotifications();
-  }, [authUser]);
+  // Polling for notifications
+  const pollInterval = setInterval(fetchUnreadNotifications, 30000);
+  fetchUnreadNotifications(); // Initial fetch
+  
+  return () => clearInterval(pollInterval);
+}, [authUser]);
 
   return (
     <main className="dashboard">

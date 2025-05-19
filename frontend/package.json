@@ -7,6 +7,8 @@
     "@cloudinary/url-gen": "^1.21.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
+    "@mapbox/mapbox-gl-geocoder": "^5.0.3",
+    "@mapbox/search-js-react": "^1.0.0",
     "@mui/icons-material": "^7.0.2",
     "@mui/material": "^7.0.2",
     "@testing-library/dom": "^10.4.0",
@@ -17,15 +19,21 @@
     "framer-motion": "^12.9.2",
     "jspdf": "^3.0.1",
     "jspdf-autotable": "^5.0.2",
+    "leaflet": "^1.9.4",
+    "mapbox-gl": "^3.12.0",
+    "maplibre-gl": "^5.5.0",
     "react": "^19.1.0",
     "react-chartjs-2": "^5.3.0",
     "react-datepicker": "^8.3.0",
     "react-dom": "^19.1.0",
+    "react-leaflet": "^5.0.0",
+    "react-map-gl": "^6.1.21",
     "react-router-dom": "^6.16.0",
     "react-scripts": "5.0.1",
     "react-slick": "^0.30.3",
     "react-spinners": "^0.15.0",
     "react-toastify": "^11.0.5",
+    "recharts": "^2.15.3",
     "slick-carousel": "^1.8.1",
     "web-vitals": "^2.1.4"
   },
@@ -58,6 +66,8 @@
     "@babel/preset-env": "^7.26.9",
     "@babel/preset-react": "^7.26.3",
     "@testing-library/jest-dom": "^6.6.3",
-    "@testing-library/react": "^16.3.0"
+    "@testing-library/react": "^16.3.0",
+    "babel-jest": "^29.7.0",
+    "identity-obj-proxy": "^3.0.0"
   }
 }

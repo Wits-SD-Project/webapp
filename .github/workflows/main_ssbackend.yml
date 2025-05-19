@@ -24,7 +24,6 @@ jobs:
         run: |
           cd ./server
           npm install
-        # Skip build and test since they're not defined
 
       - name: Zip artifact for deployment
         run: |
@@ -34,7 +33,7 @@ jobs:
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
-          name: node-app
+          name: node-app  # Keep this name
           path: release.zip
 
   deploy:
@@ -49,10 +48,10 @@ jobs:
       contents: read
 
     steps:
-      - name: ⬇️  Download artefact
+      - name: ⬇️ Download artifact
         uses: actions/download-artifact@v4
         with:
-          name: backend-zip
+          name: node-app  # Changed to match upload name
           path: .
 
       - name: Login to Azure
@@ -62,7 +61,7 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_E92C1E752FB14F758B963EA40FE4C863 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_E28DCEDE587745C28D64A99D76C81FBB }}
 
-      - name: 🚀  Deploy to Azure Web App
+      - name: 🚀 Deploy to Azure Web App
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
