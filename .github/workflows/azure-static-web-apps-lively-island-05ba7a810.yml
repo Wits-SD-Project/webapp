@@ -8,16 +8,12 @@ concurrency:
 
 on:
   push:
-    branches: [main]
-    # only trigger when front-end files change
-    paths:
-      - "frontend/**"
-      - ".github/workflows/frontend_swa.yml"
+    branches:
+      - main
   pull_request:
     types: [opened, synchronize, reopened, closed]
-    branches: [main]
-    paths:
-      - "frontend/**"
+    branches:
+      - main
 
 jobs:
   build-and-deploy:
