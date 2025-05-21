@@ -63,31 +63,31 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_E92C1E752FB14F758B963EA40FE4C863 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_E28DCEDE587745C28D64A99D76C81FBB }}
 
-      # --- ONE-TIME app-setting: turn on remote build (Oryx) ---
-      # remove or comment out after it has run once
-      - name: ⚙️  Ensure remote build enabled (idempotent)
-        run: |
-          # Check if the setting already exists
-          if ! az webapp config appsettings list \
-              --resource-group ssbackend_group \
-              --name ssbackend \
-              --query "[?name=='SCM_DO_BUILD_DURING_DEPLOYMENT']" \
-              --output tsv | grep -q true; then
-              echo "Setting SCM_DO_BUILD_DURING_DEPLOYMENT=true"
-              az webapp config appsettings set \
-                --resource-group ssbackend_group \
-                --name ssbackend \
-                --settings SCM_DO_BUILD_DURING_DEPLOYMENT=true
-              UPDATED=1
-          else
-              echo "Setting already present – skipping update."
-              UPDATED=0
-          fi
-          # If we changed the setting, wait 45 s for the restart to finish
-          if [ "$UPDATED" = "1" ]; then
-              echo "Waiting for SCM restart to finish…"
-              sleep 45
-          fi
+      # # --- ONE-TIME app-setting: turn on remote build (Oryx) ---
+      # # remove or comment out after it has run once
+      # - name: ⚙️  Ensure remote build enabled (idempotent)
+      #   run: |
+      #     # Check if the setting already exists
+      #     if ! az webapp config appsettings list \
+      #         --resource-group ssbackend_group \
+      #         --name ssbackend \
+      #         --query "[?name=='SCM_DO_BUILD_DURING_DEPLOYMENT']" \
+      #         --output tsv | grep -q true; then
+      #         echo "Setting SCM_DO_BUILD_DURING_DEPLOYMENT=true"
+      #         az webapp config appsettings set \
+      #           --resource-group ssbackend_group \
+      #           --name ssbackend \
+      #           --settings SCM_DO_BUILD_DURING_DEPLOYMENT=true
+      #         UPDATED=1
+      #     else
+      #         echo "Setting already present – skipping update."
+      #         UPDATED=0
+      #     fi
+      #     # If we changed the setting, wait 45 s for the restart to finish
+      #     if [ "$UPDATED" = "1" ]; then
+      #         echo "Waiting for SCM restart to finish…"
+      #         sleep 45
+      #     fi
 
       - name: 🚀 Deploy to Azure Web App
         id: deploy-to-webapp
