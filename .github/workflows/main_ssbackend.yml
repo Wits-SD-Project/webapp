@@ -2,8 +2,7 @@ name: Build and deploy Node.js app to Azure Web App - ssbackend
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -15,25 +14,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Node.js version
+      - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: "20.x"
 
-      - name: npm install
+      - name: Install production dependencies
         run: |
-          cd ./server
-          npm install
+          cd server
+          npm ci --only=production
+          npm prune --production
 
-      - name: Zip artifact for deployment
+      - name: Zip artifact
         run: |
-          cd ./server
-          zip -r ../release.zip ./*
+          cd server
+          zip -r ../release.zip . \
+              -x ".git/**" "*.log"
 
-      - name: Upload artifact for deployment job
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: node-app  # Keep this name
+          name: node-app
           path: release.zip
 
   deploy:
@@ -48,20 +49,20 @@ jobs:
       contents: read
 
     steps:
-      - name: ⬇️ Download artifact
+      - name: Download artifact
         uses: actions/download-artifact@v4
         with:
-          name: node-app  # Changed to match upload name
+          name: node-app
           path: .
 
-      - name: Login to Azure
+      - name: Azure login
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_2511D0585CAC45218D59790CCCB5C8A6 }}
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_E92C1E752FB14F758B963EA40FE4C863 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_E28DCEDE587745C28D64A99D76C81FBB }}
 
-      - name: 🚀 Deploy to Azure Web App
+      - name: Deploy to Azure Web App
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
