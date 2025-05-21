@@ -68,7 +68,7 @@ jobs:
       - name: ⚙️  Ensure remote build enabled
         run: |
           az webapp config appsettings set \
-            --resource-group <your-resource-group> \
+            --resource-group ssbackend_group \
             --name ssbackend \
             --settings SCM_DO_BUILD_DURING_DEPLOYMENT=true
 
