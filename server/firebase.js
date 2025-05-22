@@ -14,9 +14,9 @@ try {
   } else {
     throw new Error("No Firebase service account credentials found.");
   }
-
+  // Test
   admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
+    credential: admin.credential.cert(serviceAccount),
   });
 
   console.log("Firebase Admin initialized.");
