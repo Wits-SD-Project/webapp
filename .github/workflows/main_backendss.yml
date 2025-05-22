@@ -20,7 +20,7 @@ jobs:
     steps:
       # 1️⃣ Checkout ----------------------------------------------------------------
       - uses: actions/checkout@v4
-      #Might work
+      #Idk at this point
 
       # 2️⃣ Create ZIP without node_modules -----------------------------------------
       - name: 📦 Package server
