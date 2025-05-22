@@ -19,23 +19,36 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read # required for actions/checkout
+      contents: read
 
     steps:
-      # 1) Checkout repo ------------------------------------------------------
+      # 1️⃣ Checkout ----------------------------------------------------------
       - uses: actions/checkout@v4
 
-      # 2) Zip ONLY the backend source (skip node_modules, tests, etc.) -------
-      - name: 📦 Create deployment package
+      # 2️⃣ Node + npm cache --------------------------------------------------
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 20.x
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      # 3️⃣ Install prod deps (no dev), prune --------------------------------
+      - name: 📦 Install production dependencies
+        working-directory: server
+        run: |
+          npm ci --only=production
+          npm prune --production
+
+      # 4️⃣ Create zip *with* node_modules -----------------------------------
+      - name: 📦 Package server for deploy
         run: |
           cd server
           zip -r ../release.zip . \
-              -x "node_modules/**" \
               -x ".git/**" \
               -x "tests/**" \
               -x "*.log"
 
-      # 3) Upload artefact so the deploy job can grab it ----------------------
+      # 5️⃣ Upload artefact ---------------------------------------------------
       - uses: actions/upload-artifact@v4
         with:
           name: backend-package
@@ -55,13 +68,13 @@ jobs:
       contents: read
 
     steps:
-      # 1) Download the package ----------------------------------------------
+      # 1️⃣ Download artefact -------------------------------------------------
       - uses: actions/download-artifact@v4
         with:
           name: backend-package
           path: .
 
-      # 2) Login to Azure -----------------------------------------------------
+      # 2️⃣ Azure login -------------------------------------------------------
       - name: 🔐 Azure login
         uses: azure/login@v2
         with:
@@ -69,11 +82,11 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_B8584612441844348C14C869E74CC65B }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_E519DBD6BCF6473EA2E89C91152D450C }}
 
-      # 3) Deploy to the Web App ---------------------------------------------
+      # 3️⃣ Deploy ------------------------------------------------------------
       - name: 🚀 Deploy to Azure Web App
         id: deploy
         uses: azure/webapps-deploy@v3
         with:
-          app-name: backendss # ← new app name
+          app-name: backendss
           slot-name: Production
-          package: release.zip # the zip we created above
+          package: release.zip # same zip we built above
