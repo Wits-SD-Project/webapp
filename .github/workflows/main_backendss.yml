@@ -1,5 +1,5 @@
 # .github/workflows/backendss.yml
-name: Build & deploy → Azure Web App (backendss)
+name: Deploying the Backend to Azure
 
 concurrency:
   group: backendss-deploy
@@ -38,7 +38,6 @@ jobs:
           client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_F157BC84DC9C4177915DC762D0322668 }}
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_B8584612441844348C14C869E74CC65B }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_E519DBD6BCF6473EA2E89C91152D450C }}
-          #Latest
 
       # 4️⃣ Deploy -------------------------------------------------------------------
       - name: 🚀 Deploy to Azure Web App
