@@ -5,12 +5,10 @@ import dashboardIcon from "../assets/dashboard.png";
 import viewBookingsIcon from "../assets/view-bookings.png";
 import maintenanceIcon from "../assets/maintenance.png";
 import logOutIcon from "../assets/log-out.png";
-import "./staffSideBar.css"; 
+import "./staffSideBar.css";
 import { toast } from "react-toastify";
 import { auth } from "../firebase";
 import { useAuth } from "../context/AuthContext";
-
-
 
 export default function Sidebar({ activeItem }) {
   const navigate = useNavigate();
@@ -19,13 +17,16 @@ export default function Sidebar({ activeItem }) {
   const handleLogout = async () => {
     try {
       await auth.signOut(); // Sign out from Firebase
-      const response = await fetch('http://localhost:8080/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include' // Necessary for cookies
-      });
-      
+      const response = await fetch(
+        `${process.env.REACT_APP_API_BASE_URL}/api/auth/logout`,
+        {
+          method: "POST",
+          credentials: "include", // Necessary for cookies
+        }
+      );
+
       if (!response.ok) {
-        throw new Error('Failed to clear server session');
+        throw new Error("Failed to clear server session");
       }
     } catch (err) {
       console.error("Firebase signout error:", err);
@@ -33,44 +34,47 @@ export default function Sidebar({ activeItem }) {
     setAuthUser(null); // remove auth context
     toast.success("Logged out");
     navigate("/signin");
-  }
+  };
 
   const menuItems = [
-    { 
-      name: "Dashboard", 
-      icon: dashboardIcon, 
+    {
+      name: "Dashboard",
+      icon: dashboardIcon,
       path: "/staff-dashboard",
-      onClick: () => navigate("/staff-dashboard")
+      onClick: () => navigate("/staff-dashboard"),
     },
-    { 
-      name: "Manage Facilities", 
-      icon: manageFacilitiesIcon, 
+    {
+      name: "Manage Facilities",
+      icon: manageFacilitiesIcon,
       path: "/staff-manage-facilities",
-      onClick: () => navigate("/staff-manage-facilities")
+      onClick: () => navigate("/staff-manage-facilities"),
     },
-    { 
-      name: "View Bookings", 
-      icon: viewBookingsIcon, 
+    {
+      name: "View Bookings",
+      icon: viewBookingsIcon,
       path: "/staff-view-bookings",
-      onClick: () => navigate("/staff-view-bookings")
+      onClick: () => navigate("/staff-view-bookings"),
     },
-    { 
-      name: "Maintenance", 
-      icon: maintenanceIcon, 
+    {
+      name: "Maintenance",
+      icon: maintenanceIcon,
       path: "/staff-maintenance",
-      onClick: () => navigate("/staff-maintenance")
+      onClick: () => navigate("/staff-maintenance"),
     },
-    { 
-      name: "Log Out", 
-      icon: logOutIcon, 
+    {
+      name: "Log Out",
+      icon: logOutIcon,
       path: "/logout",
-      onClick: () => handleLogout()
-    }
+      onClick: () => handleLogout(),
+    },
   ];
 
   return (
     <aside className="sidebar">
-      <button className="logo-button" onClick={() => navigate("/staff-dashboard")}>
+      <button
+        className="logo-button"
+        onClick={() => navigate("/staff-dashboard")}
+      >
         <div className="logo-wrapper">
           <img src={logo} alt="Sports Sphere Logo" className="logo" />
         </div>
@@ -79,12 +83,12 @@ export default function Sidebar({ activeItem }) {
       <nav className="nav-menu">
         <ul>
           {menuItems.map((item) => (
-            <li 
+            <li
               key={item.name}
               className={activeItem === item.name.toLowerCase() ? "active" : ""}
               onClick={item.onClick}
             >
-              <img src={item.icon} alt={item.name} /> 
+              <img src={item.icon} alt={item.name} />
               {item.name}
             </li>
           ))}

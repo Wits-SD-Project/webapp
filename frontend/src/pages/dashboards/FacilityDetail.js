@@ -1,6 +1,6 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { auth ,getAuthToken} from "../../firebase";
+import { auth, getAuthToken } from "../../firebase";
 import {
   Typography,
   Button,
@@ -13,6 +13,9 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  Container,
+  Grid,
+  Box,
   DialogActions,
 } from "@mui/material";
 import DatePicker from "react-datepicker";
@@ -54,18 +57,42 @@ export default function FacilityDetail() {
 
   useEffect(() => {
     const fetchFacility = async () => {
+      setLoading(true);
       try {
-        const docRef = doc(db, "facilities-test", id);
-        const snapshot = await getDoc(docRef);
-        console.log(snapshot);
-        if (snapshot.exists()) {
-          setFacility({ id: snapshot.id, ...snapshot.data() });
-        } else {
-          toast.error("Facility not found.");
+        // 1. Get authentication token
+        let token;
+        try {
+          token = await getAuthToken();
+          if (!token) throw new Error("No auth token available");
+        } catch (authError) {
+          throw new Error("Authentication failed: " + authError.message);
         }
+
+        // 2. Make API request
+        const response = await fetch(
+          `${process.env.REACT_APP_API_BASE_URL}/api/facilities/${id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        // 3. Handle response
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data.message || `HTTP error! status: ${response.status}`
+          );
+        }
+
+        // 4. Update state
+        setFacility(data);
       } catch (err) {
-        toast.error("Failed to load facility.");
-        console.error("Error fetching facility:", err);
+        toast.error(err.message || "Failed to load facility details");
+        setFacility(null); // Clear any previous facility data
       } finally {
         setLoading(false);
       }
@@ -142,7 +169,7 @@ export default function FacilityDetail() {
       const formattedDate = selectedDate.toISOString().split("T")[0];
 
       const response = await fetch(
-        "http://localhost:8080/api/facilities/bookings",
+        `${process.env.REACT_APP_API_BASE_URL}/api/facilities/bookings`,
         {
           method: "POST",
           headers: {

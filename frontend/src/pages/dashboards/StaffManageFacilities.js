@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Sidebar from "../../components/StaffSideBar.js";
 import clockIcon from "../../assets/clock.png";
+import editIcon from "../../assets/edit.png";
 import binIcon from "../../assets/bin.png";
 import "../../styles/staffManageFacilities.css";
 import { useNavigate } from "react-router-dom";
@@ -30,7 +31,7 @@ export default function ManageFacilities() {
       try {
         const token = await getAuthToken();
         const res = await fetch(
-          "http://localhost:8080/api/facilities/staff-facilities",
+          `${process.env.REACT_APP_API_BASE_URL}/api/facilities/staff-facilities`,
           {
             method: "GET",
             headers: {
@@ -53,6 +54,75 @@ export default function ManageFacilities() {
 
     fetchFacilities();
   }, []);
+  const handleUpdateFacility = async (facility) => {
+    try {
+      const token = await getAuthToken();
+      const res = await fetch(
+        `${process.env.REACT_APP_API_BASE_URL}/api/facilities/updateFacility/${facility.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            name: facility.name,
+            type: facility.type,
+            isOutdoors: facility.isOutdoors === "Yes",
+            availability: facility.availability,
+            description: facility.description,
+            features: facility.features,
+          }),
+        }
+      );
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Update failed");
+
+      setFacilities((prev) =>
+        prev.map((f) =>
+          f.id === facility.id ? { ...data.facility, isEditing: false } : f
+        )
+      );
+
+      toast.success("Facility updated successfully");
+    } catch (err) {
+      console.error("Update facility error:", err);
+      toast.error(err.message || "Failed to update facility");
+    }
+  };
+  const handleCancelEdit = (id) => {
+    const facility = facilities.find((f) => f.id === id);
+
+    if (facility.isNew) {
+      setFacilities((prev) => prev.filter((f) => f.id !== id));
+    } else {
+      setFacilities((prev) =>
+        prev.map((f) =>
+          f.id === id ? { ...originalFacilities[id], isEditing: false } : f
+        )
+      );
+
+      setOriginalFacilities((prev) => {
+        const updated = { ...prev };
+        delete updated[id];
+        return updated;
+      });
+    }
+  };
+
+  const handleEditToggle = (id) => {
+    setFacilities((prev) =>
+      prev.map((f) => (f.id === id ? { ...f, isEditing: true } : f))
+    );
+
+    setOriginalFacilities((prev) => {
+      const alreadyStored = prev[id];
+      if (alreadyStored) return prev;
+      const original = facilities.find((f) => f.id === id);
+      return { ...prev, [id]: { ...original } };
+    });
+  };
 
   const handleAddFacility = async (formData) => {
     setTempFacilityData(formData);
@@ -71,14 +141,17 @@ export default function ManageFacilities() {
 
       console.log("Uploading facility:", completeData);
 
-      const res = await fetch("http://localhost:8080/api/facilities/upload", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(completeData),
-      });
+      const res = await fetch(
+        `${process.env.REACT_APP_API_BASE_URL}/api/facilities/upload`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(completeData),
+        }
+      );
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);
@@ -102,7 +175,7 @@ export default function ManageFacilities() {
       const facility = facilities.find((f) => f.id === editingFacilityId);
 
       const res = await fetch(
-        `http://localhost:8080/api/facilities/updateFacility/${editingFacilityId}`,
+        `${process.env.REACT_APP_API_BASE_URL}/api/facilities/updateFacility/${editingFacilityId}`,
         {
           method: "PUT",
           headers: {
@@ -142,7 +215,7 @@ export default function ManageFacilities() {
     try {
       const token = await getAuthToken();
       const response = await fetch(
-        `http://localhost:8080/api/facilities/${id}`,
+        `${process.env.REACT_APP_API_BASE_URL}/api/facilities/${id}`,
         {
           method: "DELETE",
           headers: {
@@ -320,7 +393,11 @@ export default function ManageFacilities() {
                         alt="delete"
                         className="icon-btn"
                         onClick={() => {
-                          if (window.confirm("Are you sure you want to delete this facility?")) {
+                          if (
+                            window.confirm(
+                              "Are you sure you want to delete this facility?"
+                            )
+                          ) {
                             handleDelete(f.id);
                           }
                         }}

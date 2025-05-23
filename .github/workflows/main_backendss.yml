@@ -1,0 +1,50 @@
+# .github/workflows/backendss.yml
+name: Deploying the Backend to Azure
+
+concurrency:
+  group: backendss-deploy
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # for azure/login OIDC
+      contents: read
+
+    steps:
+      # 1️⃣ Checkout ----------------------------------------------------------------
+      - uses: actions/checkout@v4
+      #Idk at this point
+
+      # 2️⃣ Create ZIP without node_modules -----------------------------------------
+      - name: 📦 Package server
+        run: |
+          cd server
+          zip -r ../release.zip . \
+              -x "node_modules/**" \
+              -x ".git/**" \
+              -x "tests/**" \
+              -x "*.log"
+
+      # 3️⃣ Azure login -------------------------------------------------------------
+      - name: 🔐 Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_F157BC84DC9C4177915DC762D0322668 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_B8584612441844348C14C869E74CC65B }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_E519DBD6BCF6473EA2E89C91152D450C }}
+
+      # 4️⃣ Deploy -------------------------------------------------------------------
+      - name: 🚀 Deploy to Azure Web App
+        id: deploy
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: backendss
+          slot-name: Production
+          package: release.zip # ← tiny (~20–40 KB without node_modules)

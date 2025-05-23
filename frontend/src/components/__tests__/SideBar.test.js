@@ -98,7 +98,7 @@ describe("Sidebar Component", () => {
     await waitFor(() => expect(auth.signOut).toHaveBeenCalledTimes(1));
     await waitFor(() =>
       expect(fetch).toHaveBeenCalledWith(
-        "http://localhost:8080/api/auth/logout",
+        `${process.env.REACT_APP_API_BASE_URL}/api/auth/logout`,
         expect.any(Object)
       )
     );

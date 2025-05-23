@@ -34,18 +34,9 @@ export default function EditTimeSlots() {
     const fetchData = async () => {
       try {
         const token = await getAuthToken();
-
-        // // Fetch facility details
-        // const facilityRes = await fetch(`http://localhost:8080/api/facilities/${id}`, {
-        //   headers: { Authorization: `Bearer ${token}` }
-        // });
-        // const facilityData = await facilityRes.json();
-        // if (!facilityRes.ok) throw new Error(facilityData.message);
-        // setFacilityName(facilityData.name);
-
         // Fetch timeslots
         const slotsRes = await fetch(
-          `http://localhost:8080/api/facilities/timeslots`,
+          `${process.env.REACT_APP_API_BASE_URL}/api/facilities/timeslots`,
           {
             method: "POST",
             headers: {
@@ -80,7 +71,7 @@ export default function EditTimeSlots() {
     try {
       const token = await getAuthToken();
       const res = await fetch(
-        `http://localhost:8080/api/facilities/${id}/timeslots`,
+        `${process.env.REACT_APP_API_BASE_URL}/api/facilities/${id}/timeslots`,
         {
           method: "PUT",
           headers: {
@@ -170,7 +161,7 @@ export default function EditTimeSlots() {
       const [start, end] = slot.split(" - ");
 
       const response = await fetch(
-        `http://localhost:8080/api/facilities/${id}/timeslots`,
+        `${process.env.REACT_APP_API_BASE_URL}/api/facilities/${id}/timeslots`,
         {
           method: "DELETE",
           headers: {

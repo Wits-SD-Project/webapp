@@ -17,9 +17,8 @@ import AdminManageUsers from "./pages/dashboards/AdminManageUsers";
 import AdminDashboard from "./pages/dashboards/AdminDashboard";
 import AdminManageEvents from "./pages/dashboards/AdminManageEvents";
 import AdminMaintenance from "./pages/dashboards/AdminMaintenance";
+import "leaflet/dist/leaflet.css";
 import AdminReports from "./pages/dashboards/Reports";
-
-
 import UserDashboard from "./pages/dashboards/UserDashboard";
 
 
@@ -52,7 +51,7 @@ function App() {
       {/* <Router> */}
       <Routes>
         {/* Public Routes */}
-        <Route path="/" element={<LandingPage />}   />  
+        <Route path="/" element={<LandingPage />} />
         <Route path="/signin" element={<SignIn />} />
         <Route path="/signup" element={<SignUp />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -76,14 +75,14 @@ function App() {
           }
         />
         <Route
-        path="/admin/reports"  // Or your desired path
-        element={
-        <ProtectedRoute requiredRole="admin">
-          <Reports />
-        </ProtectedRoute>
-          } 
+          path="/admin/reports" // Or your desired path
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <Reports />
+            </ProtectedRoute>
+          }
         />
-         <Route
+        <Route
           path="/admin-manage-events"
           element={
             <ProtectedRoute requiredRole="admin">

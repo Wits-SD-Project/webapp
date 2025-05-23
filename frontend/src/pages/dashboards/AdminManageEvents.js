@@ -18,7 +18,6 @@ export default function AdminManageEvents() {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const tableRef = useRef(null);
 
-
   const confirmBlock = async () => {
     if (!blockFacility || !blockSlotStr || !blockDate) {
       toast.error("Fill all fields");
@@ -29,19 +28,22 @@ export default function AdminManageEvents() {
 
     try {
       const token = await getAuthToken();
-      const res = await fetch("http://localhost:8080/api/admin/block-slot", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          facilityId: blockFacility.id,
-          facilityName: blockFacility.name,
-          slot,
-          date: blockDate,
-        }),
-      });
+      const res = await fetch(
+        `${process.env.REACT_APP_API_BASE_URL}/api/admin/block-slot`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            facilityId: blockFacility.id,
+            facilityName: blockFacility.name,
+            slot,
+            date: blockDate,
+          }),
+        }
+      );
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);
       toast.success("Timeslot blocked");
@@ -51,18 +53,20 @@ export default function AdminManageEvents() {
     }
   };
 
-
   useEffect(() => {
     const fetchFacilities = async () => {
       try {
         const token = await getAuthToken();
-        const res = await fetch("http://localhost:8080/api/admin/facilities", {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const res = await fetch(
+          `${process.env.REACT_APP_API_BASE_URL}/api/admin/facilities`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
         if (!res.ok) {
           throw new Error(`HTTP error! status: ${res.status}`);
@@ -88,12 +92,15 @@ export default function AdminManageEvents() {
     const fetchEvents = async () => {
       try {
         const token = await getAuthToken();
-        const res = await fetch("http://localhost:8080/api/admin/events", {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const res = await fetch(
+          `${process.env.REACT_APP_API_BASE_URL}/api/admin/events`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
         const result = await res.json();
         if (!res.ok)
@@ -123,7 +130,7 @@ export default function AdminManageEvents() {
       try {
         const token = await getAuthToken();
         const res = await fetch(
-          "http://localhost:8080/api/facilities/timeslots",
+          `${process.env.REACT_APP_API_BASE_URL}/api/facilities/timeslots`,
           {
             method: "POST",
             headers: {
@@ -146,13 +153,12 @@ export default function AdminManageEvents() {
     })();
   }, [blockFacility]);
 
-   const handleOpenModal = (event = null) => {
+  const handleOpenModal = (event = null) => {
     setSelectedEvent(event);
     setModalOpen(true);
   };
 
-
- const handleSaveEvent = async (formData) => {
+  const handleSaveEvent = async (formData) => {
     try {
       const token = await getAuthToken();
       const payload = {
@@ -162,12 +168,12 @@ export default function AdminManageEvents() {
         description: formData.description,
         startTime: formData.startTime.toISOString(),
         endTime: formData.endTime.toISOString(),
-        posterImage: formData.posterImage
+        posterImage: formData.posterImage,
       };
 
-      const url = selectedEvent 
-        ? `http://localhost:8080/api/admin/events/${selectedEvent.id}`
-        : "http://localhost:8080/api/admin/events";
+      const url = selectedEvent
+        ? `${process.env.REACT_APP_API_BASE_URL}/api/admin/events/${selectedEvent.id}`
+        : `${process.env.REACT_APP_API_BASE_URL}/api/admin/events`;
 
       const method = selectedEvent ? "PUT" : "POST";
 
@@ -185,34 +191,49 @@ export default function AdminManageEvents() {
 
       // Update events state
       if (selectedEvent) {
-        setEvents(prev => prev.map(e => 
-          e.id === selectedEvent.id ? { ...result.event, startTime: new Date(result.event.startTime), endTime: new Date(result.event.endTime) } : e
-        ));
+        setEvents((prev) =>
+          prev.map((e) =>
+            e.id === selectedEvent.id
+              ? {
+                  ...result.event,
+                  startTime: new Date(result.event.startTime),
+                  endTime: new Date(result.event.endTime),
+                }
+              : e
+          )
+        );
       } else {
-        setEvents(prev => [...prev, { 
-          ...result.event, 
-          startTime: new Date(result.event.startTime),
-          endTime: new Date(result.event.endTime)
-        }]);
+        setEvents((prev) => [
+          ...prev,
+          {
+            ...result.event,
+            startTime: new Date(result.event.startTime),
+            endTime: new Date(result.event.endTime),
+          },
+        ]);
       }
 
       // Call the new notifications endpoint
-      if (!selectedEvent) { // Only send notifications for new events
+      if (!selectedEvent) {
+        // Only send notifications for new events
         try {
-          await fetch('http://localhost:8080/api/admin/events/notify', {
-            method: 'POST',
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              eventId: result.event.id,
-              eventName: result.event.eventName,
-              facilityName: result.event.facility.name,
-              startTime: result.event.startTime,
-              endTime: result.event.endTime
-            })
-          });
+          await fetch(
+            `${process.env.REACT_APP_API_BASE_URL}/api/admin/events/notify`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({
+                eventId: result.event.id,
+                eventName: result.event.eventName,
+                facilityName: result.event.facility.name,
+                startTime: result.event.startTime,
+                endTime: result.event.endTime,
+              }),
+            }
+          );
         } catch (notifyErr) {
           console.error("Error sending event notifications:", notifyErr);
         }
@@ -224,11 +245,11 @@ export default function AdminManageEvents() {
       console.error("Save error:", error);
       toast.error(error.message);
     }
-};
+  };
   const handleDeleteEvent = async (eventId) => {
     try {
       const token = await getAuthToken();
-      const url = `http://localhost:8080/api/admin/events/${eventId}`;
+      const url = `${process.env.REACT_APP_API_BASE_URL}/api/admin/events/${eventId}`;
 
       const res = await fetch(url, {
         method: "DELETE",
@@ -262,7 +283,7 @@ export default function AdminManageEvents() {
 
   return (
     <main className="manage-events">
-       <EventFormModal
+      <EventFormModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         onSubmit={handleSaveEvent}
@@ -308,7 +329,7 @@ export default function AdminManageEvents() {
                     <td>{e.description}</td>
                     <td>{formatDateTime(e.startTime)}</td>
                     <td>{formatDateTime(e.endTime)}</td>
-                   <td className="actions">
+                    <td className="actions">
                       <img
                         src={editIcon}
                         alt="edit"
