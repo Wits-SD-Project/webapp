@@ -519,27 +519,47 @@ router.get("/maintenance-reports", authenticate, async (req, res) => {
       .doc(req.user.email)
       .get();
 
-    if (!userSnap.exists || userSnap.data().role !== "admin") {
-      return res.status(403).json({ message: "Access denied. Admins only." });
+    if (
+      !userSnap.exists ||
+      (userSnap.data().role !== "admin" && userSnap.data().role !== "resident")
+    ) {
+      return res
+        .status(403)
+        .json({ message: "Access denied. Admins and Residents only." });
     }
 
-    const snapshot = await admin
-      .firestore()
-      .collection("maintenance-reports")
-      .get();
+    const role = userSnap.data().role;
+
+    let snapshot;
+
+    if (role === "admin") {
+      // Admin gets all reports
+      snapshot = await admin.firestore().collection("maintenance-reports").get();
+    } else if (role === "resident") {
+      // Resident only gets their own reports
+      snapshot = await admin
+        .firestore()
+        .collection("maintenance-reports")
+        .where("userId", "==", req.user.uid)
+        .get();
+    }
+
     const reports = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate?.() || null
     }));
 
     res.status(200).json({ success: true, reports });
   } catch (error) {
     console.error("Error fetching maintenance reports:", error);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to fetch maintenance reports" });
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch maintenance reports",
+    });
   }
 });
+
 
 router.get("/facilities", authenticate, async (req, res) => {
   try {
@@ -929,5 +949,278 @@ const hourlyBookings = Array(12).fill(0).map((_, i) => {
   }
 });
 
+// POST /api/admin/maintenance-reports
+router.post("/maintenance-reports", authenticate, async (req, res) => {
+  try {
+    const {
+      facilityId,
+      facilityName,
+      description,
+      facilityStaff,
+    } = req.body;
+
+    const user = req.user;
+
+    if (!facilityId || !facilityName || !description) {
+      return res.status(400).json({ success: false, message: "Missing fields" });
+    }
+
+    const docRef = await admin.firestore().collection("maintenance-reports").add({
+      facilityId,
+      facilityName,
+      description,
+      status: "opened",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      resolvedAt: null,
+      facilityStaff: facilityStaff || "",
+      userId: user.uid,
+      username: user.email,
+    });
+
+    res.status(201).json({ success: true, id: docRef.id });
+  } catch (error) {
+    console.error("Error creating maintenance report:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+});
+
+router.get("/get-notifications", authenticate, async (req, res) => {
+  try {
+    const user = req.user;
+
+    // Get notifications for the current user
+    const notificationsSnapshot = await admin.firestore()
+      .collection("notifications")
+      .where("userName", "==", user.email)
+      .orderBy("createdAt", "desc")
+      .get();
+
+    const notifications = notificationsSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+      };
+    });
+
+    res.status(200).json({ success: true, notifications });
+  } catch (error) {
+    console.error("Error fetching notifications:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Failed to load notifications" 
+    });
+  }
+});
+
+router.get("/staff-dashboard", authenticate, async (req, res) => {
+  try {
+    const user = req.user;
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+
+    // Get all bookings assigned to this staff member
+    const bookingsSnapshot = await admin.firestore()
+      .collection('bookings')
+      .where('facilityStaff', '==', user.uid)
+      .get();
+
+    let upcomingBookings = [];
+    let pendingCount = 0;
+
+    bookingsSnapshot.forEach(doc => {
+      const data = doc.data();
+      if (data.status === 'approved' && data.date >= todayStr) {
+        upcomingBookings.push({
+          ...data,
+          id: doc.id,
+          date: data.date // Already in YYYY-MM-DD format
+        });
+      }
+      if (data.status === 'pending') {
+        pendingCount++;
+      }
+    });
+
+    // Sort upcoming bookings by date
+    upcomingBookings.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    // Calculate days until next booking
+    let daysUntilNext = null;
+    if (upcomingBookings.length > 0) {
+      const nextBookingDate = new Date(upcomingBookings[0].date);
+      const diffTime = nextBookingDate.getTime() - today.getTime();
+      daysUntilNext = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        upcomingCount: upcomingBookings.length,
+        pendingCount,
+        daysUntilNext
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching staff dashboard data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to load dashboard data'
+    });
+  }
+});
+
+router.get("/staff-upcoming-bookings", authenticate, async (req, res) => {
+  try {
+    const user = req.user;
+    const today = new Date().toISOString().split('T')[0];
+
+    // Get all approved bookings assigned to this staff member with future dates
+    const bookingsSnapshot = await admin.firestore()
+      .collection('bookings')
+      .where('facilityStaff', '==', user.uid)
+      .where('status', '==', 'approved')
+      .where('date', '>=', today)
+      .get();
+
+    const bookings = [];
+    bookingsSnapshot.forEach(doc => {
+      const data = doc.data();
+      bookings.push({
+        facilityName: data.facilityName,
+        userName: data.userName,
+        date: data.date,
+        slot: data.slot,
+        id: doc.id
+      });
+    });
+
+    // Sort by date ascending
+    bookings.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    res.status(200).json({
+      success: true,
+      bookings
+    });
+  } catch (error) {
+    console.error('Error fetching upcoming bookings:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to load upcoming bookings'
+    });
+  }
+});
+
+router.get("/view-bookings", authenticate, async (req, res) => {
+  try {
+    const user = req.user;
+    
+    const bookingsSnapshot = await admin.firestore()
+      .collection('bookings')
+      .where('facilityStaff', '==', user.uid)
+      .get();
+
+    const bookings = bookingsSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    res.status(200).json({ success: true, bookings });
+  } catch (error) {
+    console.error('Error fetching bookings:', error);
+    res.status(500).json({ success: false, message: 'Failed to load bookings' });
+  }
+});
+
+// Update booking status
+router.put("/:id/status", authenticate, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const user = req.user;
+
+    // Validate status
+    if (!['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ success: false, message: 'Invalid status' });
+    }
+
+    // Get the booking first to verify ownership
+    const bookingRef = admin.firestore().collection('bookings').doc(id);
+    const bookingSnap = await bookingRef.get();
+
+    if (!bookingSnap.exists) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+
+    const booking = bookingSnap.data();
+
+    // Verify this staff member is assigned to the facility
+    if (booking.facilityStaff !== user.uid) {
+      return res.status(403).json({ success: false, message: 'Unauthorized' });
+    }
+
+    // Update booking status
+    await bookingRef.update({ status });
+
+    // Create notification
+    await admin.firestore().collection('notifications').add({
+      userName: booking.userName || booking.user || 'Unknown',
+      facilityName: booking.facilityName,
+      status,
+      slot: booking.slot || booking.datetime || '',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      read: false,
+      userId: booking.userId
+    });
+
+    // If approved, update facility timeslot
+    if (status === 'approved') {
+      const facilities = await admin.firestore()
+        .collection('facilities-test')
+        .where('name', '==', booking.facilityName)
+        .get();
+
+      if (!facilities.empty) {
+        const facilityRef = facilities.docs[0].ref;
+        const facilityData = facilities.docs[0].data();
+        
+        const updatedSlots = (facilityData.timeslots || []).map(slot => {
+          if (`${slot.start} - ${slot.end}` === booking.slot) {
+            return {
+              ...slot,
+              isBooked: true,
+              bookedBy: booking.userName || booking.user || 'Unknown'
+            };
+          }
+          return slot;
+        });
+
+        await facilityRef.update({ timeslots: updatedSlots });
+      }
+    }
+
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Error updating booking status:', error);
+    res.status(500).json({ success: false, message: 'Failed to update booking' });
+  }
+});
+router.get("/obtain", authenticate, async (req, res) => {
+  try {
+    const facilitiesSnapshot = await admin.firestore()
+      .collection('facilities-test')
+      .get();
+
+    const facilities = facilitiesSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    res.status(200).json({ success: true, facilities });
+  } catch (error) {
+    console.error('Error fetching facilities:', error);
+    res.status(500).json({ success: false, message: 'Failed to load facilities' });
+  }
+});
 
 module.exports = router;

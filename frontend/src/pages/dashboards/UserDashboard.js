@@ -34,19 +34,39 @@ export default function UserDashboard() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchFacilities = async () => {
       try {
-        const querySnapshot = await getDocs(collection(db, "facilities-test"));
-        const facilitiesData = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setFacilities(facilitiesData);
+        setLoading(true);
+        const user = auth.currentUser;
+        if (!user) return;
+
+        const token = await user.getIdToken();
+        const response = await fetch(
+          `${process.env.REACT_APP_API_BASE_URL}/api/admin/obtain`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch facilities");
+        }
+
+        const data = await response.json();
+        setFacilities(data.facilities);
       } catch (error) {
         console.error("Error fetching facilities:", error);
+        setError(error.message || "Failed to load facilities");
+      } finally {
+        setLoading(false);
       }
     };
 
