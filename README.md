@@ -49,12 +49,16 @@
    ```
 
 3. **Backend Setup**
-   ```bash
-   cd ../server
-   # Add your .env file here
-   npm install
-   npm start
-   ```
+
+   1. **Download the `.env` file**  
+      Download it from [this link](https://drive.google.com/file/d/1_mef0sCEAqngYEX0YYgFpPsrckeEytPU/view?usp=sharing) and place it inside the `/server` directory of the project.
+
+   2. **Install dependencies and run the server**
+      ```bash
+      cd ../server
+      npm install
+      npm start
+      ```
 
 ---
 
