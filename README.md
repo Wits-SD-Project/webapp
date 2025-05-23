@@ -60,21 +60,21 @@
 
 ## 👥 Demo Accounts
 
-| Role           | Email                      | Password               |
-| -------------- | -------------------------- | ---------------------- |
-| Admin          | ad.sportssphere@gmail.com  | admin_Sp0rtsSph3r3     |
-| Facility Staff | st.sportssphere@gmail.com  | staff_sp0rtSphere123!! |
-| Resident       | res.sportssphere@gmail.com | res_sp0rtSphere123!!   |
+| Role           | Email                      | Password             |
+| -------------- | -------------------------- | -------------------- |
+| Admin          | ad.sportssphere@gmail.com  | admin_Sp0rtsSph3r3   |
+| Facility Staff | staffsphere963@gmail.com   | staffsphere123       |
+| Resident       | res.sportssphere@gmail.com | res_sp0rtSphere123!! |
 
 ---
 
 ## 🧩 User Stories
 
-| Role           | Functionality                                                       |
-| -------------- | ------------------------------------------------------------------- |
-| Resident       | View/book time slots, report maintenance, get event notifications   |
-| Facility Staff | Approve/reject bookings, manage maintenance reports, view schedule  |
-| Admin          | Block time slots, create events, generate usage/maintenance reports |
+| Role           | Functionality                                                          |
+| -------------- | ---------------------------------------------------------------------- |
+| Resident       | View/book time slots, report maintenance, get event notifications...   |
+| Facility Staff | Approve/reject bookings, manage maintenance reports, view schedule...  |
+| Admin          | Block time slots, create events, generate usage/maintenance reports... |
 
 For a detailed breakdown of completed stories, see our [documentation](https://sportssphere.mintlify.app).
 
