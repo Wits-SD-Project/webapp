@@ -9,7 +9,6 @@ import "./staffSideBar.css";
 import { toast } from "react-toastify";
 import { auth } from "../firebase";
 import { useAuth } from "../context/AuthContext";
-import { API_BASE_URL } from "../config";
 
 export default function Sidebar({ activeItem }) {
   const navigate = useNavigate();
@@ -18,10 +17,13 @@ export default function Sidebar({ activeItem }) {
   const handleLogout = async () => {
     try {
       await auth.signOut(); // Sign out from Firebase
-      const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
-        method: "POST",
-        credentials: "include", // Necessary for cookies
-      });
+      const response = await fetch(
+        `${process.env.REACT_APP_API_BASE_URL}/api/auth/logout`,
+        {
+          method: "POST",
+          credentials: "include", // Necessary for cookies
+        }
+      );
 
       if (!response.ok) {
         throw new Error("Failed to clear server session");
