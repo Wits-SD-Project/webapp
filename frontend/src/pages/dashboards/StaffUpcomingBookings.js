@@ -1,44 +1,48 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { db,auth } from "../../firebase";
-import { collection, getDocs,query ,where } from "firebase/firestore";
 import Sidebar from "../../components/StaffSideBar.js";
 import "../../styles/staffUpcomingBookings.css";
+import { getAuthToken } from "../../firebase";
 
 export default function StaffUpcomingBookings() {
   const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchUpcomingBookings = async () => {
+    try {
+      setLoading(true);
+      const token = await getAuthToken();
+      
+      const response = await fetch(
+        `${process.env.REACT_APP_API_BASE_URL}/api/admin/staff-upcoming-bookings`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch upcoming bookings");
+      }
+
+      const data = await response.json();
+      setBookings(data.bookings);
+    } catch (err) {
+      console.error("Error fetching upcoming bookings:", err);
+      setError(err.message || "Failed to load upcoming bookings");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchBookings = async () => {
-      const user = auth.currentUser;
-      if (!user) return;
-  
-      try {
-        const bookingsRef = collection(db, "bookings");
-        const q = query(
-          bookingsRef,
-          where("facilityStaff", "==", user.uid),
-          where("status", "==", "approved")
-        );
-  
-        const querySnapshot = await getDocs(q);
-        const bookingsData = querySnapshot.docs.map(doc => doc.data());
-  
-        const today = new Date().toISOString().split("T")[0];
-        const filtered = bookingsData
-          .filter(b => b.date >= today)
-          .sort((a, b) => new Date(a.date) - new Date(b.date));
-  
-        setBookings(filtered);
-      } catch (error) {
-        console.error("Error fetching bookings:", error);
-      }
-    };
-  
-    fetchBookings();
+    fetchUpcomingBookings();
   }, []);
-  
 
   return (
     <main className="staff-upcoming-bookings">
@@ -47,30 +51,50 @@ export default function StaffUpcomingBookings() {
         <main className="main-content">
           <header className="page-header">
             <h1>Upcoming Bookings</h1>
-            <button className="back-btn" onClick={() => navigate("/staff-dashboard")}>Back</button>
+            <button 
+              className="back-btn" 
+              onClick={() => navigate("/staff-dashboard")}
+            >
+              Back
+            </button>
           </header>
-          <section className="table-section">
-            <table className="bookings-table">
-              <thead>
-                <tr>
-                  <th>Facility Name</th>
-                  <th>User</th>
-                  <th>Date</th>
-                  <th>Time</th>
-                </tr>
-              </thead>
-              <tbody>
-                {bookings.map((b, index) => (
-                  <tr key={index}>
-                    <td>{b.facilityName}</td>
-                    <td>{b.userName}</td>
-                    <td>{b.date}</td>
-                    <td>{b.slot}</td>
+
+          {loading ? (
+            <p className="loading-message">Loading upcoming bookings...</p>
+          ) : error ? (
+            <p className="error-message">{error}</p>
+          ) : (
+            <section className="table-section">
+              <table className="bookings-table">
+                <thead>
+                  <tr>
+                    <th>Facility Name</th>
+                    <th>User</th>
+                    <th>Date</th>
+                    <th>Time</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
+                </thead>
+                <tbody>
+                  {bookings.length > 0 ? (
+                    bookings.map((booking, index) => (
+                      <tr key={index}>
+                        <td>{booking.facilityName}</td>
+                        <td>{booking.userName}</td>
+                        <td>{booking.date}</td>
+                        <td>{booking.slot}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="4" className="no-bookings">
+                        No upcoming bookings found
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </section>
+          )}
         </main>
       </div>
     </main>

@@ -1,24 +1,15 @@
 import { useState, useEffect, useMemo } from "react";
-import {
-  collection,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-} from "firebase/firestore";
-import { auth, db } from "../../firebase";
 import Sidebar from "../../components/ResSideBar.js";
 import "../../styles/resNotifications.css";
 import { format } from "date-fns";
+import { getAuthToken } from "../../firebase";
 
-// Define a threshold for "new" notifications
 const NEW_NOTIFICATION_THRESHOLD_MS = 24 * 60 * 60 * 1000;
 
-// Helper function to safely convert string to Date
-const parseDateString = (dateString) => {
-  if (!dateString) return null;
-  const date = new Date(dateString);
-  return isNaN(date.getTime()) ? null : date; // Check for invalid dates
+const parseDateString = (dateInput) => {
+  if (!dateInput) return null;
+  const date = new Date(dateInput);
+  return isNaN(date.getTime()) ? null : date;
 };
 
 export default function ResNotifications() {
@@ -27,75 +18,75 @@ export default function ResNotifications() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const user = auth.currentUser;
-    if (!user) {
-      setLoading(false);
-      return;
-    }
+  const fetchNotifications = async () => {
+    try {
+      setLoading(true);
+      const token = await getAuthToken();
+      
+      const response = await fetch(
+        `${process.env.REACT_APP_API_BASE_URL}/api/admin/get-notifications`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
-    setLoading(true);
-    setError(null);
-
-    const q = query(
-      collection(db, "notifications"),
-      where("userName", "==", user.email),
-      orderBy("createdAt", "desc")
-    );
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const now = Date.now();
-
-        const fetchedNotifications = snapshot.docs.map((doc) => {
-          const data = doc.data();
-
-          // Handle createdAt - should already be a Timestamp, but handle undefined
-          const createdAtDate = data.createdAt?.toDate
-            ? data.createdAt.toDate()
-            : parseDateString(data.createdAt);
-          const isNew = now - createdAtDate.getTime() < NEW_NOTIFICATION_THRESHOLD_MS;
-
-          let type = "Booking";
-          let message = `Your booking for ${data.facilityName} at ${data.slot} was ${data.status}.`;
-
-          if (data.type === "event") {
-            type = "Event";
-            // Parse start and end times from strings
-            const startTime = parseDateString(data.startTime) || new Date(0);
-            const endTime = parseDateString(data.endTime) || new Date(0);
-
-            // Format the dates using date-fns, short format
-            const formattedStartTime = format(startTime, "PPPp");
-            const formattedEndTime = format(endTime, "PPPp");
-
-            message = `New event: ${data.eventName} at ${data.facilityName} from ${formattedStartTime} to ${formattedEndTime}.`;
-          }
-
-          // Format the createdAtDate for display, short format
-          const formattedDate = format(createdAtDate, "PPPp");
-
-          return {
-            id: doc.id,
-            date: formattedDate,
-            type,
-            message,
-            isNew,
-          };
-        });
-
-        setNotifications(fetchedNotifications);
-        setLoading(false);
-      },
-      (err) => {
-        console.error("Error fetching real-time notifications:", err);
-        setError("Failed to load notifications. Please try again.");
-        setLoading(false);
+      if (!response.ok) {
+        throw new Error("Failed to fetch notifications");
       }
-    );
 
-    return () => unsubscribe();
+      const data = await response.json();
+      const now = Date.now();
+
+      const formattedNotifications = data.notifications.map((item) => {
+        const createdAtDate = parseDateString(item.createdAt);
+        const isNew = createdAtDate && 
+          now - createdAtDate.getTime() < NEW_NOTIFICATION_THRESHOLD_MS;
+
+        let type = item.type === "event" ? "Event" : "Booking";
+        let message;
+
+        if (type === "Event") {
+          const startTime = parseDateString(item.startTime) || new Date(0);
+          const endTime = parseDateString(item.endTime) || new Date(0);
+
+          message = `New event: ${item.eventName} at ${item.facilityName} from ${
+            format(startTime, "PPPp")
+          } to ${
+            format(endTime, "PPPp")
+          }.`;
+        } else {
+          message = `Your booking for ${item.facilityName} at ${item.slot} was ${item.status}.`;
+        }
+
+        return {
+          id: item.id,
+          date: createdAtDate ? format(createdAtDate, "PPPp") : "Invalid date",
+          type,
+          message,
+          isNew,
+        };
+      });
+
+      setNotifications(formattedNotifications);
+    } catch (err) {
+      console.error("Error fetching notifications:", err);
+      setError(err.message || "Failed to load notifications");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+    
+    // Optional: Set up polling if you want near real-time updates
+    const interval = setInterval(fetchNotifications, 60000); // Refresh every minute
+    
+    return () => clearInterval(interval);
   }, []);
 
   const filteredNotifications = useMemo(() => {
