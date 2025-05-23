@@ -4,7 +4,7 @@ import Sidebar from "../../components/AdminSideBar.js";
 import "../../styles/staffDashboard.css";
 import "../../styles/adminDashboard.css";
 import { useAuth } from "../../context/AuthContext.js";
-import { db, auth } from "../../firebase";
+import { auth } from "../../firebase";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Doughnut, Bar } from "react-chartjs-2";

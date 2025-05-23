@@ -1,15 +1,10 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { doc, getDoc } from "firebase/firestore";
-import { db, auth } from "../../firebase";
+import { auth ,getAuthToken} from "../../firebase";
 import {
-  Box,
   Typography,
-  Grid,
   Button,
-  Divider,
   Paper,
-  Container,
   Chip,
   Skeleton,
   Tabs,

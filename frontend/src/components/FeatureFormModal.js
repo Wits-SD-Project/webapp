@@ -27,18 +27,20 @@ export default function FeatureFormModal({
   open, 
   onClose, 
   onSubmit, 
-  facilityType 
+  facilityType,
+  initialData = {},
+  isEditMode = false
 }) {
-  const [description, setDescription] = useState("");
-  const [features, setFeatures] = useState([]);
+  const [description, setDescription] = useState(initialData.description || "");
+  const [features, setFeatures] = useState(initialData.features || []);
   const [inputValue, setInputValue] = useState("");
 
   useEffect(() => {
-    // Add general features by default
+    if (isEditMode) return;
     setFeatures(prev => [
       ...new Set([...prev, ...(facilityFeatures.General || [])])
     ]);
-  }, []);
+  }, [isEditMode]);
 
   const handleAddFeature = (newFeature) => {
     if (newFeature && !features.includes(newFeature)) {
@@ -49,7 +51,7 @@ export default function FeatureFormModal({
 
   const handleSubmit = () => {
     if (!description) {
-      toast.error("Please add a description");
+      toast.error("Please add a description.");
       return;
     }
     onSubmit({ description, features });
@@ -65,14 +67,14 @@ export default function FeatureFormModal({
       PaperProps={{ sx: { borderRadius: 4, p: 1 } }}
     >
       <DialogTitle sx={{ fontWeight: 600 }}>
-        🛠️ Add Features & Description for {facilityType}
+        {isEditMode ? "Edit Facility Features" : `Add Features for ${facilityType}`}
       </DialogTitle>
       
       <DialogContent dividers sx={{ p: 3 }}>
         <Grid container spacing={3}>
           <Grid item xs={12}>
             <TextField
-              label="Description 📝"
+              label="Facility Description"
               multiline
               rows={4}
               fullWidth
@@ -95,7 +97,6 @@ export default function FeatureFormModal({
                     label={feature}
                     onClick={() => handleAddFeature(feature)}
                     color={features.includes(feature) ? "primary" : "default"}
-                    
                   />
                 ))}
               </Box>
@@ -111,10 +112,11 @@ export default function FeatureFormModal({
               renderInput={(params) => (
                 <TextField
                   {...params}
-                  label="Add Custom Feature, Click enter to add"
+                  label="Add custom feature"
                   variant="outlined"
                   onKeyPress={(e) => {
                     if (e.key === "Enter") {
+                      e.preventDefault();
                       handleAddFeature(inputValue);
                     }
                   }}
@@ -136,17 +138,25 @@ export default function FeatureFormModal({
       </DialogContent>
 
       <DialogActions sx={{ p: 3 }}>
-        <Button onClick={onClose} color="secondary">
+        <Button
+          onClick={onClose}
+          variant="outlined"
+          color="inherit"
+          sx={{ borderRadius: 2, textTransform: "none" }}
+        >
           Cancel
         </Button>
         <Button 
           variant="contained" 
+          color="primary"
           onClick={handleSubmit}
           disabled={description.length < 50}
+          sx={{ borderRadius: 2, textTransform: "none" }}
         >
-          Complete Facility Setup 🏁
+          {isEditMode ? "Save Changes" : "Save Facility"}
         </Button>
       </DialogActions>
     </Dialog>
   );
 }
+

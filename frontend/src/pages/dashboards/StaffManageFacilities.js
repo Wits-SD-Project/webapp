@@ -1,14 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import Sidebar from "../../components/StaffSideBar.js";
 import clockIcon from "../../assets/clock.png";
-import editIcon from "../../assets/edit.png";
 import binIcon from "../../assets/bin.png";
 import "../../styles/staffManageFacilities.css";
 import { useNavigate } from "react-router-dom";
 import { getAuthToken } from "../../firebase";
 import { toast } from "react-toastify";
-import FacilityFormModal from "./FalicityFormModal";
-import FeatureFormModal from "./FeatureFormModal";
+import FacilityFormModal from "../../components/FalicityFormModal";
+import FeatureFormModal from "../../components/FeatureFormModal.js";
 
 export default function ManageFacilities() {
   const [facilities, setFacilities] = useState([]);
@@ -139,44 +138,6 @@ export default function ManageFacilities() {
     }
   };
 
-  const handleUpdateFacility = async (facility) => {
-    try {
-      const token = await getAuthToken();
-      const res = await fetch(
-        `http://localhost:8080/api/facilities/updateFacility/${facility.id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            name: facility.name,
-            type: facility.type,
-            isOutdoors: facility.isOutdoors === "Yes",
-            availability: facility.availability,
-            description: facility.description,
-            features: facility.features,
-          }),
-        }
-      );
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Update failed");
-
-      setFacilities((prev) =>
-        prev.map((f) =>
-          f.id === facility.id ? { ...data.facility, isEditing: false } : f
-        )
-      );
-
-      toast.success("Facility updated successfully");
-    } catch (err) {
-      console.error("Update facility error:", err);
-      toast.error(err.message || "Failed to update facility");
-    }
-  };
-
   const handleDelete = async (id) => {
     try {
       const token = await getAuthToken();
@@ -203,54 +164,9 @@ export default function ManageFacilities() {
     }
   };
 
-  const confirmDelete = (id) => {
-    if (window.confirm("Are you sure you want to delete this facility?")) {
-      handleDelete(id);
-    }
-  };
-
-  const handleEditToggle = (id) => {
-    setFacilities((prev) =>
-      prev.map((f) => (f.id === id ? { ...f, isEditing: true } : f))
-    );
-
-    setOriginalFacilities((prev) => {
-      const alreadyStored = prev[id];
-      if (alreadyStored) return prev;
-      const original = facilities.find((f) => f.id === id);
-      return { ...prev, [id]: { ...original } };
-    });
-  };
-
   const handleEditFeatures = (id) => {
     setEditingFacilityId(id);
     setEditFeatureModalOpen(true);
-  };
-
-  const handleCancelEdit = (id) => {
-    const facility = facilities.find((f) => f.id === id);
-
-    if (facility.isNew) {
-      setFacilities((prev) => prev.filter((f) => f.id !== id));
-    } else {
-      setFacilities((prev) =>
-        prev.map((f) =>
-          f.id === id ? { ...originalFacilities[id], isEditing: false } : f
-        )
-      );
-
-      setOriginalFacilities((prev) => {
-        const updated = { ...prev };
-        delete updated[id];
-        return updated;
-      });
-    }
-  };
-
-  const handleFieldChange = (id, field, value) => {
-    setFacilities((prev) =>
-      prev.map((f) => (f.id === id ? { ...f, [field]: value } : f))
-    );
   };
 
   const getAvailabilityClass = (status) => {
@@ -343,76 +259,13 @@ export default function ManageFacilities() {
               <tbody>
                 {facilities.map((f) => (
                   <tr key={f.id}>
+                    <td>{f.name}</td>
+                    <td>{f.type}</td>
+                    <td>{f.isOutdoors}</td>
                     <td>
-                      {f.isEditing ? (
-                        <input
-                          type="text"
-                          value={f.name}
-                          onChange={(e) =>
-                            handleFieldChange(f.id, "name", e.target.value)
-                          }
-                          placeholder="Facility Name"
-                        />
-                      ) : (
-                        f.name
-                      )}
-                    </td>
-                    <td>
-                      {f.isEditing ? (
-                        <input
-                          type="text"
-                          value={f.type}
-                          onChange={(e) =>
-                            handleFieldChange(f.id, "type", e.target.value)
-                          }
-                          placeholder="Type"
-                        />
-                      ) : (
-                        f.type
-                      )}
-                    </td>
-                    <td>
-                      {f.isEditing ? (
-                        <select
-                          value={f.isOutdoors}
-                          onChange={(e) =>
-                            handleFieldChange(
-                              f.id,
-                              "isOutdoors",
-                              e.target.value
-                            )
-                          }
-                        >
-                          <option value="Yes">Yes</option>
-                          <option value="No">No</option>
-                        </select>
-                      ) : (
-                        f.isOutdoors
-                      )}
-                    </td>
-                    <td>
-                      {f.isEditing ? (
-                        <select
-                          value={f.availability}
-                          onChange={(e) =>
-                            handleFieldChange(
-                              f.id,
-                              "availability",
-                              e.target.value
-                            )
-                          }
-                        >
-                          <option value="Available">Available</option>
-                          <option value="Closed">Closed</option>
-                          <option value="Under Maintenance">
-                            Under Maintenance
-                          </option>
-                        </select>
-                      ) : (
-                        <span className={getAvailabilityClass(f.availability)}>
-                          {f.availability}
-                        </span>
-                      )}
+                      <span className={getAvailabilityClass(f.availability)}>
+                        {f.availability}
+                      </span>
                     </td>
                     <td className="icon-actions">
                       <img
@@ -466,7 +319,11 @@ export default function ManageFacilities() {
                         src={binIcon}
                         alt="delete"
                         className="icon-btn"
-                        onClick={() => confirmDelete(f.id)}
+                        onClick={() => {
+                          if (window.confirm("Are you sure you want to delete this facility?")) {
+                            handleDelete(f.id);
+                          }
+                        }}
                       />
                     </td>
                   </tr>
@@ -479,3 +336,4 @@ export default function ManageFacilities() {
     </main>
   );
 }
+
