@@ -13,10 +13,13 @@ export default function AdminDashboard() {
       try {
         const token = await getAuthToken();
 
-        const res = await fetch("http://localhost:8080/api/admin/users", {
-          method: "GET",
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await fetch(
+          `${process.env.REACT_APP_API_BASE_URL}/api/admin/users`,
+          {
+            method: "GET",
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
 
         if (!res.ok) {
           const text = await res.text();
@@ -46,14 +49,17 @@ export default function AdminDashboard() {
     try {
       const token = await getAuthToken();
 
-      const res = await fetch(`http://localhost:8080/api/admin/${endpoint}`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email: user.email }),
-      });
+      const res = await fetch(
+        `${process.env.REACT_APP_API_BASE_URL}/api/admin/${endpoint}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email: user.email }),
+        }
+      );
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || res.statusText);

@@ -158,7 +158,7 @@ describe("AdminDashboard Component", () => {
 
     await waitFor(() => {
       expect(fetch).toHaveBeenCalledWith(
-        "http://localhost:8080/api/admin/maintenance-reports",
+        `${process.env.REACT_APP_API_BASE_URL}/api/admin/maintenance-reports`,
         expect.any(Object)
       );
     });

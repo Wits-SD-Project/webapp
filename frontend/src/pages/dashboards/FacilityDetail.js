@@ -70,7 +70,7 @@ export default function FacilityDetail() {
 
         // 2. Make API request
         const response = await fetch(
-          `http://localhost:8080/api/facilities/${id}`,
+          `${process.env.REACT_APP_API_BASE_URL}/api/facilities/${id}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -169,7 +169,7 @@ export default function FacilityDetail() {
       const formattedDate = selectedDate.toISOString().split("T")[0];
 
       const response = await fetch(
-        "http://localhost:8080/api/facilities/bookings",
+        `${process.env.REACT_APP_API_BASE_URL}/api/facilities/bookings`,
         {
           method: "POST",
           headers: {

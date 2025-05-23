@@ -42,11 +42,14 @@ export default function AdminDashboard() {
 
     try {
       const token = await user.getIdToken();
-      const res = await fetch("http://localhost:8080/api/admin/maintenance-reports", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const res = await fetch(
+        `${process.env.REACT_APP_API_BASE_URL}/api/admin/maintenance-reports`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to fetch reports");
@@ -97,11 +100,14 @@ export default function AdminDashboard() {
 
       try {
         const token = await user.getIdToken();
-        const res = await fetch("http://localhost:8080/api/admin/maintenance-summary", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const res = await fetch(
+          `${process.env.REACT_APP_API_BASE_URL}/api/admin/maintenance-summary`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || "Failed to fetch summary");
@@ -187,12 +193,31 @@ export default function AdminDashboard() {
 
           <div className="graph-container">
             {/* Usage Trends Preview */}
-            <div className="graph-card clickable" onClick={() => navigate("/admin/reports")}>
+            <div
+              className="graph-card clickable"
+              onClick={() => navigate("/admin/reports")}
+            >
               <h3>Usage Trends by Facility</h3>
-              <div className="graph-placeholder" style={{ backgroundColor: "#fff", padding: 0 }}>
-                <Bar data={barData} height={200} options={{ responsive: true, plugins: { legend: { display: false } } }} />
+              <div
+                className="graph-placeholder"
+                style={{ backgroundColor: "#fff", padding: 0 }}
+              >
+                <Bar
+                  data={barData}
+                  height={200}
+                  options={{
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                  }}
+                />
               </div>
-              <p style={{ textAlign: "center", color: "#00c0df", marginTop: "0.5rem" }}>
+              <p
+                style={{
+                  textAlign: "center",
+                  color: "#00c0df",
+                  marginTop: "0.5rem",
+                }}
+              >
                 Click to view full reports
               </p>
             </div>
@@ -206,7 +231,9 @@ export default function AdminDashboard() {
               <p>Open Issues: {maintenanceSummary.openCount}</p>
               <p>Closed Issues: {maintenanceSummary.closedCount}</p>
               <div className="export-buttons">
-                <button onClick={handleExportMaintenancePDF}>Export as PDF</button>
+                <button onClick={handleExportMaintenancePDF}>
+                  Export as PDF
+                </button>
                 <button>Export as CSV</button>
               </div>
             </div>

@@ -232,7 +232,7 @@ describe("UserDashboard Component", () => {
 
         try {
           const response = await fetch(
-            "http://localhost:8080/api/facilities/bookings",
+            `${process.env.REACT_APP_API_BASE_URL}/api/facilities/bookings`,
             {
               method: "POST",
               headers: {
@@ -275,7 +275,7 @@ describe("UserDashboard Component", () => {
     // Verify API was called with correct data
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        "http://localhost:8080/api/facilities/bookings",
+        `${process.env.REACT_APP_API_BASE_URL}/api/facilities/bookings`,
         expect.objectContaining({
           method: "POST",
           body: expect.stringContaining(mockSelectedFacility.id),
@@ -401,7 +401,7 @@ describe("UserDashboard Component", () => {
       const confirmBooking = async (date) => {
         try {
           const response = await fetch(
-            "http://localhost:8080/api/facilities/bookings",
+            `${process.env.REACT_APP_API_BASE_URL}/api/facilities/bookings`,
             {
               method: "POST",
               headers: {

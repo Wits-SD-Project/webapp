@@ -42,6 +42,11 @@
 
 2. **Frontend Setup**
 
+   1. **Download the `.env` file**
+      Download it from [this link](https://drive.google.com/file/d/1lzbu_TXg-LEgdYhALJ7zPax-j4H8SR-4/view?usp=sharing) and place it inside the `/frontend` directory of the project.
+
+   2. **Install dependencies and run the frontend**
+
    ```bash
    cd frontend
    npm install

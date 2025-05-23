@@ -16,14 +16,17 @@ export const AuthProvider = ({ children }) => {
           if (firebaseUser) {
             // If Firebase has a user, verify with our backend
             const idToken = await firebaseUser.getIdToken();
-            const response = await fetch("http://localhost:8080/api/auth/verify-session", {
-              method: "POST", // or "GET" if your backend supports it
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ idToken }),
-            });
-            
+            const response = await fetch(
+              `${process.env.REACT_APP_API_BASE_URL}/api/auth/verify-session`,
+              {
+                method: "POST", // or "GET" if your backend supports it
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ idToken }),
+              }
+            );
+
             if (!response.ok) {
               throw new Error(response.message);
             }
@@ -32,7 +35,7 @@ export const AuthProvider = ({ children }) => {
           }
           setLoading(false);
         });
-        
+
         return () => unsubscribe();
       } catch (error) {
         console.error("Session verification failed:", error);
@@ -47,7 +50,7 @@ export const AuthProvider = ({ children }) => {
   const value = {
     authUser,
     setAuthUser,
-    loading
+    loading,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

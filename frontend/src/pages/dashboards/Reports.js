@@ -21,7 +21,7 @@ export default function Reports() {
   const [summaryStats, setSummaryStats] = useState({
     totalBookings: 0,
     mostUsedFacility: "Loading...",
-    peakHour: "Loading..."
+    peakHour: "Loading...",
   });
   const [loading, setLoading] = useState(true);
 
@@ -34,15 +34,33 @@ export default function Reports() {
         };
 
         // Fetch all data in parallel
-        const [hourlyRes, facilitiesRes, dailyRes, summaryRes] = await Promise.all([
-          fetch('http://localhost:8080/api/admin/hourly-bookings', { headers }),
-          fetch('http://localhost:8080/api/admin/top-facilities', { headers }),
-          fetch('http://localhost:8080/api/admin/daily-bookings', { headers }),
-          fetch('http://localhost:8080/api/admin/summary-stats', { headers })
-        ]);
+        const [hourlyRes, facilitiesRes, dailyRes, summaryRes] =
+          await Promise.all([
+            fetch(
+              `${process.env.REACT_APP_API_BASE_URL}/api/admin/hourly-bookings`,
+              { headers }
+            ),
+            fetch(
+              `${process.env.REACT_APP_API_BASE_URL}/api/admin/top-facilities`,
+              { headers }
+            ),
+            fetch(
+              `${process.env.REACT_APP_API_BASE_URL}/api/admin/daily-bookings`,
+              { headers }
+            ),
+            fetch(
+              `${process.env.REACT_APP_API_BASE_URL}/api/admin/summary-stats`,
+              { headers }
+            ),
+          ]);
 
-        if (!hourlyRes.ok || !facilitiesRes.ok || !dailyRes.ok || !summaryRes.ok) {
-          throw new Error('Failed to fetch report data');
+        if (
+          !hourlyRes.ok ||
+          !facilitiesRes.ok ||
+          !dailyRes.ok ||
+          !summaryRes.ok
+        ) {
+          throw new Error("Failed to fetch report data");
         }
 
         const hourlyData = await hourlyRes.json();
@@ -56,10 +74,10 @@ export default function Reports() {
         setSummaryStats({
           totalBookings: summaryData.totalBookings,
           mostUsedFacility: summaryData.mostUsedFacility,
-          peakHour: summaryData.peakHour
+          peakHour: summaryData.peakHour,
         });
       } catch (error) {
-        console.error('Error fetching report data:', error);
+        console.error("Error fetching report data:", error);
         // You might want to set some error state here
       } finally {
         setLoading(false);
@@ -73,7 +91,14 @@ export default function Reports() {
     return (
       <div style={{ display: "flex", height: "100vh", width: "100vw" }}>
         <Sidebar activeItem="reports" />
-        <div style={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center" }}>
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
           <p>Loading reports...</p>
         </div>
       </div>
@@ -102,8 +127,14 @@ export default function Reports() {
           }}
         >
           {[
-            { title: "Total Bookings This Week", value: summaryStats.totalBookings },
-            { title: "Most Used Facility", value: summaryStats.mostUsedFacility },
+            {
+              title: "Total Bookings This Week",
+              value: summaryStats.totalBookings,
+            },
+            {
+              title: "Most Used Facility",
+              value: summaryStats.mostUsedFacility,
+            },
             { title: "Peak Hour", value: summaryStats.peakHour },
           ].map((stat, i) => (
             <div
@@ -151,8 +182,10 @@ export default function Reports() {
             {topFacilities.map((facility, index) => {
               // Calculate percentage relative to the most booked facility
               const maxBookings = topFacilities[0].bookings;
-              const percentage = Math.round((facility.bookings / maxBookings) * 100);
-              
+              const percentage = Math.round(
+                (facility.bookings / maxBookings) * 100
+              );
+
               return (
                 <li
                   key={index}

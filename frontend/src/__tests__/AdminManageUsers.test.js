@@ -53,7 +53,7 @@ describe("AdminManageUsers", () => {
     (global.fetch = jest.fn((url, opts = {}) => {
       const key =
         (opts.method ? opts.method + " " : "") +
-        url.replace("http://localhost:8080/api/", "");
+        url.replace(`${process.env.REACT_APP_API_BASE_URL}/api/`, "");
       return handlers[key]();
     }));
 

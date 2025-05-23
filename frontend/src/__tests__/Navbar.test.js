@@ -57,7 +57,7 @@ describe("Navbar", () => {
     await waitFor(() => {
       expect(auth.signOut).toHaveBeenCalled();
       expect(mockFetch).toHaveBeenCalledWith(
-        "http://localhost:8080/api/auth/logout",
+        `${process.env.REACT_APP_API_BASE_URL}/api/auth/logout`,
         expect.objectContaining({ method: "POST", credentials: "include" })
       );
       expect(mockSetAuthUser).toHaveBeenCalledWith(null);

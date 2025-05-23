@@ -60,7 +60,7 @@ describe("StaffMaintenance", () => {
 
     // Verify GET called with correct args
     expect(global.fetch).toHaveBeenCalledWith(
-      "http://localhost:8080/api/facilities/staff-maintenance-requests",
+      `${process.env.REACT_APP_API_BASE_URL}/api/facilities/staff-maintenance-requests`,
       {
         method: "GET",
         headers: { Authorization: "Bearer FAKE_TOKEN" },

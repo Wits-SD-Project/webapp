@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Sidebar from "../../components/StaffSideBar.js";
 import clockIcon from "../../assets/clock.png";
-import editIcon from "../../assets/edit.png"
+import editIcon from "../../assets/edit.png";
 import binIcon from "../../assets/bin.png";
 import "../../styles/staffManageFacilities.css";
 import { useNavigate } from "react-router-dom";
@@ -31,7 +31,7 @@ export default function ManageFacilities() {
       try {
         const token = await getAuthToken();
         const res = await fetch(
-          "http://localhost:8080/api/facilities/staff-facilities",
+          `${process.env.REACT_APP_API_BASE_URL}/api/facilities/staff-facilities`,
           {
             method: "GET",
             headers: {
@@ -58,7 +58,7 @@ export default function ManageFacilities() {
     try {
       const token = await getAuthToken();
       const res = await fetch(
-        `http://localhost:8080/api/facilities/updateFacility/${facility.id}`,
+        `${process.env.REACT_APP_API_BASE_URL}/api/facilities/updateFacility/${facility.id}`,
         {
           method: "PUT",
           headers: {
@@ -91,7 +91,7 @@ export default function ManageFacilities() {
       toast.error(err.message || "Failed to update facility");
     }
   };
-   const handleCancelEdit = (id) => {
+  const handleCancelEdit = (id) => {
     const facility = facilities.find((f) => f.id === id);
 
     if (facility.isNew) {
@@ -111,7 +111,7 @@ export default function ManageFacilities() {
     }
   };
 
-   const handleEditToggle = (id) => {
+  const handleEditToggle = (id) => {
     setFacilities((prev) =>
       prev.map((f) => (f.id === id ? { ...f, isEditing: true } : f))
     );
@@ -141,14 +141,17 @@ export default function ManageFacilities() {
 
       console.log("Uploading facility:", completeData);
 
-      const res = await fetch("http://localhost:8080/api/facilities/upload", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(completeData),
-      });
+      const res = await fetch(
+        `${process.env.REACT_APP_API_BASE_URL}/api/facilities/upload`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(completeData),
+        }
+      );
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);
@@ -172,7 +175,7 @@ export default function ManageFacilities() {
       const facility = facilities.find((f) => f.id === editingFacilityId);
 
       const res = await fetch(
-        `http://localhost:8080/api/facilities/updateFacility/${editingFacilityId}`,
+        `${process.env.REACT_APP_API_BASE_URL}/api/facilities/updateFacility/${editingFacilityId}`,
         {
           method: "PUT",
           headers: {
@@ -212,7 +215,7 @@ export default function ManageFacilities() {
     try {
       const token = await getAuthToken();
       const response = await fetch(
-        `http://localhost:8080/api/facilities/${id}`,
+        `${process.env.REACT_APP_API_BASE_URL}/api/facilities/${id}`,
         {
           method: "DELETE",
           headers: {

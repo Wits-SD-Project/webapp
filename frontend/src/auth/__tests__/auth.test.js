@@ -55,7 +55,7 @@ describe("Auth API Utilities", () => {
 
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(fetch).toHaveBeenCalledWith(
-      "http://localhost:8080/api/auth/signup/thirdparty", // Ensure URL matches
+      `${process.env.REACT_APP_API_BASE_URL}/api/auth/signup/thirdparty`, // Ensure URL matches
       expect.objectContaining({
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -102,7 +102,7 @@ describe("Auth API Utilities", () => {
 
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(fetch).toHaveBeenCalledWith(
-      "http://localhost:8080/api/auth/signin/thirdparty", // Ensure URL matches
+      `${process.env.REACT_APP_API_BASE_URL}/api/auth/signin/thirdparty`, // Ensure URL matches
       expect.objectContaining({
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -153,7 +153,7 @@ describe("Auth API Utilities", () => {
 
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(fetch).toHaveBeenCalledWith(
-      "http://localhost:8080/api/facilities/upload:", // Ensure URL matches
+      `${process.env.REACT_APP_API_BASE_URL}/api/facilities/upload:`, // Ensure URL matches
       expect.objectContaining({
         method: "POST",
         headers: { "Content-Type": "application/json" },

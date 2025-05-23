@@ -12,7 +12,7 @@ export default function StaffMaintenance() {
       try {
         const token = await getAuthToken();
         const res = await fetch(
-          "http://localhost:8080/api/facilities/staff-maintenance-requests",
+          `${process.env.REACT_APP_API_BASE_URL}/api/facilities/staff-maintenance-requests`,
           {
             method: "GET",
             headers: {
@@ -24,7 +24,7 @@ export default function StaffMaintenance() {
         if (!res.ok) throw new Error("Failed to fetch reports");
 
         const data = await res.json();
-        setMaintenanceRequests(data.reports.map((f) => ({ ...f})));
+        setMaintenanceRequests(data.reports.map((f) => ({ ...f })));
       } catch (err) {
         console.log(err);
         toast.error("Failed to load reports: " + err.message);
@@ -38,7 +38,7 @@ export default function StaffMaintenance() {
     try {
       const token = await getAuthToken();
       const res = await fetch(
-        `http://localhost:8080/api/facilities/updateReportStatus/${id}`,
+        `${process.env.REACT_APP_API_BASE_URL}/api/facilities/updateReportStatus/${id}`,
         {
           method: "PUT",
           headers: {
@@ -46,7 +46,7 @@ export default function StaffMaintenance() {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            status:newStatus
+            status: newStatus,
           }),
         }
       );
@@ -54,8 +54,8 @@ export default function StaffMaintenance() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Update failed");
 
-      setMaintenanceRequests(prev => 
-        prev.map(request => 
+      setMaintenanceRequests((prev) =>
+        prev.map((request) =>
           request.id === id ? { ...request, status: newStatus } : request
         )
       );
@@ -64,7 +64,6 @@ export default function StaffMaintenance() {
       console.error("Update facility error:", err);
       toast.error(err.message || "Failed to update facility");
     }
-
   };
 
   return (
@@ -99,30 +98,45 @@ export default function StaffMaintenance() {
                     <td>
                       {(() => {
                         const date = new Date(request.reportedAt);
-                        return date.getFullYear() +
-                          '-' + String(date.getMonth() + 1).padStart(2, '0') +
-                          '-' + String(date.getDate()).padStart(2, '0') +
-                          ' ' + String(date.getHours()).padStart(2, '0') +
-                          ':' + String(date.getMinutes()).padStart(2, '0');
+                        return (
+                          date.getFullYear() +
+                          "-" +
+                          String(date.getMonth() + 1).padStart(2, "0") +
+                          "-" +
+                          String(date.getDate()).padStart(2, "0") +
+                          " " +
+                          String(date.getHours()).padStart(2, "0") +
+                          ":" +
+                          String(date.getMinutes()).padStart(2, "0")
+                        );
                       })()}
                     </td>
 
-                    <td className={`status ${request.status.toLowerCase().replace(' ', '-')}`}>
+                    <td
+                      className={`status ${request.status
+                        .toLowerCase()
+                        .replace(" ", "-")}`}
+                    >
                       {request.status}
                     </td>
                     <td className="actions">
-                      {request.status !== "in progress" && request.status !== "closed" && (
-                        <button 
-                          className="in-progress"
-                          onClick={() => updateRequestStatus(request.id, "in progress")}
-                        >
-                          In Progress
-                        </button>
-                      )}
+                      {request.status !== "in progress" &&
+                        request.status !== "closed" && (
+                          <button
+                            className="in-progress"
+                            onClick={() =>
+                              updateRequestStatus(request.id, "in progress")
+                            }
+                          >
+                            In Progress
+                          </button>
+                        )}
                       {request.status !== "closed" && (
-                        <button 
+                        <button
                           className="closed"
-                          onClick={() => updateRequestStatus(request.id, "closed")}
+                          onClick={() =>
+                            updateRequestStatus(request.id, "closed")
+                          }
                         >
                           Closed
                         </button>
