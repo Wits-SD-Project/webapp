@@ -1,124 +1,132 @@
-
+// Import React hooks for state and lifecycle management
 import { useEffect, useState } from "react";
+// Import sidebar navigation component
 import Sidebar from "../../components/ResSideBar.js";
+// Import component styles
 import "../../styles/resMaintenance.css";
+// Import Firestore database functions
 import { addDoc, collection, getDocs, query, where } from "firebase/firestore";
-import { db ,getAuthToken} from "../../firebase";
+// Import Firebase configuration
+import { db } from "../../firebase";
+// Import Firebase authentication functions
 import { getAuth } from "firebase/auth";
 
 export default function ResMaintenance() {
-  const [facilities, setFacilities] = useState([]);
-  const [selectedFacilityId, setSelectedFacilityId] = useState("");
-  const [issueDescription, setIssueDescription] = useState("");
-  const [maintenanceReports, setMaintenanceReports] = useState([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const auth = getAuth();
-  const [currentUser, setCurrentUser] = useState(null);
+  // State management for component data
+  const [facilities, setFacilities] = useState([]); // List of available facilities
+  const [selectedFacilityId, setSelectedFacilityId] = useState(""); // Currently selected facility ID
+  const [issueDescription, setIssueDescription] = useState(""); // User's issue description
+  const [maintenanceReports, setMaintenanceReports] = useState([]); // User's maintenance reports
+  const [searchQuery, setSearchQuery] = useState(""); // Search query for filtering reports
+  const auth = getAuth(); // Firebase auth instance
+  const [currentUser, setCurrentUser] = useState(null); // Current authenticated user
 
-  const fetchMaintenanceReports = async () => {
-    try {
-
-      const token = await getAuthToken();
-
-      const response = await fetch(
-        `${process.env.REACT_APP_API_BASE_URL}/api/admin/maintenance-reports`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch maintenance reports");
-      }
-
-      const data = await response.json();
-      setMaintenanceReports(data.reports || []); // Set the array of reports
-    } catch (error) {
-      console.error("Error fetching maintenance reports:", error);
-      setMaintenanceReports([]); // Prevent UI errors
-    }
-  };
-
+  /**
+   * useEffect hook for initial data loading
+   * Runs once when component mounts (empty dependency array)
+   */
   useEffect(() => {
+    // Get current authenticated user
     const auth = getAuth();
     const user = auth.currentUser;
     setCurrentUser(user);
 
-   const fetchFacilities = async () => {
-    try {
-      const user = auth.currentUser;
-      const token = await user.getIdToken();
-      const response = await fetch(
-        `${process.env.REACT_APP_API_BASE_URL}/api/admin/facilities`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
+    /**
+     * Fetches all available facilities from Firestore
+     */
+    const fetchFacilities = async () => {
+      // Get documents from 'facilities-test' collection
+      const snapshot = await getDocs(collection(db, "facilities-test"));
+      // Transform documents into facility objects with id
+      const facilitiesData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setFacilities(facilitiesData);
+    };
+
+    /**
+     * Fetches maintenance reports specific to the current user
+     */
+    const fetchMaintenanceReports = async () => {
+      if (!user) return; // Skip if no user is authenticated
+      
+      // Create query for user-specific reports
+      const q = query(
+        collection(db, "maintenance-reports"),
+        where("userId", "==", user.uid) // Filter by current user's ID
       );
+      
+      // Execute query and process results
+      const snapshot = await getDocs(q);
+      const reportsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        // Convert Firestore timestamp to JavaScript Date if needed
+        createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt
+      }));
+      setMaintenanceReports(reportsData);
+    };
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch facilities");
-      }
+    // Call both fetch functions
+    fetchFacilities();
+    fetchMaintenanceReports();
+  }, []); // Empty dependency array means this runs once on mount
 
-      const data = await response.json();
-      setFacilities(data.facilities); // ✅ this is now an array
-    } catch (error) {
-      console.error("Error fetching facilities:", error);
-      setFacilities([]); // fallback to empty array to prevent .map crash
-    }
-  };
-
-      fetchFacilities();
-      fetchMaintenanceReports();
-    }, []);
-
+  /**
+   * Handles form submission for new maintenance reports
+   * @param {Event} e - Form submission event
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate form inputs
     if (!selectedFacilityId || !issueDescription) {
       alert("Please select a facility and describe the issue");
       return;
     }
 
     try {
+      // Find the selected facility to get its details
       const selectedFacility = facilities.find(f => f.id === selectedFacilityId);
-
+      
       if (!selectedFacility) {
         alert("Selected facility not found");
         return;
       }
 
+      // Get current user info
       const user = auth.currentUser;
-      const token = await user.getIdToken();
-
-      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/admin/maintenance-reports`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          facilityId: selectedFacilityId,
-          facilityName: selectedFacility.name,
-          description: issueDescription,
-          facilityStaff: selectedFacility.created_by || "",
-        }),
+      
+      // Add new document to maintenance-reports collection
+      await addDoc(collection(db, "maintenance-reports"), {
+        facilityId: selectedFacilityId,
+        facilityName: selectedFacility.name,
+        description: issueDescription,
+        status: "opened", // Initial status
+        createdAt: new Date(), // Current timestamp
+        resolvedAt: null, // Initially not resolved
+        facilityStaff: selectedFacility.created_by || "", // Staff assigned to facility
+        userId: user?.uid || "", // Reporting user's ID
+        username: user?.email || "" // Reporting user's email
       });
-
-      if (!response.ok) {
-        throw new Error("Failed to submit maintenance report");
+      
+      // Refresh the reports list with only the current user's reports
+      if (user) {
+        const q = query(
+          collection(db, "maintenance-reports"),
+          where("userId", "==", user.uid)
+        );
+        const snapshot = await getDocs(q);
+        const reportsData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt
+        }));
+        setMaintenanceReports(reportsData);
       }
-
-      // Refresh the user's reports
-      fetchMaintenanceReports(); // reuse your API-based fetchMaintenanceReports
-
-      // Reset form
+      
+      // Reset form fields
       setSelectedFacilityId("");
       setIssueDescription("");
     } catch (error) {
@@ -127,29 +135,16 @@ export default function ResMaintenance() {
     }
   };
 
-const formatCreatedAt = (createdAt) => {
-  if (!createdAt) return "No date";
-
-  const date = new Date(createdAt);
-  if (isNaN(date.getTime())) return "Invalid date";
-
-  return new Intl.DateTimeFormat("en-ZA", {
-    weekday: "long",       // Monday
-    day: "numeric",        // 5
-    month: "long",         // May
-    year: "numeric",       // 2025
-    hour: "numeric",       // 3
-    minute: "2-digit",     // 45
-    hour12: true,          // PM
-  }).format(date);
-};
-
+  // Component render
   return (
     <main className="res-maintenance">
       <div className="container">
+        {/* Sidebar navigation */}
         <Sidebar activeItem="maintenance" />
 
+        {/* Main content area */}
         <main className="main-content">
+          {/* Page header with search functionality */}
           <header className="page-header">
             <h1>My Maintenance Reports</h1>
             <input 
@@ -161,6 +156,7 @@ const formatCreatedAt = (createdAt) => {
             />
           </header>
 
+          {/* New report submission form */}
           <section className="report-form">
             <h2>Create New Maintenance Report</h2>
             <form onSubmit={handleSubmit}>
@@ -197,6 +193,7 @@ const formatCreatedAt = (createdAt) => {
             </form>
           </section>
 
+          {/* Maintenance reports table */}
           <section className="table-section">
             {maintenanceReports.length === 0 ? (
               <p>You have no maintenance reports yet.</p>
@@ -211,6 +208,7 @@ const formatCreatedAt = (createdAt) => {
                   </tr>
                 </thead>
                 <tbody>
+                  {/* Filter and map through reports */}
                   {maintenanceReports
                     .filter((report) => {
                       const query = searchQuery.toLowerCase();
@@ -224,10 +222,16 @@ const formatCreatedAt = (createdAt) => {
                       <tr key={report.id}>
                         <td>{report.facilityName}</td>
                         <td>{report.description}</td>
+                        {/* Status with dynamic class for styling */}
                         <td className={`status ${report.status.toLowerCase()}`}>
                           {report.status}
                         </td>
-                        <td>{formatCreatedAt(report.createdAt)}</td>
+                        <td>
+                          {/* Format date if available */}
+                          {report.createdAt 
+                            ? new Date(report.createdAt).toLocaleString() 
+                            : 'No date'}
+                        </td>
                       </tr>
                     ))}
                 </tbody>
