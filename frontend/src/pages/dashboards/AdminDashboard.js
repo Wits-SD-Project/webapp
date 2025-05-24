@@ -259,10 +259,8 @@ export default function AdminDashboard() {
               <h3>Usage Trends by Facility</h3>
               <div className="graph-placeholder" style={{ backgroundColor: "#fff", padding: 0 }}>
                 <Bar data={barData} height={200} options={{ responsive: true, plugins: { legend: { display: false } } }} />
-              </div>
-              <p style={{ textAlign: "center", color: "#00c0df", marginTop: "0.5rem" }}>
-                Click to view full reports
-              </p>
+              </div >
+              <div className="export-buttons"> <button >View full reports</button> </div>
             </div>
 
             <div className="graph-card">
