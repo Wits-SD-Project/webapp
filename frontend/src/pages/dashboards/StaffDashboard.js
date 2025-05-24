@@ -9,7 +9,7 @@ import { getAuthToken } from "../../firebase";
 export default function StaffDashboard() {
   const navigate = useNavigate();
   const { authUser } = useAuth();
-  const username = authUser?.name || "Staff";
+  const username = authUser?.name || "staff";
 
   const [upcomingCount, setUpcomingCount] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);

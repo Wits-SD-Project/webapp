@@ -54,161 +54,10 @@ export default function ManageFacilities() {
 
     fetchFacilities();
   }, []);
-  const handleUpdateFacility = async (facility) => {
-    try {
-      const token = await getAuthToken();
-      const res = await fetch(
-        `${process.env.REACT_APP_API_BASE_URL}/api/facilities/updateFacility/${facility.id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            name: facility.name,
-            type: facility.type,
-            isOutdoors: facility.isOutdoors === "Yes",
-            availability: facility.availability,
-            description: facility.description,
-            features: facility.features,
-          }),
-        }
-      );
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Update failed");
-
-      setFacilities((prev) =>
-        prev.map((f) =>
-          f.id === facility.id ? { ...data.facility, isEditing: false } : f
-        )
-      );
-
-      toast.success("Facility updated successfully");
-    } catch (err) {
-      console.error("Update facility error:", err);
-      toast.error(err.message || "Failed to update facility");
-    }
-  };
-  const handleCancelEdit = (id) => {
-    const facility = facilities.find((f) => f.id === id);
-
-    if (facility.isNew) {
-      setFacilities((prev) => prev.filter((f) => f.id !== id));
-    } else {
-      setFacilities((prev) =>
-        prev.map((f) =>
-          f.id === id ? { ...originalFacilities[id], isEditing: false } : f
-        )
-      );
-
-      setOriginalFacilities((prev) => {
-        const updated = { ...prev };
-        delete updated[id];
-        return updated;
-      });
-    }
-  };
-
-  const handleEditToggle = (id) => {
-    setFacilities((prev) =>
-      prev.map((f) => (f.id === id ? { ...f, isEditing: true } : f))
-    );
-
-    setOriginalFacilities((prev) => {
-      const alreadyStored = prev[id];
-      if (alreadyStored) return prev;
-      const original = facilities.find((f) => f.id === id);
-      return { ...prev, [id]: { ...original } };
-    });
-  };
-
-  const handleAddFacility = async (formData) => {
-    setTempFacilityData(formData);
-    setFeatureModalOpen(true);
-    closeModal();
-  };
-
-  const handleCompleteFacility = async (featureData) => {
-    try {
-      const token = await getAuthToken();
-      const completeData = {
-        ...tempFacilityData,
-        ...featureData,
-        isOutdoors: tempFacilityData.isOutdoors === "Yes",
-      };
-
-      console.log("Uploading facility:", completeData);
-
-      const res = await fetch(
-        `${process.env.REACT_APP_API_BASE_URL}/api/facilities/upload`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(completeData),
-        }
-      );
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
-      console.log(data);
-      setFacilities((prev) => [
-        ...prev,
-        { ...data.facility, isEditing: false },
-      ]);
-      toast.success("Facility created successfully");
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setFeatureModalOpen(false);
-      setTempFacilityData(null);
-    }
-  };
-
-  const handleUpdateFeatures = async (featureData) => {
-    try {
-      const token = await getAuthToken();
-      const facility = facilities.find((f) => f.id === editingFacilityId);
-
-      const res = await fetch(
-        `${process.env.REACT_APP_API_BASE_URL}/api/facilities/updateFacility/${editingFacilityId}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            ...facility,
-            description: featureData.description,
-            features: featureData.features,
-          }),
-        }
-      );
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Update failed");
-
-      setFacilities((prev) =>
-        prev.map((f) =>
-          f.id === editingFacilityId
-            ? { ...data.facility, isEditing: false }
-            : f
-        )
-      );
-
-      toast.success("Facility features updated successfully");
-    } catch (err) {
-      console.error("Update features error:", err);
-      toast.error(err.message || "Failed to update features");
-    } finally {
-      setEditFeatureModalOpen(false);
-      setEditingFacilityId(null);
-    }
+  const handleEditFeatures = (id) => {
+    setEditingFacilityId(id);
+    setEditFeatureModalOpen(true);
   };
 
   const handleDelete = async (id) => {
@@ -235,11 +84,6 @@ export default function ManageFacilities() {
       console.error("Delete error:", error);
       toast.error(error.message || "Failed to delete facility");
     }
-  };
-
-  const handleEditFeatures = (id) => {
-    setEditingFacilityId(id);
-    setEditFeatureModalOpen(true);
   };
 
   const getAvailabilityClass = (status) => {
@@ -281,7 +125,7 @@ export default function ManageFacilities() {
       <FacilityFormModal
         open={modalOpen}
         onClose={closeModal}
-        onSubmit={handleAddFacility}
+        onSubmit={() => {}}
       />
 
       <FeatureFormModal
@@ -290,7 +134,7 @@ export default function ManageFacilities() {
           setFeatureModalOpen(false);
           setTempFacilityData(null);
         }}
-        onSubmit={handleCompleteFacility}
+        onSubmit={() => {}}
         facilityType={tempFacilityData?.type || "General"}
       />
 
@@ -300,7 +144,7 @@ export default function ManageFacilities() {
           setEditFeatureModalOpen(false);
           setEditingFacilityId(null);
         }}
-        onSubmit={handleUpdateFeatures}
+        onSubmit={() => {}}
         facilityType={
           facilities.find((f) => f.id === editingFacilityId)?.type || "General"
         }
@@ -351,43 +195,12 @@ export default function ManageFacilities() {
                           })
                         }
                       />
-                      {!f.isEditing && (
-                        <button
-                          className="features-btn"
-                          onClick={() => handleEditFeatures(f.id)}
-                        >
-                          Edit Features
-                        </button>
-                      )}
-                      {f.isEditing ? (
-                        <>
-                          <button
-                            className="save-btn"
-                            onClick={() => {
-                              if (f.isNew) {
-                                handleAddFacility(f);
-                              } else {
-                                handleUpdateFacility(f);
-                              }
-                            }}
-                          >
-                            Save
-                          </button>
-                          <button
-                            className="cancel-btn"
-                            onClick={() => handleCancelEdit(f.id)}
-                          >
-                            Cancel
-                          </button>
-                        </>
-                      ) : (
-                        <img
-                          src={editIcon}
-                          alt="edit"
-                          className="icon-btn"
-                          onClick={() => handleEditToggle(f.id)}
-                        />
-                      )}
+                      <img
+                        src={editIcon}
+                        alt="edit features"
+                        className="icon-btn"
+                        onClick={() => handleEditFeatures(f.id)}
+                      />
                       <img
                         src={binIcon}
                         alt="delete"
@@ -413,4 +226,3 @@ export default function ManageFacilities() {
     </main>
   );
 }
-

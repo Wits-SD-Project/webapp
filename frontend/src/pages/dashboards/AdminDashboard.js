@@ -30,7 +30,7 @@ ChartJS.register(
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const { authUser } = useAuth();
-  const username = authUser?.name || "Admin";
+  const username = "Admin";
   const [maintenanceSummary, setMaintenanceSummary] = useState({
     openCount: 0,
     closedCount: 0,
@@ -169,8 +169,8 @@ export default function AdminDashboard() {
 
           <div className="card-container">
             <div className="card">
-              <h3>Upcoming events</h3>
-              <p>You have ?? upcoming events</p>
+              <h3>Upcoming Events</h3>
+              <p>These are the upcoming events for the facility.</p>
               <button
                 className="view-all-btn"
                 onClick={() => navigate("/admin-manage-events")}
@@ -181,7 +181,7 @@ export default function AdminDashboard() {
 
             <div className="card">
               <h3>Pending Applications</h3>
-              <p>?? users requests awaiting your approval</p>
+              <p>These are the admin requests awaiting your approval.</p>
               <button
                 className="view-all-btn"
                 onClick={() => navigate("/admin-manage-users")}
