@@ -44,6 +44,75 @@ export default function AdminDashboard() {
     closedCount: 0,
   });
 
+   /**
+   * Function to export maintenance reports as CSV
+   * 1. Gets current authenticated user
+   * 2. Fetches maintenance reports from backend API
+   * 3. Creates CSV document with formatted data
+   * 4. Downloads the CSV
+   */
+  const handleExportMaintenanceCSV = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+  
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch(
+        `${process.env.REACT_APP_API_BASE_URL}/api/admin/maintenance-reports`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+  
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to fetch reports");
+  
+      function formatDate(timestamp) {
+        try {
+          if (!timestamp || typeof timestamp._seconds !== "number") return "-";
+          const date = new Date(timestamp._seconds * 1000);
+          return date.toLocaleString("en-GB", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+        } catch {
+          return "-";
+        }
+      }
+  
+      // Create CSV content
+      const headers = ["Facility", "Description", "Status", "Created At"];
+      const csvRows = [
+        headers.join(","), // Header row
+        ...data.reports.map((report) => [
+          `"${(report.facilityName || "Unknown").replace(/"/g, '""')}"`,
+          `"${(report.description || "-").replace(/"/g, '""')}"`,
+          `"${(report.status || "-").replace(/"/g, '""')}"`,
+          `"${formatDate(report.createdAt)}"`,
+        ].join(","))
+      ];
+  
+      const csvContent = csvRows.join("\n");
+  
+      // Create and download the file
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", "Maintenance_Report.csv");
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error("CSV export error:", error.message);
+    }
+  };
   /**
    * Function to export maintenance reports as PDF
    * 1. Gets current authenticated user
@@ -246,7 +315,7 @@ export default function AdminDashboard() {
               <p>Closed Issues: {maintenanceSummary.closedCount}</p>
               <div className="export-buttons">
                 <button onClick={handleExportMaintenancePDF}>Export as PDF</button>
-                <button>Export as CSV</button>
+                <button onClick={handleExportMaintenanceCSV}>Export as CSV</button>
               </div>
             </div>
           </div>
