@@ -48,7 +48,7 @@ export default function SignIn() {
       const redirectPath = {
         admin: "/admin-dashboard",
         staff: "/staff-dashboard",
-        resident: "/res-dashboard",
+        resident: "/res-events",
       }[response.role] || "/";
 
       navigate(redirectPath);

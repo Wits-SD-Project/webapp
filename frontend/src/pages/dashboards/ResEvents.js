@@ -13,6 +13,7 @@ import EventCard from "../../components/EventCard";
 import EventDetailsModal from "../../components/EventDetailsModal";
 // Import component styles
 import "../../styles/ResEvents.css";
+import { useAuth } from "../../context/AuthContext.js"; // Authentication context
 
 export default function ResEvents() {
     // State management for events data and UI
@@ -23,6 +24,8 @@ export default function ResEvents() {
     const [filterType, setFilterType] = useState("upcoming"); // Current time filter ('upcoming', 'past', 'all')
     const [selectedFacility, setSelectedFacility] = useState("all"); // Current facility filter
     const [availableFacilities, setAvailableFacilities] = useState([]); // List of unique facilities from events
+    const { authUser } = useAuth(); // Get authenticated user from context
+    const username = authUser?.name || "Resident"; // Fallback to "Resident" if name not available
 
     /**
      * Fetches events data from API with authentication
@@ -155,13 +158,14 @@ export default function ResEvents() {
     return (
         <div className="dashboard">
             {/* Sidebar navigation */}
-            <Sidebar activeItem="dashboard" />
+            <Sidebar activeItem="events" />
             
             {/* Main content area */}
             <div className="main-content">
                 {/* Page header */}
                 <header className="page-header">
                     <h1>Events</h1>
+                    <div className="user-name">{username}</div>
                 </header>
 
                 {/* Filter controls section */}
