@@ -1,18 +1,30 @@
+// Import React hooks for state and lifecycle management
 import { useEffect, useState } from "react";
+// Import sidebar navigation component
 import Sidebar from "../../components/StaffSideBar.js";
+// Import component styles
 import "../../styles/staffMaintenance.css";
+// Import authentication and notification utilities
 import { getAuthToken } from "../../firebase";
 import { toast } from "react-toastify";
 
 export default function StaffMaintenance() {
+  // State management for maintenance requests
   const [maintenanceRequests, setMaintenanceRequests] = useState([]);
 
+  /**
+   * useEffect hook for initial data fetching
+   * Runs once when component mounts (empty dependency array)
+   */
   useEffect(() => {
     const fetchReports = async () => {
       try {
+        // Get authentication token
         const token = await getAuthToken();
+        
+        // Fetch maintenance requests from backend API
         const res = await fetch(
-          `${process.env.REACT_APP_API_BASE_URL}/api/facilities/staff-maintenance-requests`,
+          "http://localhost:8080/api/facilities/staff-maintenance-requests",
           {
             method: "GET",
             headers: {
@@ -21,12 +33,14 @@ export default function StaffMaintenance() {
           }
         );
 
+        // Handle non-successful responses
         if (!res.ok) throw new Error("Failed to fetch reports");
 
+        // Process and store response data
         const data = await res.json();
         setMaintenanceRequests(data.reports.map((f) => ({ ...f })));
       } catch (err) {
-        console.log(err);
+        console.error("Fetch error:", err);
         toast.error("Failed to load reports: " + err.message);
       }
     };
@@ -34,11 +48,18 @@ export default function StaffMaintenance() {
     fetchReports();
   }, []);
 
+  /**
+   * Update the status of a maintenance request
+   * @param {string} id - The ID of the request to update
+   * @param {string} newStatus - The new status to set
+   */
   const updateRequestStatus = async (id, newStatus) => {
     try {
       const token = await getAuthToken();
+      
+      // Send status update to backend
       const res = await fetch(
-        `${process.env.REACT_APP_API_BASE_URL}/api/facilities/updateReportStatus/${id}`,
+        `http://localhost:8080/api/facilities/updateReportStatus/${id}`,
         {
           method: "PUT",
           headers: {
@@ -46,7 +67,7 @@ export default function StaffMaintenance() {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            status: newStatus,
+            status: newStatus
           }),
         }
       );
@@ -54,11 +75,14 @@ export default function StaffMaintenance() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Update failed");
 
-      setMaintenanceRequests((prev) =>
-        prev.map((request) =>
+      // Update local state with new status
+      setMaintenanceRequests(prev => 
+        prev.map(request => 
           request.id === id ? { ...request, status: newStatus } : request
         )
       );
+      
+      // Show success notification
       toast.success(data.message);
     } catch (err) {
       console.error("Update facility error:", err);
@@ -66,17 +90,26 @@ export default function StaffMaintenance() {
     }
   };
 
+  // Component render
   return (
     <main className="staff-maintenance">
       <div className="container">
+        {/* Sidebar navigation */}
         <Sidebar activeItem="maintenance" />
 
+        {/* Main content area */}
         <main className="main-content">
+          {/* Page header with search box */}
           <header className="page-header">
             <h1>Maintenance Requests</h1>
-            <input type="search" placeholder="Search" className="search-box" />
+            <input 
+              type="search" 
+              placeholder="Search" 
+              className="search-box" 
+            />
           </header>
 
+          {/* Maintenance requests table */}
           <section className="table-section">
             <table className="maintenance-table">
               <thead>
@@ -90,53 +123,46 @@ export default function StaffMaintenance() {
                 </tr>
               </thead>
               <tbody>
+                {/* Render each maintenance request as a table row */}
                 {maintenanceRequests.map((request, index) => (
                   <tr key={index}>
                     <td>{request.facilityName}</td>
                     <td>{request.reportedBy}</td>
                     <td>{request.description}</td>
                     <td>
+                      {/* Format timestamp as YYYY-MM-DD HH:MM */}
                       {(() => {
                         const date = new Date(request.reportedAt);
-                        return (
-                          date.getFullYear() +
-                          "-" +
-                          String(date.getMonth() + 1).padStart(2, "0") +
-                          "-" +
-                          String(date.getDate()).padStart(2, "0") +
-                          " " +
-                          String(date.getHours()).padStart(2, "0") +
-                          ":" +
-                          String(date.getMinutes()).padStart(2, "0")
-                        );
+                        return date.getFullYear() +
+                          '-' + String(date.getMonth() + 1).padStart(2, '0') +
+                          '-' + String(date.getDate()).padStart(2, '0') +
+                          ' ' + String(date.getHours()).padStart(2, '0') +
+                          ':' + String(date.getMinutes()).padStart(2, '0');
                       })()}
                     </td>
 
-                    <td
-                      className={`status ${request.status
-                        .toLowerCase()
-                        .replace(" ", "-")}`}
-                    >
+                    {/* Status cell with dynamic class for styling */}
+                    <td className={`status ${request.status.toLowerCase().replace(' ', '-')}`}>
                       {request.status}
                     </td>
+                    
+                    {/* Action buttons with conditional rendering */}
                     <td className="actions">
-                      {request.status !== "in progress" &&
-                        request.status !== "closed" && (
-                          <button
-                            className="in-progress"
-                            onClick={() =>
-                              updateRequestStatus(request.id, "in progress")
-                            }
-                          >
-                            In Progress
-                          </button>
-                        )}
+                      {/* Show "In Progress" button only if not already in progress/closed */}
+                      {request.status !== "in progress" && request.status !== "closed" && (
+                        <button 
+                          className="in-progress"
+                          onClick={() => updateRequestStatus(request.id, "in progress")}
+                        >
+                          In Progress
+                        </button>
+                      )}
+                      
+                      {/* Show "Closed" button unless already closed */}
                       {request.status !== "closed" && (
-                        <button
+                        <button 
                           className="closed"
-                          onClick={() =>
-                            updateRequestStatus(request.id, "closed")
-                          }
+                          onClick={() => updateRequestStatus(request.id, "closed")}
                         >
                           Closed
                         </button>
