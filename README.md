@@ -1,3 +1,17 @@
+<p align="center">
+  <img src="https://github.com/Wits-SD-Project/webapp/blob/main/frontend/src/assets/logo.png" alt="SportsSphere Logo" width="200" style="border-radius: 50%;" />
+</p>
+
+<p align="center">
+  <a href="https://github.com/Wits-SD-Project/webapp/actions">
+    <img src="https://github.com/Wits-SD-Project/webapp/actions/workflows/uat.yml/badge.svg" alt="CI/CD Status">
+  </a>
+  <a href="https://codecov.io/gh/Wits-SD-Project/webapp">
+    <img src="https://codecov.io/gh/Wits-SD-Project/webapp/branch/main/graph/badge.svg" alt="Code Coverage">
+  </a>
+  <img src="https://img.shields.io/badge/release-v1.0.3-blue" alt="Release">
+</p>
+
 # 🏀 SportsSphere
 
 > A smart sports facility management platform for community engagement and operational efficiency.  
