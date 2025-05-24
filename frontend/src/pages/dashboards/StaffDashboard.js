@@ -1,119 +1,130 @@
+// Import React hooks for state and lifecycle management
 import { useState, useEffect } from "react";
+// Import routing utilities
 import { useNavigate } from "react-router-dom";
+// Import sidebar navigation component
 import Sidebar from "../../components/StaffSideBar.js";
+// Import component styles
 import "../../styles/staffDashboard.css";
+// Import authentication context
 import { useAuth } from "../../context/AuthContext.js";
+// Import Firestore database functions
+import { collection, query, where, onSnapshot } from "firebase/firestore";
+// Import Firebase configuration
+import { db, auth } from "../../firebase";
+// Import animation libraries
 import { motion, AnimatePresence } from "framer-motion";
-import { getAuthToken } from "../../firebase";
 
 export default function StaffDashboard() {
   const navigate = useNavigate();
   const { authUser } = useAuth();
-  const username = authUser?.name || "staff";
+
+  // Fixed username label for display
+  const username = "Admin";
 
   const [upcomingCount, setUpcomingCount] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
   const [daysUntilNext, setDaysUntilNext] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  const fetchDashboardData = async () => {
-    try {
-      const token = await getAuthToken();
-      const response = await fetch(
-        `${process.env.REACT_APP_API_BASE_URL}/api/admin/staff-dashboard`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch dashboard data");
-      }
-
-      const data = await response.json();
-      
-      setUpcomingCount(data.data.upcomingCount);
-      setPendingCount(data.data.pendingCount);
-      setDaysUntilNext(data.data.daysUntilNext);
-    } catch (error) {
-      console.error("Error fetching dashboard data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
-    fetchDashboardData();
-    
-    // Set up polling for real-time updates (every 30 seconds)
-    const interval = setInterval(fetchDashboardData, 30000);
-    return () => clearInterval(interval);
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const today = new Date();
+    const todayStr = today.toISOString().split("T")[0];
+
+    const bookingsQuery = query(
+      collection(db, "bookings"),
+      where("facilityStaff", "==", user.uid)
+    );
+
+    const unsubscribe = onSnapshot(bookingsQuery, (snapshot) => {
+      let upcomingBookings = [];
+      let pending = 0;
+
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.status === "approved" && data.date >= todayStr) {
+          upcomingBookings.push(data);
+        }
+        if (data.status === "pending") {
+          pending++;
+        }
+      });
+
+      upcomingBookings.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+      setUpcomingCount(upcomingBookings.length);
+      setPendingCount(pending);
+
+      if (upcomingBookings.length > 0) {
+        const nextBookingDate = new Date(upcomingBookings[0].date);
+        const diffTime = nextBookingDate.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        setDaysUntilNext(diffDays);
+      } else {
+        setDaysUntilNext(null);
+      }
+    });
+
+    return () => unsubscribe();
   }, [authUser]);
 
   return (
     <main className="dashboard">
       <div className="container">
         <Sidebar activeItem="dashboard" />
-
         <main className="main-content">
           <header className="page-header">
             <h1>Dashboard</h1>
             <div className="user-name">{username}</div>
           </header>
 
-          {loading ? (
-            <div className="loading-message">Loading dashboard data...</div>
-          ) : (
-            <div className="card-container">
-              <div className="card">
-                <h3>Upcoming facility bookings</h3>
-                <AnimatePresence mode="wait">
-                  <motion.p
-                    key={upcomingCount + "-" + daysUntilNext}
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    transition={{ duration: 0.5 }}
-                  >
-                    {upcomingCount > 0
-                      ? `You have ${upcomingCount} upcoming bookings. Next one is in ${daysUntilNext} day(s)!`
-                      : "No upcoming bookings"}
-                  </motion.p>
-                </AnimatePresence>
-                <button 
-                  className="view-all-btn" 
-                  onClick={() => navigate("/staff-upcoming-bookings")}
+          <div className="card-container">
+            <div className="card">
+              <h3>Upcoming facility bookings</h3>
+              <AnimatePresence mode="wait">
+                <motion.p
+                  key={upcomingCount + "-" + daysUntilNext}
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  transition={{ duration: 0.5 }}
                 >
-                  View all
-                </button>
-              </div>
-
-              <div className="card">
-                <h3>Pending Applications</h3>
-                <AnimatePresence mode="wait">
-                  <motion.p
-                    key={pendingCount}
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    transition={{ duration: 0.5 }}
-                  >
-                    {pendingCount} booking requests awaiting your approval
-                  </motion.p>
-                </AnimatePresence>
-                <button 
-                  className="view-all-btn" 
-                  onClick={() => navigate("/staff-view-bookings")}
-                >
-                  View all
-                </button>
-              </div>
+                  {upcomingCount > 0
+                    ? `You have ${upcomingCount} upcoming bookings. Next one is in ${daysUntilNext} day(s)!`
+                    : "No upcoming bookings"}
+                </motion.p>
+              </AnimatePresence>
+              <button
+                className="view-all-btn"
+                onClick={() => navigate("/staff-upcoming-bookings")}
+              >
+                View all
+              </button>
             </div>
-          )}
+
+            <div className="card">
+              <h3>Pending Applications</h3>
+              <AnimatePresence mode="wait">
+                <motion.p
+                  key={pendingCount}
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  transition={{ duration: 0.5 }}
+                >
+                  {pendingCount} booking requests awaiting your approval
+                </motion.p>
+              </AnimatePresence>
+              <button
+                className="view-all-btn"
+                onClick={() => navigate("/staff-view-bookings")}
+              >
+                View all
+              </button>
+            </div>
+          </div>
         </main>
       </div>
     </main>

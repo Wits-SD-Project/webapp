@@ -1,12 +1,17 @@
+// Import React hooks and routing utilities
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
+// Import components and assets
 import Sidebar from "../../components/StaffSideBar.js";
 import addIcon from "../../assets/add.png";
 import binIcon from "../../assets/bin.png";
+// Import styles
 import "../../styles/staffEditTimeSlots.css";
+// Import authentication and notification utilities
 import { getAuthToken } from "../../firebase";
 import { toast } from "react-toastify";
 
+// Days of week constant for consistent ordering
 const daysOfWeek = [
   "Monday",
   "Tuesday",
@@ -18,25 +23,36 @@ const daysOfWeek = [
 ];
 
 export default function EditTimeSlots() {
+  // Get facility ID from URL parameters
   const { id } = useParams();
   const navigate = useNavigate();
+  
+  // State management
   const [slotsByDay, setSlotsByDay] = useState(() =>
+    // Initialize with empty arrays for each day
     daysOfWeek.reduce((acc, day) => ({ ...acc, [day]: [] }), {})
   );
-  const [showTimePicker, setShowTimePicker] = useState(false);
-  const [selectedDay, setSelectedDay] = useState("");
-  const [startTime, setStartTime] = useState("");
-  const [endTime, setEndTime] = useState("");
-  const [facilityName, setFacilityName] = useState("");
+  const [showTimePicker, setShowTimePicker] = useState(false); // Modal visibility
+  const [selectedDay, setSelectedDay] = useState(""); // Currently selected day
+  const [startTime, setStartTime] = useState(""); // New slot start time
+  const [endTime, setEndTime] = useState(""); // New slot end time
+  const [facilityName, setFacilityName] = useState(""); // Facility name display
 
-  // Fetch facility data and timeslots
+  /**
+   * useEffect hook for initial data fetching
+   * Runs when component mounts or facility ID changes
+   */
   useEffect(() => {
     const fetchData = async () => {
       try {
         const token = await getAuthToken();
-        // Fetch timeslots
+
+        // Note: Facility details fetch is commented out but preserved
+        // as it might be needed in future implementations
+
+        // Fetch timeslots from backend
         const slotsRes = await fetch(
-          `${process.env.REACT_APP_API_BASE_URL}/api/facilities/timeslots`,
+          `http://localhost:8080/api/facilities/timeslots`,
           {
             method: "POST",
             headers: {
@@ -49,7 +65,7 @@ export default function EditTimeSlots() {
         const slotsData = await slotsRes.json();
         if (!slotsRes.ok) throw new Error(slotsData.message);
 
-        // Group timeslots by day
+        // Process and group timeslots by day
         const groupedSlots = daysOfWeek.reduce((acc, day) => {
           acc[day] = slotsData.timeslots
             .filter((slot) => slot.day === day)
@@ -59,7 +75,7 @@ export default function EditTimeSlots() {
 
         setSlotsByDay(groupedSlots);
       } catch (err) {
-        console.log(err);
+        console.error("Fetch error:", err);
         toast.error(err.message);
       }
     };
@@ -67,11 +83,15 @@ export default function EditTimeSlots() {
     fetchData();
   }, [id]);
 
+  /**
+   * Update timeslots in backend
+   * @param {Object} updatedSlots - New timeslots data structure
+   */
   const updateBackend = async (updatedSlots) => {
     try {
       const token = await getAuthToken();
       const res = await fetch(
-        `${process.env.REACT_APP_API_BASE_URL}/api/facilities/${id}/timeslots`,
+        `http://localhost:8080/api/facilities/${id}/timeslots`,
         {
           method: "PUT",
           headers: {
@@ -90,12 +110,20 @@ export default function EditTimeSlots() {
     }
   };
 
+  /**
+   * Open time picker modal for specific day
+   * @param {string} day - Selected day of week
+   */
   const handleAddSlot = (day) => {
     setSelectedDay(day);
     setShowTimePicker(true);
   };
 
+  /**
+   * Validate and save new time slot
+   */
   const handleSaveSlot = () => {
+    // Basic validation
     if (!startTime || !endTime) {
       toast.error("Please select both start and end times");
       return;
@@ -109,26 +137,25 @@ export default function EditTimeSlots() {
     const newSlotStr = `${startTime} - ${endTime}`;
     const existingSlots = slotsByDay[selectedDay] || [];
 
-    // Prevent duplicates
+    // Check for duplicate slots
     if (existingSlots.includes(newSlotStr)) {
       toast.error("This slot already exists");
       return;
     }
 
-    // Helper: convert "HH:MM" to minutes
+    // Helper function to convert time string to minutes
     const toMinutes = (t) => {
       const [h, m] = t.split(":").map(Number);
       return h * 60 + m;
     };
 
+    // Convert times for comparison
     const newStart = toMinutes(startTime);
     const newEnd = toMinutes(endTime);
 
-    // Prevent overlaps
+    // Check for overlapping slots
     for (const slot of existingSlots) {
-      const [existingStart, existingEnd] = slot
-        .split(" - ")
-        .map((s) => s.trim());
+      const [existingStart, existingEnd] = slot.split(" - ").map((s) => s.trim());
       const exStart = toMinutes(existingStart);
       const exEnd = toMinutes(existingEnd);
 
@@ -139,7 +166,7 @@ export default function EditTimeSlots() {
       }
     }
 
-    // All validations passed, update state and backend
+    // Update state and backend
     const newSlots = {
       ...slotsByDay,
       [selectedDay]: [...existingSlots, newSlotStr],
@@ -152,16 +179,18 @@ export default function EditTimeSlots() {
     setEndTime("");
   };
 
-  //Deleting a specific Timeslot
+  /**
+   * Delete a specific timeslot
+   * @param {string} day - Day of week
+   * @param {string} slot - Time slot string (format: "HH:MM - HH:MM")
+   */
   const handleDeleteSlot = async (day, slot) => {
     try {
       const token = await getAuthToken();
-
-      // Convert slot string to start/end times
       const [start, end] = slot.split(" - ");
 
       const response = await fetch(
-        `${process.env.REACT_APP_API_BASE_URL}/api/facilities/${id}/timeslots`,
+        `http://localhost:8080/api/facilities/${id}/timeslots`,
         {
           method: "DELETE",
           headers: {
@@ -195,11 +224,16 @@ export default function EditTimeSlots() {
     }
   };
 
+  // Component render
   return (
     <main className="edit-timeslots-page">
       <div className="container">
+        {/* Sidebar navigation */}
         <Sidebar activeItem="manage facilities" />
+        
+        {/* Main content section */}
         <section className="main-content">
+          {/* Page header with navigation */}
           <header className="page-header">
             <h1>
               <strong>{facilityName}</strong> Time Slots
@@ -212,6 +246,7 @@ export default function EditTimeSlots() {
             </button>
           </header>
 
+          {/* Timeslot table */}
           <section className="timeslot-table">
             <table className="semantic-table">
               <thead>
@@ -222,14 +257,17 @@ export default function EditTimeSlots() {
                 </tr>
               </thead>
               <tbody>
+                {/* Render rows for each day of week */}
                 {daysOfWeek.map((day) => (
                   <tr key={day}>
                     <td>{day}</td>
                     <td>
+                      {/* Display existing slots as pills */}
                       <div className="slot-pill-container">
                         {slotsByDay[day]?.map((slot, idx) => (
                           <span key={`${day}-${idx}`} className="slot-pill">
                             {slot}
+                            {/* Delete button for each slot */}
                             <img
                               src={binIcon}
                               alt="Delete"
@@ -242,6 +280,7 @@ export default function EditTimeSlots() {
                       </div>
                     </td>
                     <td className="icon-actions">
+                      {/* Add slot button */}
                       <img
                         src={addIcon}
                         alt="Add slot"
@@ -258,6 +297,7 @@ export default function EditTimeSlots() {
         </section>
       </div>
 
+      {/* Time picker modal */}
       {showTimePicker && (
         <div className="time-picker-modal">
           <div className="modal-content">

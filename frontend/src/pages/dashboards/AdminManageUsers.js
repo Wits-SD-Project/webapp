@@ -1,9 +1,11 @@
+// Import necessary React hooks, components, and libraries
 import { useEffect, useState } from "react";
-import { toast } from "react-toastify";
-import Sidebar from "../../components/AdminSideBar.js";
-import { getAuthToken } from "../../firebase.js";
-import "../../styles/adminManageUsers.css";
+import { toast } from "react-toastify"; // For displaying notifications
+import Sidebar from "../../components/AdminSideBar.js"; // Admin sidebar component
+import { getAuthToken } from "../../firebase.js"; // Firebase authentication helper
+import "../../styles/adminManageUsers.css"; // Component-specific styles
 
+// Main AdminDashboard component for managing users
 export default function AdminDashboard() {
   const [users, setUsers] = useState([]);
   const [auditLog, setAuditLog] = useState([]);
@@ -35,14 +37,11 @@ export default function AdminDashboard() {
         toast.error("Failed to load users: " + err.message);
       }
     }
-
     fetchUsers();
   }, []);
 
   async function handleToggle(user, endpoint, flagKey, removeOnFalse = false, actionLabel = "") {
-    const confirmed = window.confirm(`Are you sure?
-
-Do you want to ${actionLabel.toLowerCase()} for ${user.email}?`);
+    const confirmed = window.confirm(`Are you sure?\n\nDo you want to ${actionLabel.toLowerCase()} for ${user.email}?`);
     if (!confirmed) return;
 
     try {
@@ -90,7 +89,6 @@ Do you want to ${actionLabel.toLowerCase()} for ${user.email}?`);
     <main className="admin-dashboard">
       <div className="container">
         <Sidebar activeItem="manage users" />
-
         <main className="main-content">
           <header className="page-header">
             <h1>Manage Users</h1>

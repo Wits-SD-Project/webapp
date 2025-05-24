@@ -1,226 +1,130 @@
-import { useEffect, useRef, useState } from "react";
-import Sidebar from "../../components/StaffSideBar.js";
-import clockIcon from "../../assets/clock.png";
-import editIcon from "../../assets/edit.png";
-import binIcon from "../../assets/bin.png";
-import "../../styles/staffManageFacilities.css";
+// Import React hooks for state and lifecycle management
+import { useState, useEffect } from "react";
+// Import routing utilities
 import { useNavigate } from "react-router-dom";
-import { getAuthToken } from "../../firebase";
-import { toast } from "react-toastify";
-import FacilityFormModal from "../../components/FalicityFormModal";
-import FeatureFormModal from "../../components/FeatureFormModal.js";
+// Import sidebar navigation component
+import Sidebar from "../../components/StaffSideBar.js";
+// Import component styles
+import "../../styles/staffDashboard.css";
+// Import authentication context
+import { useAuth } from "../../context/AuthContext.js";
+// Import Firestore database functions
+import { collection, query, where, onSnapshot } from "firebase/firestore";
+// Import Firebase configuration
+import { db, auth } from "../../firebase";
+// Import animation libraries
+import { motion, AnimatePresence } from "framer-motion";
 
-export default function ManageFacilities() {
-  const [facilities, setFacilities] = useState([]);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [originalFacilities, setOriginalFacilities] = useState({});
-  const [featureModalOpen, setFeatureModalOpen] = useState(false);
-  const [editFeatureModalOpen, setEditFeatureModalOpen] = useState(false);
-  const [tempFacilityData, setTempFacilityData] = useState(null);
-  const [editingFacilityId, setEditingFacilityId] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  const openModal = () => setModalOpen(true);
-  const closeModal = () => setModalOpen(false);
-
+export default function StaffDashboard() {
   const navigate = useNavigate();
-  const tableRef = useRef(null);
+  const { authUser } = useAuth();
+
+  // Fixed username label for display
+  const username = "Admin";
+
+  const [upcomingCount, setUpcomingCount] = useState(0);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [daysUntilNext, setDaysUntilNext] = useState(null);
 
   useEffect(() => {
-    const fetchFacilities = async () => {
-      try {
-        const token = await getAuthToken();
-        const res = await fetch(
-          `${process.env.REACT_APP_API_BASE_URL}/api/facilities/staff-facilities`,
-          {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+    const user = auth.currentUser;
+    if (!user) return;
 
-        if (!res.ok) throw new Error("Failed to fetch facilities");
+    const today = new Date();
+    const todayStr = today.toISOString().split("T")[0];
 
-        const data = await res.json();
-        setFacilities(data.facilities.map((f) => ({ ...f, isEditing: false })));
-      } catch (err) {
-        console.log(err);
-        toast.error("Failed to load facilities: " + err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchFacilities();
-  }, []);
-
-  const handleEditFeatures = (id) => {
-    setEditingFacilityId(id);
-    setEditFeatureModalOpen(true);
-  };
-
-  const handleDelete = async (id) => {
-    try {
-      const token = await getAuthToken();
-      const response = await fetch(
-        `${process.env.REACT_APP_API_BASE_URL}/api/facilities/${id}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.message || "Delete failed");
-      }
-
-      setFacilities((prev) => prev.filter((f) => f.id !== id));
-      toast.success("Facility deleted successfully");
-    } catch (error) {
-      console.error("Delete error:", error);
-      toast.error(error.message || "Failed to delete facility");
-    }
-  };
-
-  const getAvailabilityClass = (status) => {
-    switch (status) {
-      case "Available":
-        return "status available";
-      case "Closed":
-        return "status closed";
-      case "Under Maintenance":
-        return "status maintenance";
-      default:
-        return "status";
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="manage-facilities">
-        <div className="container">
-          <Sidebar activeItem="manage facilities" />
-          <main className="main-content">
-            <header className="page-header">
-              <h1>Manage Facilities</h1>
-              <button className="add-btn" disabled>
-                Add New Facility
-              </button>
-            </header>
-            <div className="loading-placeholder">
-              <p>Loading facilities...</p>
-            </div>
-          </main>
-        </div>
-      </div>
+    const bookingsQuery = query(
+      collection(db, "bookings"),
+      where("facilityStaff", "==", user.uid)
     );
-  }
+
+    const unsubscribe = onSnapshot(bookingsQuery, (snapshot) => {
+      let upcomingBookings = [];
+      let pending = 0;
+
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.status === "approved" && data.date >= todayStr) {
+          upcomingBookings.push(data);
+        }
+        if (data.status === "pending") {
+          pending++;
+        }
+      });
+
+      upcomingBookings.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+      setUpcomingCount(upcomingBookings.length);
+      setPendingCount(pending);
+
+      if (upcomingBookings.length > 0) {
+        const nextBookingDate = new Date(upcomingBookings[0].date);
+        const diffTime = nextBookingDate.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        setDaysUntilNext(diffDays);
+      } else {
+        setDaysUntilNext(null);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [authUser]);
 
   return (
-    <main className="manage-facilities">
-      <FacilityFormModal
-        open={modalOpen}
-        onClose={closeModal}
-        onSubmit={() => {}}
-      />
-
-      <FeatureFormModal
-        open={featureModalOpen}
-        onClose={() => {
-          setFeatureModalOpen(false);
-          setTempFacilityData(null);
-        }}
-        onSubmit={() => {}}
-        facilityType={tempFacilityData?.type || "General"}
-      />
-
-      <FeatureFormModal
-        open={editFeatureModalOpen}
-        onClose={() => {
-          setEditFeatureModalOpen(false);
-          setEditingFacilityId(null);
-        }}
-        onSubmit={() => {}}
-        facilityType={
-          facilities.find((f) => f.id === editingFacilityId)?.type || "General"
-        }
-        initialData={facilities.find((f) => f.id === editingFacilityId)}
-        isEditMode={true}
-      />
-
+    <main className="dashboard">
       <div className="container">
-        <Sidebar activeItem="manage facilities" />
+        <Sidebar activeItem="dashboard" />
         <main className="main-content">
           <header className="page-header">
-            <h1>Manage Facilities</h1>
-            <button className="add-btn" onClick={openModal}>
-              Add New Facility
-            </button>
+            <h1>Dashboard</h1>
+            <div className="user-name">{username}</div>
           </header>
 
-          <section className="table-section" ref={tableRef}>
-            <table className="facilities-table">
-              <thead>
-                <tr>
-                  <th>Facility Name</th>
-                  <th>Type</th>
-                  <th>Outdoors</th>
-                  <th>Availability</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {facilities.map((f) => (
-                  <tr key={f.id}>
-                    <td>{f.name}</td>
-                    <td>{f.type}</td>
-                    <td>{f.isOutdoors}</td>
-                    <td>
-                      <span className={getAvailabilityClass(f.availability)}>
-                        {f.availability}
-                      </span>
-                    </td>
-                    <td className="icon-actions">
-                      <img
-                        src={clockIcon}
-                        alt="timeslots"
-                        className="icon-btn"
-                        onClick={() =>
-                          navigate(`/staff-edit-time-slots/${f.id}`, {
-                            state: { facilityName: f.name },
-                          })
-                        }
-                      />
-                      <img
-                        src={editIcon}
-                        alt="edit features"
-                        className="icon-btn"
-                        onClick={() => handleEditFeatures(f.id)}
-                      />
-                      <img
-                        src={binIcon}
-                        alt="delete"
-                        className="icon-btn"
-                        onClick={() => {
-                          if (
-                            window.confirm(
-                              "Are you sure you want to delete this facility?"
-                            )
-                          ) {
-                            handleDelete(f.id);
-                          }
-                        }}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
+          <div className="card-container">
+            <div className="card">
+              <h3>Upcoming facility bookings</h3>
+              <AnimatePresence mode="wait">
+                <motion.p
+                  key={upcomingCount + "-" + daysUntilNext}
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  transition={{ duration: 0.5 }}
+                >
+                  {upcomingCount > 0
+                    ? `You have ${upcomingCount} upcoming bookings. Next one is in ${daysUntilNext} day(s)!`
+                    : "No upcoming bookings"}
+                </motion.p>
+              </AnimatePresence>
+              <button
+                className="view-all-btn"
+                onClick={() => navigate("/staff-upcoming-bookings")}
+              >
+                View all
+              </button>
+            </div>
+
+            <div className="card">
+              <h3>Pending Applications</h3>
+              <AnimatePresence mode="wait">
+                <motion.p
+                  key={pendingCount}
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  transition={{ duration: 0.5 }}
+                >
+                  {pendingCount} booking requests awaiting your approval
+                </motion.p>
+              </AnimatePresence>
+              <button
+                className="view-all-btn"
+                onClick={() => navigate("/staff-view-bookings")}
+              >
+                View all
+              </button>
+            </div>
+          </div>
         </main>
       </div>
     </main>

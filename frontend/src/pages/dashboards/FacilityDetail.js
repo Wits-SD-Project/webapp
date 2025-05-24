@@ -1,6 +1,7 @@
-import { useParams } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { auth, getAuthToken } from "../../firebase";
+// Import necessary React hooks, components, and libraries
+import { useParams } from "react-router-dom"; // For accessing route parameters
+import { useEffect, useState } from "react"; // React hooks
+import { auth, getAuthToken } from "../../firebase"; // Firebase authentication utilities
 import {
   Typography,
   Button,
@@ -17,11 +18,11 @@ import {
   Grid,
   Box,
   DialogActions,
-} from "@mui/material";
-import DatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
-import { toast } from "react-toastify";
-import Sidebar from "../../components/ResSideBar";
+} from "@mui/material"; // Material-UI components
+import DatePicker from "react-datepicker"; // Date picker component
+import "react-datepicker/dist/react-datepicker.css"; // Date picker styles
+import { toast } from "react-toastify"; // Toast notifications
+import Sidebar from "../../components/ResSideBar"; // Sidebar component
 import {
   ChevronRight,
   Schedule,
@@ -29,11 +30,12 @@ import {
   Info,
   Close,
   CalendarToday,
-} from "@mui/icons-material";
-import "../../styles/facilityDetail.css";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
-import L from "leaflet";
+} from "@mui/icons-material"; // Material-UI icons
+import "../../styles/facilityDetail.css"; // Component styles
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet"; // Map components
+import L from "leaflet"; // Leaflet library for maps
 
+// Fix for Leaflet marker icons in Webpack
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: require("leaflet/dist/images/marker-icon-2x.png"),
@@ -41,20 +43,27 @@ L.Icon.Default.mergeOptions({
   shadowUrl: require("leaflet/dist/images/marker-shadow.png"),
 });
 
+// Main FacilityDetail component
 export default function FacilityDetail() {
+  // Get facility ID from URL parameters
   const { id } = useParams();
-  const [facility, setFacility] = useState(null);
-  const [selectedSlot, setSelectedSlot] = useState(null);
-  const [selectedDate, setSelectedDate] = useState(null);
-  const [showConfirmation, setShowConfirmation] = useState(false);
-  const [activeTab, setActiveTab] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [weatherLoading, setWeatherLoading] = useState(null);
-  const [weather, setWeather] = useState(null);
+  
+  // State management
+  const [facility, setFacility] = useState(null); // Facility details
+  const [selectedSlot, setSelectedSlot] = useState(null); // Selected time slot
+  const [selectedDate, setSelectedDate] = useState(null); // Selected booking date
+  const [showConfirmation, setShowConfirmation] = useState(false); // Booking confirmation dialog visibility
+  const [activeTab, setActiveTab] = useState(0); // Active tab in availability section
+  const [loading, setLoading] = useState(true); // Loading state
+  const [searchQuery, setSearchQuery] = useState(""); // Search query (unused in current implementation)
+  const [weatherLoading, setWeatherLoading] = useState(null); // Weather data loading state
+  const [weather, setWeather] = useState(null); // Weather forecast data
+  
+  // Placeholder image URL for when facility images are not available
   const placeholder =
     "https://images.unsplash.com/photo-1527767654427-1790d8ff3745?q=80&w=2574&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
 
+  // Fetch facility details when component mounts or ID changes
   useEffect(() => {
     const fetchFacility = async () => {
       setLoading(true);
@@ -70,7 +79,7 @@ export default function FacilityDetail() {
 
         // 2. Make API request
         const response = await fetch(
-          `${process.env.REACT_APP_API_BASE_URL}/api/facilities/${id}`,
+          `http://localhost:8080/api/facilities/${id}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -102,6 +111,7 @@ export default function FacilityDetail() {
     console.log(facility);
   }, [id]);
 
+  // Fetch weather data when facility coordinates are available
   useEffect(() => {
     if (!facility?.coordinates) return;
     const { lat, lng } = facility.coordinates;
@@ -140,6 +150,11 @@ export default function FacilityDetail() {
       });
   }, [facility]);
 
+  /**
+   * Groups time slots by day of week
+   * @param {Array} slots - Array of time slot objects
+   * @returns {Object} Object with days as keys and arrays of slots as values
+   */
   const groupSlotsByDay = (slots) => {
     return slots.reduce((acc, slot) => {
       if (!acc[slot.day]) acc[slot.day] = [];
@@ -148,6 +163,10 @@ export default function FacilityDetail() {
     }, {});
   };
 
+  /**
+   * Handles date selection for booking
+   * @param {Date} date - Selected date
+   */
   const handleDateSelect = (date) => {
     const selectedDay = date.toLocaleString("en-US", { weekday: "long" });
 
@@ -160,6 +179,9 @@ export default function FacilityDetail() {
     setShowConfirmation(true);
   };
 
+  /**
+   * Confirms booking by making API request
+   */
   const confirmBooking = async () => {
     try {
       const user = auth.currentUser;
@@ -169,7 +191,7 @@ export default function FacilityDetail() {
       const formattedDate = selectedDate.toISOString().split("T")[0];
 
       const response = await fetch(
-        `${process.env.REACT_APP_API_BASE_URL}/api/facilities/bookings`,
+        "http://localhost:8080/api/facilities/bookings",
         {
           method: "POST",
           headers: {
@@ -200,6 +222,7 @@ export default function FacilityDetail() {
     }
   };
 
+  // Loading state UI
   if (loading) {
     return (
       <main className="dashboard">
@@ -226,6 +249,7 @@ export default function FacilityDetail() {
     );
   }
 
+  // Error state UI (facility not found)
   if (!facility) {
     return (
       <main className="dashboard">
@@ -241,19 +265,23 @@ export default function FacilityDetail() {
     );
   }
 
+  // Group time slots by day for display
   const groupedSlots = groupSlotsByDay(facility.timeslots || []);
   const days = Object.keys(groupedSlots);
 
+  // Main component render
   return (
     <main className="dashboard">
       <div className="container">
         <Sidebar activeItem="facility bookings" />
 
         <main className="main-content">
+          {/* Page header with facility name */}
           <header className="page-header">
             <h1>{facility.name}</h1>
           </header>
 
+          {/* Facility information chips */}
           <div className="facility-chips">
             <Chip
               icon={<LocationOn fontSize="small" />}
@@ -269,6 +297,7 @@ export default function FacilityDetail() {
             />
           </div>
 
+          {/* Main content area */}
           <div className="facility-content">
             {/* Details Section */}
             <div className="details-section">
@@ -279,6 +308,7 @@ export default function FacilityDetail() {
                     {facility.description || "No description available."}
                   </Typography>
 
+                  {/* Features section */}
                   <div className="features-section">
                     <h3>Features</h3>
                     {facility.features && facility.features.length > 0 ? (
@@ -307,6 +337,7 @@ export default function FacilityDetail() {
                 <Paper elevation={0} className="booking-paper">
                   <h3>Availability</h3>
 
+                  {/* Day tabs for availability */}
                   <div className="booking-tabs">
                     <Tabs
                       value={activeTab}
@@ -321,6 +352,7 @@ export default function FacilityDetail() {
                     </Tabs>
                   </div>
 
+                  {/* Time slots for selected day */}
                   <div className="slots-container">
                     {groupedSlots[days[activeTab]]?.map((slot, index) => (
                       <Button
@@ -345,6 +377,7 @@ export default function FacilityDetail() {
                     ))}
                   </div>
 
+                  {/* Date picker when slot is selected */}
                   {selectedSlot && (
                     <div className="date-picker-section">
                       <Typography
@@ -380,6 +413,7 @@ export default function FacilityDetail() {
               </div>
             </div>
 
+            {/* Map section showing facility location */}
             {facility.coordinates && (
               <Container sx={{ mt: 4 }}>
                 <Typography variant="h6" gutterBottom>
@@ -424,6 +458,7 @@ export default function FacilityDetail() {
               </Container>
             )}
 
+            {/* Weather forecast section */}
             {facility.coordinates && (
               <Container sx={{ mt: 4 }}>
                 <Typography variant="h6" gutterBottom>
@@ -503,7 +538,7 @@ export default function FacilityDetail() {
               </div>
             </div>
 
-            {/* Confirmation Dialog */}
+            {/* Booking Confirmation Dialog */}
             <Dialog
               open={showConfirmation}
               onClose={() => setShowConfirmation(false)}
