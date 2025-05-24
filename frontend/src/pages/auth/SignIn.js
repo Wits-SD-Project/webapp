@@ -23,62 +23,57 @@ export default function SignIn() {
    * @param {string} provider - Name of the third-party provider (e.g., "google")
    */
   const handleThirdPartySignIn = async (provider) => {
-    try {
-      setProviderLoading(provider); // Show loading spinner on the button
-      let result;
+  try {
+    setProviderLoading(provider);
+    let result;
 
-      if (provider === "google") {
-        // Show Google sign-in popup
-        result = await signInWithPopup(auth, new GoogleAuthProvider());
+    if (provider === "google") {
+      result = await signInWithPopup(auth, new GoogleAuthProvider());
 
-        // Extract the Google credential
-        const credential = GoogleAuthProvider.credentialFromResult(result);
-        if (!credential) throw new Error("No credential returned from Google");
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (!credential) throw new Error("No credential returned from Google");
 
-        // Get Firebase ID token from the signed-in user
-        const idToken = await result.user.getIdToken();
+      const idToken = await result.user.getIdToken();
 
-        // Call your backend to sign in and receive user info
-        const response = await signInWithThirdParty({ idToken });
-        const user = response;
+      const response = await signInWithThirdParty({ idToken });
 
-        // Set global user state in context
-        setAuthUser({
-          email: user.email,
-          role: user.role,
-          name: user.name
-        });
+      setAuthUser({
+        email: response.email,
+        role: response.role,
+        name: response.name,
+      });
 
-        // Show welcome message
-        toast.success(`Welcome back, ${user.name || user.email}`);
+      toast.success(`Welcome back, ${response.name || response.email}`);
 
-        // Redirect user based on role
-        const redirectPath = {
-          admin: "/admin-dashboard",
-          staff: "/staff-dashboard",
-          resident: "/res-dashboard"
-        }[user.role] || "/";
+      const redirectPath = {
+        admin: "/admin-dashboard",
+        staff: "/staff-dashboard",
+        resident: "/res-dashboard",
+      }[response.role] || "/";
 
-        navigate(redirectPath); // Navigate to appropriate dashboard
-      }
-    } catch (err) {
-      console.error("Third-party sign in error:", err);
-      setAuthUser(null); // Clear any existing auth state
-
-      // Show appropriate error message based on backend response
-      if (err.response?.data?.message === "User not registered.") {
-        toast.error("Account not registered. Please sign up first.");
-      } else if (err.response?.data?.message === "Account not yet approved.") {
-        toast.error("⏳ Waiting for admin approval.");
-      } else if (err.response?.data?.message === "Access denied.") {
-        toast.error("⛔ Access denied.");
-      } else {
-        toast.error("Sign in failed. Please try again.");
-      }
-    } finally {
-      setProviderLoading(null); // Reset loading state
+      navigate(redirectPath);
     }
-  };
+  } catch (err) {
+    console.error("Third-party sign in error:", err);
+    setAuthUser(null);
+
+    // Use the `err.data.message` for toast messages
+    const message = err.data?.message || err.message;
+
+    if (message === "User not registered.") {
+      toast.error("Account not registered. Please sign up first.");
+    } else if (message === "Account not yet approved.") {
+      toast.error("⏳ Waiting for admin approval.");
+    } else if (message === "Access denied.") {
+      toast.error("⛔ Access denied.");
+    } else {
+      toast.error(message || "Sign in failed. Please try again.");
+    }
+  } finally {
+    setProviderLoading(null);
+  }
+};
+
 
   return (
     <main className="login-container">

@@ -40,21 +40,21 @@ export default function AdminDashboard() {
     fetchUsers();
   }, []);
 
-  async function handleToggle(user, endpoint, flagKey, removeOnFalse = false, actionLabel = "") {
+  async function handleToggle(user, flagKey, removeOnFalse = false, actionLabel = "",action) {
     const confirmed = window.confirm(`Are you sure?\n\nDo you want to ${actionLabel.toLowerCase()} for ${user.email}?`);
     if (!confirmed) return;
 
     try {
       const token = await getAuthToken();
       const res = await fetch(
-        `${process.env.REACT_APP_API_BASE_URL}/api/admin/${endpoint}`,
+        `${process.env.REACT_APP_API_BASE_URL}/api/admin/toggle-approval`,
         {
           method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ email: user.email }),
+          body: JSON.stringify({ email: user.email ,action:action}),
         }
       );
 
@@ -76,14 +76,14 @@ export default function AdminDashboard() {
 
       toast.success(data.message || "Saved");
     } catch (err) {
-      console.error(`${endpoint} error:`, err);
+      console.error(`Toggle error:`, err);
       toast.error(err.message);
     }
   }
 
-  const approveUser = (u) => handleToggle(u, "toggle-approval", "approved", false, "Approved and Granted Access");
-  const rejectUser = (u) => handleToggle(u, "toggle-approval", "approved", true, "Rejected Access");
-  const revokeAccess = (u) => handleToggle(u, "toggle-accepted", "accepted", true, "Revoked Access");
+  const approveUser = (u) => handleToggle(u,"approved", false, "Approved and Granted Access","approve");
+  const rejectUser = (u) => handleToggle(u,"approved", true, "Rejected Access","reject");
+  const revokeAccess = (u) => handleToggle(u,"accepted", true, "Revoked Access","revoke");
 
   return (
     <main className="admin-dashboard">

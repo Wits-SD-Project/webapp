@@ -19,7 +19,15 @@ router.post("/signup/thirdparty", async (req, res) => {
     const userDoc = await userRef.get();
 
     if (userDoc.exists) {
-      return res.status(400).json({ message: "User already exists" });
+      const userData = userDoc.data();
+      if (!userData.approved) {
+        return res.status(403).json({ message: "Account already registered, please wait for approval." });
+      }
+      if (!userData.accepted) {
+        return res.status(403).json({ message: "Account already registered, Access revoked " });
+      }
+
+      return res.status(400).json({ message: "Account already registered, Click sign in" });
     }
 
     // Create new user document using the reference
