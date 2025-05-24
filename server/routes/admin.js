@@ -4,31 +4,113 @@ const { admin } = require("../firebase"); // Changed to import admin
 const authenticate = require("../authenticate");
 
 router.post('/toggle-approval', async (req, res) => {
+  const { email, action } = req.body; // Added 'action' parameter
+  
+  // Validate input
+  if (!email || typeof email !== 'string' || !email.includes('@')) {
+    return res.status(400).json({ 
+      success: false,
+      message: 'Invalid email address provided.' 
+    });
+  }
 
-  const { email } = req.body;
-  if (!email || email === 'admin@gmail.com')
-    return res.status(400).json({ message: 'Invalid email.' });
+  // Prevent modifying admin account
+  if (email === 'admin@gmail.com') {
+    return res.status(403).json({ 
+      success: false,
+      message: 'Admin account cannot be modified.' 
+    });
+  }
+
+  // Validate action type
+  const validActions = ['approve', 'reject', 'revoke'];
+  if (action && !validActions.includes(action)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid action specified. Must be approve, reject, or revoke.'
+    });
+  }
 
   try {
-    const ref  = admin.firestore().collection('users').doc(email);
-    const snap = await ref.get();
-    if (!snap.exists) return res.status(404).json({ message: 'User not found.' });
-
-    const next = !snap.data().approved;
-    await ref.update({ approved: next });
-
-    const uid = snap.data().uid;
-    if (uid) {
-      await admin.auth().setCustomUserClaims(uid, {
-        accepted: snap.data().accepted || false,
-        approved: next,
+    const userRef = admin.firestore().collection('users').doc(email);
+    const userDoc = await userRef.get();
+    
+    if (!userDoc.exists) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'User not found in database.' 
       });
     }
 
-    res.status(200).json({ approved: next });
+    const userData = userDoc.data();
+    let updateData = {
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+    let authClaims = {
+      role: userData.role || 'user'
+    };
+
+    // Determine action
+    if (action === 'revoke') {
+      // Revoke access (set accepted to false)
+      updateData.accepted = false;
+      authClaims.accepted = false;
+      authClaims.approved = userData.approved; // Maintain approval status
+      
+    } else {
+      // Handle approve/reject (toggle approval status)
+      const newApprovalStatus = action === 'approve' ? true : 
+                              action === 'reject' ? false : 
+                              !userData.approved;
+      
+      updateData.approved = newApprovalStatus;
+      authClaims.approved = newApprovalStatus;
+      
+      // If approving, automatically accept
+      if (newApprovalStatus) {
+        updateData.accepted = true;
+        authClaims.accepted = true;
+      } else {
+        // If rejecting, maintain current accepted status
+        authClaims.accepted = userData.accepted || false;
+      }
+    }
+
+    // Update Firestore
+    await userRef.update(updateData);
+
+    // Update Auth claims if UID exists
+    if (userData.uid) {
+      await admin.auth().setCustomUserClaims(userData.uid, authClaims);
+    }
+
+    // Determine response message based on action
+    let message;
+    if (action === 'approve') {
+      message = 'User approved and access granted successfully.';
+    } else if (action === 'reject') {
+      message = 'User rejected successfully.';
+    } else if (action === 'revoke') {
+      message = 'User access revoked successfully.';
+    } else {
+      message = `User ${updateData.approved ? 'approved' : 'rejected'} successfully.`;
+    }
+
+    // Success response
+    res.status(200).json({ 
+      success: true,
+      approved: updateData.approved,
+      accepted: updateData.accepted !== undefined ? updateData.accepted : userData.accepted,
+      message: message
+    });
+
   } catch (err) {
-    console.error('toggle-approval error:', err);
-    res.status(500).json({ message: 'Failed to update approval status.' });
+    console.error('Toggle approval error:', err);
+    res.status(500).json({ 
+      success: false,
+      message: 'Internal server error while updating user status.',
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   }
 });
 

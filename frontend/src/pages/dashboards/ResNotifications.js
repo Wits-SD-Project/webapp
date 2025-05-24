@@ -1,94 +1,130 @@
+// Import React hooks for state and lifecycle management
 import { useState, useEffect, useMemo } from "react";
+// Import Firestore database functions
+import {
+  collection,
+  query,
+  where,
+  orderBy,
+  onSnapshot,
+} from "firebase/firestore";
+// Import Firebase configuration and auth
+import { auth, db } from "../../firebase";
+// Import sidebar navigation component
 import Sidebar from "../../components/ResSideBar.js";
+// Import component styles
 import "../../styles/resNotifications.css";
+// Import date formatting utility
 import { format } from "date-fns";
-import { getAuthToken } from "../../firebase";
 
+// Define threshold for "new" notifications (24 hours in milliseconds)
 const NEW_NOTIFICATION_THRESHOLD_MS = 24 * 60 * 60 * 1000;
 
-const parseDateString = (dateInput) => {
-  if (!dateInput) return null;
-  const date = new Date(dateInput);
-  return isNaN(date.getTime()) ? null : date;
+/**
+ * Helper function to safely convert string to Date
+ * @param {string} dateString - Date string to parse
+ * @returns {Date|null} Parsed date or null if invalid
+ */
+const parseDateString = (dateString) => {
+  if (!dateString) return null;
+  const date = new Date(dateString);
+  return isNaN(date.getTime()) ? null : date; // Check for invalid dates
 };
 
 export default function ResNotifications() {
-  const [notifications, setNotifications] = useState([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  // State management for notifications and UI
+  const [notifications, setNotifications] = useState([]); // All notifications
+  const [searchQuery, setSearchQuery] = useState(""); // Search filter query
+  const [loading, setLoading] = useState(true); // Loading state
+  const [error, setError] = useState(null); // Error state
 
-  const fetchNotifications = async () => {
-    try {
-      setLoading(true);
-      const token = await getAuthToken();
-      
-      const response = await fetch(
-        `${process.env.REACT_APP_API_BASE_URL}/api/admin/get-notifications`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch notifications");
-      }
-
-      const data = await response.json();
-      const now = Date.now();
-
-      const formattedNotifications = data.notifications.map((item) => {
-        const createdAtDate = parseDateString(item.createdAt);
-        const isNew = createdAtDate && 
-          now - createdAtDate.getTime() < NEW_NOTIFICATION_THRESHOLD_MS;
-
-        let type = item.type === "event" ? "Event" : "Booking";
-        let message;
-
-        if (type === "Event") {
-          const startTime = parseDateString(item.startTime) || new Date(0);
-          const endTime = parseDateString(item.endTime) || new Date(0);
-
-          message = `New event: ${item.eventName} at ${item.facilityName} from ${
-            format(startTime, "PPPp")
-          } to ${
-            format(endTime, "PPPp")
-          }.`;
-        } else {
-          message = `Your booking for ${item.facilityName} at ${item.slot} was ${item.status}.`;
-        }
-
-        return {
-          id: item.id,
-          date: createdAtDate ? format(createdAtDate, "PPPp") : "Invalid date",
-          type,
-          message,
-          isNew,
-        };
-      });
-
-      setNotifications(formattedNotifications);
-    } catch (err) {
-      console.error("Error fetching notifications:", err);
-      setError(err.message || "Failed to load notifications");
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  /**
+   * useEffect hook for real-time notification fetching
+   * Runs once on component mount and sets up Firestore listener
+   */
   useEffect(() => {
-    fetchNotifications();
-    
-    // Optional: Set up polling if you want near real-time updates
-    const interval = setInterval(fetchNotifications, 60000); // Refresh every minute
-    
-    return () => clearInterval(interval);
-  }, []);
+    const user = auth.currentUser;
+    if (!user) {
+      setLoading(false);
+      return; // Skip if no authenticated user
+    }
 
+    setLoading(true);
+    setError(null);
+
+    // Create query for user-specific notifications, ordered by date
+    const q = query(
+      collection(db, "notifications"),
+      where("userName", "==", user.email), // Filter by user email
+      orderBy("createdAt", "desc") // Newest first
+    );
+
+    // Set up real-time listener with unsubscribe function
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        // Success callback
+        const now = Date.now();
+
+        // Process each notification document
+        const fetchedNotifications = snapshot.docs.map((doc) => {
+          const data = doc.data();
+
+          // Handle createdAt date conversion
+          const createdAtDate = data.createdAt?.toDate
+            ? data.createdAt.toDate() // Convert Firestore Timestamp
+            : parseDateString(data.createdAt); // Fallback to string parsing
+          
+          // Determine if notification is "new" (within 24 hours)
+          const isNew = now - createdAtDate.getTime() < NEW_NOTIFICATION_THRESHOLD_MS;
+
+          // Default to Booking notification type
+          let type = "Booking";
+          let message = `Your booking for ${data.facilityName} at ${data.slot} was ${data.status}.`;
+
+          // Handle Event notification type
+          if (data.type === "event") {
+            type = "Event";
+            // Parse and format event times
+            const startTime = parseDateString(data.startTime) || new Date(0);
+            const endTime = parseDateString(data.endTime) || new Date(0);
+            const formattedStartTime = format(startTime, "PPPp"); // "Month day, year, time"
+            const formattedEndTime = format(endTime, "PPPp");
+            
+            message = `New event: ${data.eventName} at ${data.facilityName} from ${formattedStartTime} to ${formattedEndTime}.`;
+          }
+
+          // Format the display date
+          const formattedDate = format(createdAtDate, "PPPp");
+
+          return {
+            id: doc.id,
+            date: formattedDate,
+            type,
+            message,
+            isNew,
+          };
+        });
+
+        setNotifications(fetchedNotifications);
+        setLoading(false);
+      },
+      (err) => {
+        // Error callback
+        console.error("Error fetching real-time notifications:", err);
+        setError("Failed to load notifications. Please try again.");
+        setLoading(false);
+      }
+    );
+
+    // Cleanup function to unsubscribe when component unmounts
+    return () => unsubscribe();
+  }, []); // Empty dependency array means this runs once on mount
+
+  /**
+   * Memoized filtered notifications based on search query
+   * Optimized to only recalculate when notifications or searchQuery change
+   */
   const filteredNotifications = useMemo(() => {
     const query = searchQuery.toLowerCase();
     return notifications.filter(
@@ -99,19 +135,34 @@ export default function ResNotifications() {
     );
   }, [notifications, searchQuery]);
 
+  /**
+   * Memoized new notifications (within 24 hours)
+   * Derived from filteredNotifications
+   */
   const newNotifications = useMemo(
     () => filteredNotifications.filter((n) => n.isNew),
     [filteredNotifications]
   );
 
+  /**
+   * Memoized old notifications (older than 24 hours)
+   * Derived from filteredNotifications
+   */
   const oldNotifications = useMemo(
     () => filteredNotifications.filter((n) => !n.isNew),
     [filteredNotifications]
   );
 
+  /**
+   * Reusable NotificationTable component
+   * @param {object} props - Component props
+   * @param {string} props.title - Section title ("New" or "Past")
+   * @param {Array} props.data - Notifications data to display
+   */
   const NotificationTable = ({ title, data }) => (
     <section className="table-section">
       <h2>{title} Notifications</h2>
+      {/* Empty state message */}
       {data.length === 0 && !loading && (
         <p className="no-notifications-message">
           {searchQuery === ""
@@ -119,6 +170,7 @@ export default function ResNotifications() {
             : `No ${title.toLowerCase()} notifications found matching your search.`}
         </p>
       )}
+      {/* Notification table */}
       {data.length > 0 && (
         <table className="notifications-table">
           <thead>
@@ -145,12 +197,16 @@ export default function ResNotifications() {
     </section>
   );
 
+  // Component render
   return (
     <main className="notifications">
       <div className="container">
+        {/* Sidebar navigation */}
         <Sidebar activeItem="notifications" />
 
+        {/* Main content area */}
         <main className="main-content">
+          {/* Page header with search */}
           <header className="page-header">
             <h1>Notifications</h1>
             <input
@@ -162,13 +218,18 @@ export default function ResNotifications() {
             />
           </header>
 
+          {/* Loading and error states */}
           {loading && <p className="loading-message">Loading notifications...</p>}
           {error && <p className="error-message">{error}</p>}
 
+          {/* Main content when not loading and no errors */}
           {!loading && !error && (
             <>
+              {/* New notifications section */}
               <NotificationTable title="New" data={newNotifications} />
+              {/* Past notifications section */}
               <NotificationTable title="Past" data={oldNotifications} />
+              {/* No search results message */}
               {notifications.length > 0 &&
                 filteredNotifications.length === 0 &&
                 searchQuery !== "" && (
@@ -183,4 +244,3 @@ export default function ResNotifications() {
     </main>
   );
 }
-

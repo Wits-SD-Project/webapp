@@ -1,18 +1,19 @@
+// Import necessary React hooks, components, and libraries
 import { useEffect, useState } from "react";
-import { toast } from "react-toastify";
-import Sidebar from "../../components/AdminSideBar.js";
-import { getAuthToken } from "../../firebase.js";
-import "../../styles/adminManageUsers.css";
+import { toast } from "react-toastify"; // For displaying notifications
+import Sidebar from "../../components/AdminSideBar.js"; // Admin sidebar component
+import { getAuthToken } from "../../firebase.js"; // Firebase authentication helper
+import "../../styles/adminManageUsers.css"; // Component-specific styles
 
+// Main AdminDashboard component for managing users
 export default function AdminDashboard() {
   const [users, setUsers] = useState([]);
+  const [auditLog, setAuditLog] = useState([]);
 
-  // ─────────────────────────── Fetch user list ────────────────────────────
   useEffect(() => {
     async function fetchUsers() {
       try {
         const token = await getAuthToken();
-
         const res = await fetch(
           `${process.env.REACT_APP_API_BASE_URL}/api/admin/users`,
           {
@@ -21,13 +22,9 @@ export default function AdminDashboard() {
           }
         );
 
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(text || res.statusText);
-        }
+        if (!res.ok) throw new Error(await res.text());
 
-        const data = await res.json(); // always JSON
-
+        const data = await res.json();
         setUsers(
           data.map((u) => ({
             ...u,
@@ -40,53 +37,58 @@ export default function AdminDashboard() {
         toast.error("Failed to load users: " + err.message);
       }
     }
-
     fetchUsers();
   }, []);
 
-  // ────────────────────── Toggle helpers (approve / accept) ───────────────
-  async function handleToggle(user, endpoint, flagKey) {
+  async function handleToggle(user, flagKey, removeOnFalse = false, actionLabel = "",action) {
+    const confirmed = window.confirm(`Are you sure?\n\nDo you want to ${actionLabel.toLowerCase()} for ${user.email}?`);
+    if (!confirmed) return;
+
     try {
       const token = await getAuthToken();
-
       const res = await fetch(
-        `${process.env.REACT_APP_API_BASE_URL}/api/admin/${endpoint}`,
+        `${process.env.REACT_APP_API_BASE_URL}/api/admin/toggle-approval`,
         {
           method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ email: user.email }),
+          body: JSON.stringify({ email: user.email ,action:action}),
         }
       );
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || res.statusText);
 
-      setUsers((prev) =>
-        prev.map((u) =>
-          u.email === user.email ? { ...u, [flagKey]: data[flagKey] } : u
-        )
-      );
+      const actionRecord = `${new Date().toLocaleString()}: ${actionLabel} for ${user.email}`;
+      setAuditLog((prev) => [...prev, actionRecord]);
 
-      if (data.message) toast.success(data.message);
-      else toast.success("Saved"); // fallback
+      if (removeOnFalse && !data[flagKey]) {
+        setUsers((prev) => prev.filter((u) => u.email !== user.email));
+      } else if (flagKey === "approved") {
+        setUsers((prev) =>
+          prev.map((u) =>
+            u.email === user.email ? { ...u, approved: true, accepted: true } : u
+          )
+        );
+      }
+
+      toast.success(data.message || "Saved");
     } catch (err) {
-      console.error(`${endpoint} error:`, err);
+      console.error(`Toggle error:`, err);
       toast.error(err.message);
     }
   }
 
-  const toggleApproval = (u) => handleToggle(u, "toggle-approval", "approved");
-  const toggleAccepted = (u) => handleToggle(u, "toggle-accepted", "accepted");
+  const approveUser = (u) => handleToggle(u,"approved", false, "Approved and Granted Access","approve");
+  const rejectUser = (u) => handleToggle(u,"approved", true, "Rejected Access","reject");
+  const revokeAccess = (u) => handleToggle(u,"accepted", true, "Revoked Access","revoke");
 
-  // ─────────────────────────────── Render ────────────────────────────────
   return (
     <main className="admin-dashboard">
       <div className="container">
         <Sidebar activeItem="manage users" />
-
         <main className="main-content">
           <header className="page-header">
             <h1>Manage Users</h1>
@@ -104,7 +106,6 @@ export default function AdminDashboard() {
                   <th>Actions</th>
                 </tr>
               </thead>
-
               <tbody>
                 {users.length === 0 && (
                   <tr>
@@ -113,44 +114,41 @@ export default function AdminDashboard() {
                     </td>
                   </tr>
                 )}
-
                 {users.map((user) => (
                   <tr key={user.email}>
                     <td>{user.email}</td>
                     <td>{user.role}</td>
-                    <td
-                      className={`status ${
-                        user.approved ? "approved" : "rejected"
-                      }`}
-                    >
-                      {user.approved ? "Yes" : "No"}
-                    </td>
-                    <td
-                      className={`status ${
-                        user.accepted ? "approved" : "rejected"
-                      }`}
-                    >
-                      {user.accepted ? "Yes" : "No"}
-                    </td>
+                    <td className="status approved">{user.approved ? "Yes" : "No"}</td>
+                    <td className="status approved">{user.accepted ? "Yes" : "No"}</td>
                     <td className="actions">
-                      <button
-                        className={user.approved ? "reject" : "approve"}
-                        onClick={() => toggleApproval(user)}
-                      >
-                        {user.approved ? "Revoke" : "Approve"}
-                      </button>
-                      <button
-                        className={user.accepted ? "reject" : "approve"}
-                        disabled={!user.approved}
-                        onClick={() => toggleAccepted(user)}
-                      >
-                        {user.accepted ? "Revoke Access" : "Grant Access"}
-                      </button>
+                      {!user.approved && !user.accepted ? (
+                        <>
+                          <button className="approve" onClick={() => approveUser(user)}>
+                            Accept
+                          </button>
+                          <button className="reject" onClick={() => rejectUser(user)}>
+                            Reject
+                          </button>
+                        </>
+                      ) : (
+                        <button className="reject" onClick={() => revokeAccess(user)}>
+                          Revoke Access
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </section>
+
+          <section className="audit-log" style={{ marginTop: "2rem" }}>
+            <h3>Audit Log</h3>
+            <ul style={{ listStyle: "none", paddingLeft: 0 }}>
+              {auditLog.map((log, idx) => (
+                <li key={idx} style={{ fontSize: "0.9rem", marginBottom: "0.25rem" }}>{log}</li>
+              ))}
+            </ul>
           </section>
         </main>
       </div>

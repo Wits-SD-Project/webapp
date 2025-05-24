@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+// Material-UI components for UI layout
 import {
   Card,
   CardMedia,
@@ -14,79 +15,83 @@ import {
   TextField,
   Box,
 } from "@mui/material";
+// Icons and date picker components
 import PlaceIcon from "@mui/icons-material/Place";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+// Notification and routing utilities
 import { toast } from "react-toastify";
+import { useNavigate } from "react-router-dom";
+// Firebase services
 import { db, auth } from "../../firebase";
 import { collection, getDocs } from "firebase/firestore";
+// Custom components and styles
 import Sidebar from "../../components/ResSideBar";
 import "../../styles/userDashboard.css";
-import { useNavigate } from "react-router-dom";
 
+// Default image placeholder URL
 const placeholder =
   "https://images.unsplash.com/photo-1527767654427-1790d8ff3745?q=80&w=2574&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
 
 export default function UserDashboard() {
-  const [facilities, setFacilities] = useState([]);
-  const [selectedSlot, setSelectedSlot] = useState(null);
-  const [selectedFacility, setSelectedFacility] = useState(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const navigate = useNavigate();
+  // State management
+  const [facilities, setFacilities] = useState([]); // Stores all facility data
+  const [selectedSlot, setSelectedSlot] = useState(null); // Currently selected time slot
+  const [selectedFacility, setSelectedFacility] = useState(null); // Currently selected facility
+  const [drawerOpen, setDrawerOpen] = useState(false); // Controls booking drawer visibility
+  const [showDatePicker, setShowDatePicker] = useState(false); // Controls date picker visibility
+  const [searchQuery, setSearchQuery] = useState(""); // Search filter input
+  const navigate = useNavigate(); // Navigation hook
 
+  /**
+   * Fetches facility data from Firestore on component mount
+   */
   useEffect(() => {
     const fetchFacilities = async () => {
       try {
-        setLoading(true);
-        const user = auth.currentUser;
-        if (!user) return;
-
-        const token = await user.getIdToken();
-        const response = await fetch(
-          `${process.env.REACT_APP_API_BASE_URL}/api/admin/obtain`,
-          {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch facilities");
-        }
-
-        const data = await response.json();
-        setFacilities(data.facilities);
+        const querySnapshot = await getDocs(collection(db, "facilities-test"));
+        const facilitiesData = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setFacilities(facilitiesData);
       } catch (error) {
         console.error("Error fetching facilities:", error);
-        setError(error.message || "Failed to load facilities");
-      } finally {
-        setLoading(false);
+        toast.error("Failed to load facilities");
       }
     };
 
     fetchFacilities();
   }, []);
 
+  /**
+   * Opens the booking drawer for a specific facility
+   * @param {Object} fac - Facility object to display in drawer
+   */
   const openDrawer = (fac) => {
     setSelectedFacility(fac);
     setDrawerOpen(true);
   };
 
+  /**
+   * Initiates booking process by selecting a time slot
+   * @param {Object} facility - Selected facility
+   * @param {Object} slot - Selected time slot
+   */
   const startBooking = (facility, slot) => {
     setSelectedFacility(facility);
     setSelectedSlot(slot);
     setShowDatePicker(true);
   };
 
+  /**
+   * Confirms booking with selected date after validation
+   * @param {Date} date - Selected booking date
+   */
   const confirmBooking = async (date) => {
     if (!selectedSlot || !selectedFacility) return;
 
+    // Validate selected day matches slot's available day
     const daysOfWeek = [
       "Sunday",
       "Monday",
@@ -105,6 +110,7 @@ export default function UserDashboard() {
       return;
     }
 
+    // Validate selected time is in the future
     const [startHour, startMinute] = selectedSlot.start.split(":").map(Number);
     const slotStartDateTime = new Date(date);
     slotStartDateTime.setHours(startHour, startMinute, 0, 0);
@@ -121,10 +127,12 @@ export default function UserDashboard() {
       const user = auth.currentUser;
       if (!user) throw new Error("User not logged in");
 
+      // Format slot time for API request
       const slotTime = `${selectedSlot.start} - ${selectedSlot.end}`;
 
+      // Send booking request to backend API
       const response = await fetch(
-        `${process.env.REACT_APP_API_BASE_URL}/api/facilities/bookings`,
+        "http://localhost:8080/api/facilities/bookings",
         {
           method: "POST",
           headers: {
@@ -146,6 +154,7 @@ export default function UserDashboard() {
         throw new Error(data.message || "Failed to book slot");
       }
 
+      // Success notification
       toast.success(
         `Booking confirmed for ${
           selectedFacility.name
@@ -155,6 +164,7 @@ export default function UserDashboard() {
       console.error("Error booking timeslot:", error);
       toast.error(error.message || "Failed to book the timeslot.");
     } finally {
+      // Reset booking state
       setSelectedSlot(null);
       setSelectedFacility(null);
       setShowDatePicker(false);
@@ -164,9 +174,12 @@ export default function UserDashboard() {
   return (
     <main className="user-dashboard">
       <div className="container">
+        {/* Sidebar navigation - highlights "facility bookings" */}
         <Sidebar activeItem="facility bookings" />
 
+        {/* Main content area */}
         <main className="main-content">
+          {/* Page header with title and search */}
           <header className="page-header">
             <h1>Facility Bookings</h1>
             <input
@@ -178,11 +191,14 @@ export default function UserDashboard() {
             />
           </header>
 
+          {/* Facilities grid */}
           <section className="facilities-grid">
             {facilities
+              // Filter facilities based on search query
               .filter((f) =>
                 f.name.toLowerCase().includes(searchQuery.toLowerCase())
               )
+              // Render each facility as a card
               .map((facility) => {
                 const img = facility.imageUrls?.[0]?.trim() || placeholder;
                 return (
@@ -212,7 +228,7 @@ export default function UserDashboard() {
         </main>
       </div>
 
-      {/* Booking Drawer */}
+      {/* Booking Drawer - Slides in from right */}
       <Drawer
         anchor="right"
         open={drawerOpen}
@@ -223,13 +239,14 @@ export default function UserDashboard() {
         }}
         sx={{ "& .MuiDrawer-paper": { width: "min(90vw, 400px)", p: 3 } }}
       >
-        {console.log("selectedFacility in Drawer:", selectedFacility)}
         {selectedFacility && (
           <>
+            {/* Drawer header with facility name */}
             <Typography variant="h5" sx={{ mb: 2 }}>
               {selectedFacility.name}
             </Typography>
 
+            {/* Time slots list or empty state */}
             {selectedFacility.timeslots?.length === 0 ? (
               <Typography>No time-slots available.</Typography>
             ) : (
@@ -257,6 +274,7 @@ export default function UserDashboard() {
           </>
         )}
 
+        {/* Date picker for selected time slot */}
         {showDatePicker && (
           <Box sx={{ mt: 3 }}>
             <Typography variant="subtitle1" gutterBottom>

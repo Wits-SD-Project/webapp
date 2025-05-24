@@ -1,3 +1,4 @@
+// Import necessary React hooks, components, and libraries
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../../components/AdminSideBar.js";
@@ -18,6 +19,7 @@ import {
   BarElement,
 } from "chart.js";
 
+// Register ChartJS components for creating charts
 ChartJS.register(
   ArcElement,
   Tooltip,
@@ -27,16 +29,24 @@ ChartJS.register(
   BarElement
 );
 
+// Main AdminDashboard component
 export default function AdminDashboard() {
+  // Navigation hook for routing
   const navigate = useNavigate();
-  const { authUser } = useAuth();
-  const username = authUser?.name || "Admin";
+
+  // Set fixed username display
+  const username = "Admin";
+
+  // State for storing maintenance summary data
   const [maintenanceSummary, setMaintenanceSummary] = useState({
     openCount: 0,
     closedCount: 0,
   });
 
-  const handleExportMaintenancePDF = async () => {
+  /**
+   * Function to export maintenance reports as CSV
+   */
+  const handleExportMaintenanceCSV = async () => {
     const user = auth.currentUser;
     if (!user) return;
 
@@ -50,6 +60,66 @@ export default function AdminDashboard() {
           },
         }
       );
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to fetch reports");
+
+      function formatDate(timestamp) {
+        try {
+          if (!timestamp || typeof timestamp._seconds !== "number") return "-";
+          const date = new Date(timestamp._seconds * 1000);
+          return date.toLocaleString("en-GB", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+        } catch {
+          return "-";
+        }
+      }
+
+      const headers = ["Facility", "Description", "Status", "Created At"];
+      const csvRows = [
+        headers.join(","),
+        ...data.reports.map((report) => [
+          `"${(report.facilityName || "Unknown").replace(/"/g, '""')}"`,
+          `"${(report.description || "-").replace(/"/g, '""')}"`,
+          `"${(report.status || "-").replace(/"/g, '""')}"`,
+          `"${formatDate(report.createdAt)}"`,
+        ].join(","))
+      ];
+
+      const csvContent = csvRows.join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", "Maintenance_Report.csv");
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error("CSV export error:", error.message);
+    }
+  };
+
+  /**
+   * Function to export maintenance reports as PDF
+   */
+  const handleExportMaintenancePDF = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch("http://localhost:8080/api/admin/maintenance-reports", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to fetch reports");
@@ -93,21 +163,15 @@ export default function AdminDashboard() {
   useEffect(() => {
     const fetchMaintenanceSummary = async () => {
       const user = auth.currentUser;
-      if (!user) {
-        console.warn("No user logged in.");
-        return;
-      }
+      if (!user) return;
 
       try {
         const token = await user.getIdToken();
-        const res = await fetch(
-          `${process.env.REACT_APP_API_BASE_URL}/api/admin/maintenance-summary`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+        const res = await fetch("http://localhost:8080/api/admin/maintenance-summary", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || "Failed to fetch summary");
@@ -160,7 +224,6 @@ export default function AdminDashboard() {
     <main className="dashboard">
       <div className="container">
         <Sidebar activeItem="dashboard" />
-
         <main className="main-content">
           <header className="page-header">
             <h1>Dashboard</h1>
@@ -169,8 +232,8 @@ export default function AdminDashboard() {
 
           <div className="card-container">
             <div className="card">
-              <h3>Upcoming events</h3>
-              <p>You have ?? upcoming events</p>
+              <h3>Upcoming Events</h3>
+              <p>These are the upcoming events for the facility.</p>
               <button
                 className="view-all-btn"
                 onClick={() => navigate("/admin-manage-events")}
@@ -181,7 +244,7 @@ export default function AdminDashboard() {
 
             <div className="card">
               <h3>Pending Applications</h3>
-              <p>?? users requests awaiting your approval</p>
+              <p>These are the admin requests awaiting your approval.</p>
               <button
                 className="view-all-btn"
                 onClick={() => navigate("/admin-manage-users")}
@@ -192,37 +255,16 @@ export default function AdminDashboard() {
           </div>
 
           <div className="graph-container">
-            {/* Usage Trends Preview */}
-            <div
-              className="graph-card clickable"
-              onClick={() => navigate("/admin/reports")}
-            >
+            <div className="graph-card clickable" onClick={() => navigate("/admin/reports")}>
               <h3>Usage Trends by Facility</h3>
-              <div
-                className="graph-placeholder"
-                style={{ backgroundColor: "#fff", padding: 0 }}
-              >
-                <Bar
-                  data={barData}
-                  height={200}
-                  options={{
-                    responsive: true,
-                    plugins: { legend: { display: false } },
-                  }}
-                />
+              <div className="graph-placeholder" style={{ backgroundColor: "#fff", padding: 0 }}>
+                <Bar data={barData} height={200} options={{ responsive: true, plugins: { legend: { display: false } } }} />
               </div>
-              <p
-                style={{
-                  textAlign: "center",
-                  color: "#00c0df",
-                  marginTop: "0.5rem",
-                }}
-              >
+              <p style={{ textAlign: "center", color: "#00c0df", marginTop: "0.5rem" }}>
                 Click to view full reports
               </p>
             </div>
 
-            {/* Maintenance Chart */}
             <div className="graph-card">
               <h3>Maintenance Reports (Open vs. Closed Issues)</h3>
               <div className="graph-placeholder">
@@ -231,10 +273,8 @@ export default function AdminDashboard() {
               <p>Open Issues: {maintenanceSummary.openCount}</p>
               <p>Closed Issues: {maintenanceSummary.closedCount}</p>
               <div className="export-buttons">
-                <button onClick={handleExportMaintenancePDF}>
-                  Export as PDF
-                </button>
-                <button>Export as CSV</button>
+                <button onClick={handleExportMaintenancePDF}>Export as PDF</button>
+                <button onClick={handleExportMaintenanceCSV}>Export as CSV</button>
               </div>
             </div>
           </div>

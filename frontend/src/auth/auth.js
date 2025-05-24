@@ -17,12 +17,16 @@ export const signUpWithThirdParty = async ({ idToken, provider, role }) => {
     }
   );
 
+  const data = await res.json();
+
   if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.message || "Third-party signup failed");
+    const error = new Error(data.message || "Third-party signup failed");
+    error.status = res.status;
+    error.data = data;
+    throw error;
   }
 
-  return await res.json();
+  return data;
 };
 
 export const signInWithThirdParty = async ({ idToken }) => {
@@ -35,13 +39,18 @@ export const signInWithThirdParty = async ({ idToken }) => {
     }
   );
 
+  const data = await res.json();
+
   if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.message || "Third-party signin failed");
+    const error = new Error(data.message || "Third-party signin failed");
+    error.status = res.status;
+    error.data = data;
+    throw error;
   }
 
-  return await res.json();
+  return data;
 };
+
 
 export const uploadFacility = async ({
   name,

@@ -34,7 +34,6 @@ export default function FeatureFormModal({
   const [inputValue, setInputValue] = useState("");
 
   useEffect(() => {
-    // Add general features by default
     setFeatures(prev => [
       ...new Set([...prev, ...(facilityFeatures.General || [])])
     ]);
@@ -65,14 +64,14 @@ export default function FeatureFormModal({
       PaperProps={{ sx: { borderRadius: 4, p: 1 } }}
     >
       <DialogTitle sx={{ fontWeight: 600 }}>
-        🛠️ Add Features & Description for {facilityType}
+        Add Features & Description for {facilityType}
       </DialogTitle>
       
       <DialogContent dividers sx={{ p: 3 }}>
         <Grid container spacing={3}>
           <Grid item xs={12}>
             <TextField
-              label="Description 📝"
+              label="Description"
               multiline
               rows={4}
               fullWidth
@@ -95,7 +94,6 @@ export default function FeatureFormModal({
                     label={feature}
                     onClick={() => handleAddFeature(feature)}
                     color={features.includes(feature) ? "primary" : "default"}
-                    
                   />
                 ))}
               </Box>
@@ -116,6 +114,7 @@ export default function FeatureFormModal({
                   onKeyPress={(e) => {
                     if (e.key === "Enter") {
                       handleAddFeature(inputValue);
+                      e.preventDefault();
                     }
                   }}
                 />
@@ -144,7 +143,7 @@ export default function FeatureFormModal({
           onClick={handleSubmit}
           disabled={description.length < 50}
         >
-          Complete Facility Setup 🏁
+          Save
         </Button>
       </DialogActions>
     </Dialog>

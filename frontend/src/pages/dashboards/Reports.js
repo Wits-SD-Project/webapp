@@ -11,103 +11,89 @@ import {
   ResponsiveContainer,
   LineChart,
   Line,
-} from "recharts";
-import { getAuthToken } from "../../firebase.js";
+} from "recharts"; // Recharts components for data visualization
+import { getAuthToken } from "../../firebase.js"; // Firebase authentication helper
 
 export default function Reports() {
-  const [hourlyBookings, setHourlyBookings] = useState([]);
-  const [topFacilities, setTopFacilities] = useState([]);
-  const [dailyBookings, setDailyBookings] = useState([]);
-  const [summaryStats, setSummaryStats] = useState({
+  // State for storing various report data
+  const [hourlyBookings, setHourlyBookings] = useState([]); // Hourly booking counts
+  const [topFacilities, setTopFacilities] = useState([]); // Top booked facilities
+  const [dailyBookings, setDailyBookings] = useState([]); // Daily booking trends
+  const [summaryStats, setSummaryStats] = useState({ // Summary statistics
     totalBookings: 0,
     mostUsedFacility: "Loading...",
-    peakHour: "Loading...",
+    peakHour: "Loading..."
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // Loading state
 
+  // Fetch report data when component mounts
   useEffect(() => {
     const fetchReportData = async () => {
       try {
+        // Get authentication token
         const token = await getAuthToken();
         const headers = {
           Authorization: `Bearer ${token}`,
         };
 
-        // Fetch all data in parallel
-        const [hourlyRes, facilitiesRes, dailyRes, summaryRes] =
-          await Promise.all([
-            fetch(
-              `${process.env.REACT_APP_API_BASE_URL}/api/admin/hourly-bookings`,
-              { headers }
-            ),
-            fetch(
-              `${process.env.REACT_APP_API_BASE_URL}/api/admin/top-facilities`,
-              { headers }
-            ),
-            fetch(
-              `${process.env.REACT_APP_API_BASE_URL}/api/admin/daily-bookings`,
-              { headers }
-            ),
-            fetch(
-              `${process.env.REACT_APP_API_BASE_URL}/api/admin/summary-stats`,
-              { headers }
-            ),
-          ]);
+        // Fetch all data endpoints in parallel for better performance
+        const [hourlyRes, facilitiesRes, dailyRes, summaryRes] = await Promise.all([
+          fetch('http://localhost:8080/api/admin/hourly-bookings', { headers }),
+          fetch('http://localhost:8080/api/admin/top-facilities', { headers }),
+          fetch('http://localhost:8080/api/admin/daily-bookings', { headers }),
+          fetch('http://localhost:8080/api/admin/summary-stats', { headers })
+        ]);
 
-        if (
-          !hourlyRes.ok ||
-          !facilitiesRes.ok ||
-          !dailyRes.ok ||
-          !summaryRes.ok
-        ) {
-          throw new Error("Failed to fetch report data");
+        // Check if all responses were successful
+        if (!hourlyRes.ok || !facilitiesRes.ok || !dailyRes.ok || !summaryRes.ok) {
+          throw new Error('Failed to fetch report data');
         }
 
+        // Parse all JSON responses
         const hourlyData = await hourlyRes.json();
         const facilitiesData = await facilitiesRes.json();
         const dailyData = await dailyRes.json();
         const summaryData = await summaryRes.json();
 
+        // Update state with fetched data
         setHourlyBookings(hourlyData.hourlyBookings);
         setTopFacilities(facilitiesData.topFacilities);
         setDailyBookings(dailyData.dailyBookings);
         setSummaryStats({
           totalBookings: summaryData.totalBookings,
           mostUsedFacility: summaryData.mostUsedFacility,
-          peakHour: summaryData.peakHour,
+          peakHour: summaryData.peakHour
         });
       } catch (error) {
-        console.error("Error fetching report data:", error);
-        // You might want to set some error state here
+        console.error('Error fetching report data:', error);
+        // Consider adding error state handling here
       } finally {
-        setLoading(false);
+        setLoading(false); // Ensure loading state is updated
       }
     };
 
     fetchReportData();
-  }, []);
+  }, []); // Empty dependency array ensures this runs only once on mount
 
+  // Loading state UI
   if (loading) {
     return (
       <div style={{ display: "flex", height: "100vh", width: "100vw" }}>
         <Sidebar activeItem="reports" />
-        <div
-          style={{
-            flex: 1,
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
+        <div style={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center" }}>
           <p>Loading reports...</p>
         </div>
       </div>
     );
   }
 
+  // Main component render
   return (
     <div style={{ display: "flex", height: "100vh", width: "100vw" }}>
+      {/* Sidebar navigation */}
       <Sidebar activeItem="reports" />
+      
+      {/* Main content area */}
       <div
         style={{
           flex: 1,
@@ -117,7 +103,7 @@ export default function Reports() {
           fontFamily: "'Segoe UI', sans-serif",
         }}
       >
-        {/* Summary stats */}
+        {/* Summary statistics cards */}
         <div
           style={{
             display: "flex",
@@ -127,14 +113,8 @@ export default function Reports() {
           }}
         >
           {[
-            {
-              title: "Total Bookings This Week",
-              value: summaryStats.totalBookings,
-            },
-            {
-              title: "Most Used Facility",
-              value: summaryStats.mostUsedFacility,
-            },
+            { title: "Total Bookings This Week", value: summaryStats.totalBookings },
+            { title: "Most Used Facility", value: summaryStats.mostUsedFacility },
             { title: "Peak Hour", value: summaryStats.peakHour },
           ].map((stat, i) => (
             <div
@@ -157,7 +137,7 @@ export default function Reports() {
           ))}
         </div>
 
-        {/* Peak Usage Times Chart */}
+        {/* Peak Usage Times Bar Chart */}
         <div className="card" style={{ marginBottom: "2rem" }}>
           <h3>Peak Usage Times</h3>
           <p>This chart shows the number of bookings per hour.</p>
@@ -174,7 +154,7 @@ export default function Reports() {
           </div>
         </div>
 
-        {/* Top Booked Facilities */}
+        {/* Top Booked Facilities List with Percentage Bars */}
         <div className="card" style={{ marginBottom: "2rem" }}>
           <h3>Facilities</h3>
           <p>Number of times facilities were booked.</p>
@@ -182,10 +162,8 @@ export default function Reports() {
             {topFacilities.map((facility, index) => {
               // Calculate percentage relative to the most booked facility
               const maxBookings = topFacilities[0].bookings;
-              const percentage = Math.round(
-                (facility.bookings / maxBookings) * 100
-              );
-
+              const percentage = Math.round((facility.bookings / maxBookings) * 100);
+              
               return (
                 <li
                   key={index}
@@ -225,7 +203,7 @@ export default function Reports() {
           </ul>
         </div>
 
-        {/* Bookings Per Day */}
+        {/* Daily Bookings Line Chart */}
         <div className="card">
           <h3>Bookings Per Day</h3>
           <p>View the daily booking distribution over the past week.</p>

@@ -62,7 +62,7 @@ export default function SignUp() {
       if (err.code === "auth/popup-closed-by-user") {
         toast.error("Signup canceled");
       } else {
-        toast.error("Signup failed: " + (err.message || "Please try again"));
+        toast.error((err.message || "Please try again"));
       }
     } finally {
       setProviderLoading(null); // Reset loading state
