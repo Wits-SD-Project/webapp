@@ -12,6 +12,8 @@
   <img src="https://img.shields.io/badge/release-v1.0.3-blue" alt="Release">
 </p>
 
+---
+
 # SportsSphere
 
 > A smart sports facility management platform for community engagement and operational efficiency.  
