@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import Sidebar from "../../components/ResSideBar.js";
 import "../../styles/resMaintenance.css";
 import { addDoc, collection, getDocs, query, where } from "firebase/firestore";
-import { db } from "../../firebase";
+import { db ,getAuthToken} from "../../firebase";
 import { getAuth } from "firebase/auth";
 
 export default function ResMaintenance() {
@@ -15,42 +15,69 @@ export default function ResMaintenance() {
   const auth = getAuth();
   const [currentUser, setCurrentUser] = useState(null);
 
+  const fetchMaintenanceReports = async () => {
+    try {
+
+      const token = await getAuthToken();
+
+      const response = await fetch(
+        `${process.env.REACT_APP_API_BASE_URL}/api/admin/maintenance-reports`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch maintenance reports");
+      }
+
+      const data = await response.json();
+      setMaintenanceReports(data.reports || []); // Set the array of reports
+    } catch (error) {
+      console.error("Error fetching maintenance reports:", error);
+      setMaintenanceReports([]); // Prevent UI errors
+    }
+  };
+
   useEffect(() => {
     const auth = getAuth();
     const user = auth.currentUser;
     setCurrentUser(user);
 
-    const fetchFacilities = async () => {
-      const snapshot = await getDocs(collection(db, "facilities-test"));
-      const facilitiesData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setFacilities(facilitiesData);
-    };
-
-    const fetchMaintenanceReports = async () => {
-      if (!user) return;
-      
-      // Only fetch reports where userId matches current user's UID
-      const q = query(
-        collection(db, "maintenance-reports"),
-        where("userId", "==", user.uid)
+   const fetchFacilities = async () => {
+    try {
+      const user = auth.currentUser;
+      const token = await user.getIdToken();
+      const response = await fetch(
+        `${process.env.REACT_APP_API_BASE_URL}/api/admin/facilities`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
       );
-      
-      const snapshot = await getDocs(q);
-      const reportsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        // Convert Firestore timestamp to JavaScript Date if needed
-        createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt
-      }));
-      setMaintenanceReports(reportsData);
-    };
 
-    fetchFacilities();
-    fetchMaintenanceReports();
-  }, []);
+      if (!response.ok) {
+        throw new Error("Failed to fetch facilities");
+      }
+
+      const data = await response.json();
+      setFacilities(data.facilities); // ✅ this is now an array
+    } catch (error) {
+      console.error("Error fetching facilities:", error);
+      setFacilities([]); // fallback to empty array to prevent .map crash
+    }
+  };
+
+      fetchFacilities();
+      fetchMaintenanceReports();
+    }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -60,44 +87,37 @@ export default function ResMaintenance() {
     }
 
     try {
-      // Find the selected facility to get its name
       const selectedFacility = facilities.find(f => f.id === selectedFacilityId);
-      
+
       if (!selectedFacility) {
         alert("Selected facility not found");
         return;
       }
 
-      // Get current user info
       const user = auth.currentUser;
-      
-      await addDoc(collection(db, "maintenance-reports"), {
-        facilityId: selectedFacilityId,
-        facilityName: selectedFacility.name,
-        description: issueDescription,
-        status: "opened", // Match your existing status format
-        createdAt: new Date(),
-        resolvedAt: null,
-        facilityStaff: selectedFacility.created_by || "", // Use the facility's staff ID
-        userId: user?.uid || "",
-        username: user?.email || ""
+      const token = await user.getIdToken();
+
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/admin/maintenance-reports`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          facilityId: selectedFacilityId,
+          facilityName: selectedFacility.name,
+          description: issueDescription,
+          facilityStaff: selectedFacility.created_by || "",
+        }),
       });
-      
-      // Refresh the reports list with only the current user's reports
-      if (user) {
-        const q = query(
-          collection(db, "maintenance-reports"),
-          where("userId", "==", user.uid)
-        );
-        const snapshot = await getDocs(q);
-        const reportsData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt
-        }));
-        setMaintenanceReports(reportsData);
+
+      if (!response.ok) {
+        throw new Error("Failed to submit maintenance report");
       }
-      
+
+      // Refresh the user's reports
+      fetchMaintenanceReports(); // reuse your API-based fetchMaintenanceReports
+
       // Reset form
       setSelectedFacilityId("");
       setIssueDescription("");
@@ -106,6 +126,23 @@ export default function ResMaintenance() {
       alert("Failed to submit report. Please try again.");
     }
   };
+
+const formatCreatedAt = (createdAt) => {
+  if (!createdAt) return "No date";
+
+  const date = new Date(createdAt);
+  if (isNaN(date.getTime())) return "Invalid date";
+
+  return new Intl.DateTimeFormat("en-ZA", {
+    weekday: "long",       // Monday
+    day: "numeric",        // 5
+    month: "long",         // May
+    year: "numeric",       // 2025
+    hour: "numeric",       // 3
+    minute: "2-digit",     // 45
+    hour12: true,          // PM
+  }).format(date);
+};
 
   return (
     <main className="res-maintenance">
@@ -190,11 +227,7 @@ export default function ResMaintenance() {
                         <td className={`status ${report.status.toLowerCase()}`}>
                           {report.status}
                         </td>
-                        <td>
-                          {report.createdAt 
-                            ? new Date(report.createdAt).toLocaleString() 
-                            : 'No date'}
-                        </td>
+                        <td>{formatCreatedAt(report.createdAt)}</td>
                       </tr>
                     ))}
                 </tbody>
