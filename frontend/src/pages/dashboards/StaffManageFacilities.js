@@ -1,37 +1,51 @@
+// Import React hooks and utilities
 import { useEffect, useRef, useState } from "react";
+// Import components and assets
 import Sidebar from "../../components/StaffSideBar.js";
 import clockIcon from "../../assets/clock.png";
 import editIcon from "../../assets/edit.png";
 import binIcon from "../../assets/bin.png";
+// Import styles
 import "../../styles/staffManageFacilities.css";
+// Import routing and utilities
 import { useNavigate } from "react-router-dom";
 import { getAuthToken } from "../../firebase";
 import { toast } from "react-toastify";
-import FacilityFormModal from "../../components/FalicityFormModal";
+// Import modal components
+import FacilityFormModal from "../../components/FacilityFormModal";
 import FeatureFormModal from "../../components/FeatureFormModal.js";
 
 export default function ManageFacilities() {
-  const [facilities, setFacilities] = useState([]);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [originalFacilities, setOriginalFacilities] = useState({});
-  const [featureModalOpen, setFeatureModalOpen] = useState(false);
-  const [editFeatureModalOpen, setEditFeatureModalOpen] = useState(false);
-  const [tempFacilityData, setTempFacilityData] = useState(null);
-  const [editingFacilityId, setEditingFacilityId] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // State management
+  const [facilities, setFacilities] = useState([]); // List of facilities
+  const [modalOpen, setModalOpen] = useState(false); // Facility form modal visibility
+  const [originalFacilities, setOriginalFacilities] = useState({}); // Stores original values during edits
+  const [featureModalOpen, setFeatureModalOpen] = useState(false); // Feature form modal visibility
+  const [editFeatureModalOpen, setEditFeatureModalOpen] = useState(false); // Edit feature modal visibility
+  const [tempFacilityData, setTempFacilityData] = useState(null); // Temporary storage for new facility data
+  const [editingFacilityId, setEditingFacilityId] = useState(null); // Currently editing facility ID
+  const [loading, setLoading] = useState(true); // Loading state
 
+  // Modal control functions
   const openModal = () => setModalOpen(true);
   const closeModal = () => setModalOpen(false);
 
+  // Navigation and refs
   const navigate = useNavigate();
   const tableRef = useRef(null);
 
+  /**
+   * useEffect hook for initial data fetching
+   * Runs once when component mounts (empty dependency array)
+   */
   useEffect(() => {
     const fetchFacilities = async () => {
       try {
         const token = await getAuthToken();
+        
+        // Fetch facilities from backend API
         const res = await fetch(
-          `${process.env.REACT_APP_API_BASE_URL}/api/facilities/staff-facilities`,
+          "http://localhost:8080/api/facilities/staff-facilities",
           {
             method: "GET",
             headers: {
@@ -42,10 +56,11 @@ export default function ManageFacilities() {
 
         if (!res.ok) throw new Error("Failed to fetch facilities");
 
+        // Process and store facility data with editing flag
         const data = await res.json();
         setFacilities(data.facilities.map((f) => ({ ...f, isEditing: false })));
       } catch (err) {
-        console.log(err);
+        console.error("Fetch error:", err);
         toast.error("Failed to load facilities: " + err.message);
       } finally {
         setLoading(false);
@@ -54,11 +69,18 @@ export default function ManageFacilities() {
 
     fetchFacilities();
   }, []);
+
+  /**
+   * Update facility information in backend
+   * @param {Object} facility - Facility data to update
+   */
   const handleUpdateFacility = async (facility) => {
     try {
       const token = await getAuthToken();
+      
+      // Send update request to backend
       const res = await fetch(
-        `${process.env.REACT_APP_API_BASE_URL}/api/facilities/updateFacility/${facility.id}`,
+        `http://localhost:8080/api/facilities/updateFacility/${facility.id}`,
         {
           method: "PUT",
           headers: {
@@ -79,6 +101,7 @@ export default function ManageFacilities() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Update failed");
 
+      // Update local state with new data
       setFacilities((prev) =>
         prev.map((f) =>
           f.id === facility.id ? { ...data.facility, isEditing: false } : f
@@ -91,18 +114,26 @@ export default function ManageFacilities() {
       toast.error(err.message || "Failed to update facility");
     }
   };
+
+  /**
+   * Cancel editing a facility
+   * @param {string} id - Facility ID to cancel editing for
+   */
   const handleCancelEdit = (id) => {
     const facility = facilities.find((f) => f.id === id);
 
     if (facility.isNew) {
+      // Remove new facility if canceled
       setFacilities((prev) => prev.filter((f) => f.id !== id));
     } else {
+      // Restore original values
       setFacilities((prev) =>
         prev.map((f) =>
           f.id === id ? { ...originalFacilities[id], isEditing: false } : f
         )
       );
 
+      // Clean up original values storage
       setOriginalFacilities((prev) => {
         const updated = { ...prev };
         delete updated[id];
@@ -111,11 +142,17 @@ export default function ManageFacilities() {
     }
   };
 
+  /**
+   * Toggle edit mode for a facility
+   * @param {string} id - Facility ID to toggle edit mode
+   */
   const handleEditToggle = (id) => {
+    // Enable editing for the selected facility
     setFacilities((prev) =>
       prev.map((f) => (f.id === id ? { ...f, isEditing: true } : f))
     );
 
+    // Store original values if not already stored
     setOriginalFacilities((prev) => {
       const alreadyStored = prev[id];
       if (alreadyStored) return prev;
@@ -124,38 +161,44 @@ export default function ManageFacilities() {
     });
   };
 
+  /**
+   * Handle adding a new facility (first step - basic info)
+   * @param {Object} formData - Basic facility information
+   */
   const handleAddFacility = async (formData) => {
     setTempFacilityData(formData);
     setFeatureModalOpen(true);
     closeModal();
   };
 
+  /**
+   * Complete adding a new facility (second step - features)
+   * @param {Object} featureData - Feature information for the new facility
+   */
   const handleCompleteFacility = async (featureData) => {
     try {
       const token = await getAuthToken();
+      // Combine basic info and features
       const completeData = {
         ...tempFacilityData,
         ...featureData,
         isOutdoors: tempFacilityData.isOutdoors === "Yes",
       };
 
-      console.log("Uploading facility:", completeData);
-
-      const res = await fetch(
-        `${process.env.REACT_APP_API_BASE_URL}/api/facilities/upload`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(completeData),
-        }
-      );
+      // Send complete facility data to backend
+      const res = await fetch("http://localhost:8080/api/facilities/upload", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(completeData),
+      });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);
-      console.log(data);
+
+      // Add new facility to local state
       setFacilities((prev) => [
         ...prev,
         { ...data.facility, isEditing: false },
@@ -164,18 +207,24 @@ export default function ManageFacilities() {
     } catch (err) {
       toast.error(err.message);
     } finally {
+      // Clean up
       setFeatureModalOpen(false);
       setTempFacilityData(null);
     }
   };
 
+  /**
+   * Update facility features
+   * @param {Object} featureData - New feature data
+   */
   const handleUpdateFeatures = async (featureData) => {
     try {
       const token = await getAuthToken();
       const facility = facilities.find((f) => f.id === editingFacilityId);
 
+      // Send feature update to backend
       const res = await fetch(
-        `${process.env.REACT_APP_API_BASE_URL}/api/facilities/updateFacility/${editingFacilityId}`,
+        `http://localhost:8080/api/facilities/updateFacility/${editingFacilityId}`,
         {
           method: "PUT",
           headers: {
@@ -193,6 +242,7 @@ export default function ManageFacilities() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Update failed");
 
+      // Update local state with new features
       setFacilities((prev) =>
         prev.map((f) =>
           f.id === editingFacilityId
@@ -206,16 +256,21 @@ export default function ManageFacilities() {
       console.error("Update features error:", err);
       toast.error(err.message || "Failed to update features");
     } finally {
+      // Clean up
       setEditFeatureModalOpen(false);
       setEditingFacilityId(null);
     }
   };
 
+  /**
+   * Delete a facility
+   * @param {string} id - Facility ID to delete
+   */
   const handleDelete = async (id) => {
     try {
       const token = await getAuthToken();
       const response = await fetch(
-        `${process.env.REACT_APP_API_BASE_URL}/api/facilities/${id}`,
+        `http://localhost:8080/api/facilities/${id}`,
         {
           method: "DELETE",
           headers: {
@@ -229,6 +284,7 @@ export default function ManageFacilities() {
         throw new Error(result.message || "Delete failed");
       }
 
+      // Remove facility from local state
       setFacilities((prev) => prev.filter((f) => f.id !== id));
       toast.success("Facility deleted successfully");
     } catch (error) {
@@ -237,11 +293,20 @@ export default function ManageFacilities() {
     }
   };
 
+  /**
+   * Open feature editor for a facility
+   * @param {string} id - Facility ID to edit features for
+   */
   const handleEditFeatures = (id) => {
     setEditingFacilityId(id);
     setEditFeatureModalOpen(true);
   };
 
+  /**
+   * Get CSS class for availability status
+   * @param {string} status - Availability status
+   * @returns {string} CSS class name
+   */
   const getAvailabilityClass = (status) => {
     switch (status) {
       case "Available":
@@ -255,6 +320,7 @@ export default function ManageFacilities() {
     }
   };
 
+  // Loading state render
   if (loading) {
     return (
       <div className="manage-facilities">
@@ -276,14 +342,17 @@ export default function ManageFacilities() {
     );
   }
 
+  // Main render
   return (
     <main className="manage-facilities">
+      {/* Facility Form Modal */}
       <FacilityFormModal
         open={modalOpen}
         onClose={closeModal}
         onSubmit={handleAddFacility}
       />
 
+      {/* Feature Form Modal (for new facilities) */}
       <FeatureFormModal
         open={featureModalOpen}
         onClose={() => {
@@ -294,6 +363,7 @@ export default function ManageFacilities() {
         facilityType={tempFacilityData?.type || "General"}
       />
 
+      {/* Feature Form Modal (for editing existing facilities) */}
       <FeatureFormModal
         open={editFeatureModalOpen}
         onClose={() => {
@@ -309,8 +379,12 @@ export default function ManageFacilities() {
       />
 
       <div className="container">
+        {/* Sidebar Navigation */}
         <Sidebar activeItem="manage facilities" />
+        
+        {/* Main Content Area */}
         <main className="main-content">
+          {/* Page Header */}
           <header className="page-header">
             <h1>Manage Facilities</h1>
             <button className="add-btn" onClick={openModal}>
@@ -318,6 +392,7 @@ export default function ManageFacilities() {
             </button>
           </header>
 
+          {/* Facilities Table Section */}
           <section className="table-section" ref={tableRef}>
             <table className="facilities-table">
               <thead>
@@ -330,6 +405,7 @@ export default function ManageFacilities() {
                 </tr>
               </thead>
               <tbody>
+                {/* Render each facility as a table row */}
                 {facilities.map((f) => (
                   <tr key={f.id}>
                     <td>{f.name}</td>
@@ -341,6 +417,7 @@ export default function ManageFacilities() {
                       </span>
                     </td>
                     <td className="icon-actions">
+                      {/* Timeslots navigation button */}
                       <img
                         src={clockIcon}
                         alt="timeslots"
@@ -351,6 +428,8 @@ export default function ManageFacilities() {
                           })
                         }
                       />
+                      
+                      {/* Edit Features button (hidden during editing) */}
                       {!f.isEditing && (
                         <button
                           className="features-btn"
@@ -359,6 +438,8 @@ export default function ManageFacilities() {
                           Edit Features
                         </button>
                       )}
+                      
+                      {/* Conditional render based on edit mode */}
                       {f.isEditing ? (
                         <>
                           <button
@@ -388,6 +469,8 @@ export default function ManageFacilities() {
                           onClick={() => handleEditToggle(f.id)}
                         />
                       )}
+                      
+                      {/* Delete button */}
                       <img
                         src={binIcon}
                         alt="delete"
@@ -413,4 +496,3 @@ export default function ManageFacilities() {
     </main>
   );
 }
-
