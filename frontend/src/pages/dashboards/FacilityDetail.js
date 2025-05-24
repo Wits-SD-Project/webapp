@@ -412,107 +412,110 @@ export default function FacilityDetail() {
                 </Paper>
               </div>
             </div>
-
-            {/* Map section showing facility location */}
-            {facility.coordinates && (
-              <Container sx={{ mt: 4 }}>
-                <Typography variant="h6" gutterBottom>
-                  Facility Location
-                </Typography>
-                <Box
-                  sx={{
-                    width: "100%",
-                    height: 300,
-                    borderRadius: 2,
-                    overflow: "hidden",
-                    mb: 4,
-                  }}
-                >
-                  <MapContainer
-                    center={[
-                      facility.coordinates.lat,
-                      facility.coordinates.lng,
-                    ]}
-                    zoom={15}
-                    style={{ height: "100%", width: "100%" }}
-                    scrollWheelZoom={false}
+            
+            <div className="location-content">
+              {/* Map section showing facility location */}
+              {facility.coordinates && (
+                <Container sx={{ mt: 4 }}>
+                  <h3>Facility Location</h3>
+                  <h3></h3>
+                  <Box
+                    sx={{
+                      width: "100%",
+                      height: 300,
+                      borderRadius: 2,
+                      overflow: "hidden",
+                      mb: 4,
+                    }}
                   >
-                    <TileLayer
-                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                      attribution="&copy; OpenStreetMap contributors"
-                    />
-                    <Marker
-                      position={[
+                    <MapContainer
+                      center={[
                         facility.coordinates.lat,
                         facility.coordinates.lng,
                       ]}
+                      zoom={15}
+                      style={{ height: "100%", width: "100%" }}
+                      scrollWheelZoom={false}
                     >
-                      <Popup>
-                        {facility.name}
-                        <br />
-                        {facility.location}
-                      </Popup>
-                    </Marker>
-                  </MapContainer>
-                </Box>
-              </Container>
-            )}
+                      <TileLayer
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        attribution="&copy; OpenStreetMap contributors"
+                      />
+                      <Marker
+                        position={[
+                          facility.coordinates.lat,
+                          facility.coordinates.lng,
+                        ]}
+                      >
+                        <Popup>
+                          {facility.name}
+                          <br />
+                          {facility.location}
+                        </Popup>
+                      </Marker>
+                    </MapContainer>
+                  </Box>
+                </Container>
+              )}
+            </div>
+            
 
             {/* Weather forecast section */}
-            {facility.coordinates && (
-              <Container sx={{ mt: 4 }}>
-                <Typography variant="h6" gutterBottom>
-                  7-Day Weather Forecast
-                </Typography>
+            <div className="weather-content">
+              {facility.coordinates && (
+                <Container sx={{ mt: 4 }}>
+                  <h3>7-Day Weather Forecast</h3>
 
-                {weatherLoading || !weather?.dates ? (
-                  <Typography>Loading weather…</Typography>
-                ) : (
-                  <Grid container spacing={2}>
-                    {weather.dates.slice(0, 7).map((dateStr, idx) => {
-                      const date = new Date(dateStr);
-                      const dayName = date.toLocaleDateString("en-US", {
-                        weekday: "short",
-                      });
-                      const maxT = Math.round(weather.max[idx]);
-                      const minT = Math.round(weather.min[idx]);
-                      const code = weather.codes[idx];
+                  {weatherLoading || !weather?.dates ? (
+                    <Typography>Loading weather…</Typography>
+                  ) : (
+                    <Grid container spacing={2}>
+                      {weather.dates.slice(0, 7).map((dateStr, idx) => {
+                        const date = new Date(dateStr);
+                        const dayName = date.toLocaleDateString("en-US", {
+                          weekday: "short",
+                        });
+                        const maxT = Math.round(weather.max[idx]);
+                        const minT = Math.round(weather.min[idx]);
+                        const code = weather.codes[idx];
 
-                      // map Open-Meteo code → emoji
-                      const icon =
-                        {
-                          0: "☀️", // clear
-                          1: "🌤️", // mainly clear
-                          2: "⛅", // partly cloudy
-                          3: "☁️", // overcast
-                          61: "🌧️", // rain
-                          71: "❄️", // snow
-                          95: "⛈️", // thunderstorm
-                        }[code] || "ℹ️";
+                        // map Open-Meteo code → emoji
+                        const icon =
+                          {
+                            0: "☀️", // clear
+                            1: "🌤️", // mainly clear
+                            2: "⛅", // partly cloudy
+                            3: "☁️", // overcast
+                            61: "🌧️", // rain
+                            71: "❄️", // snow
+                            95: "⛈️", // thunderstorm
+                          }[code] || "ℹ️";
 
-                      return (
-                        <Grid item xs={6} sm={4} md={2} key={idx}>
-                          <Paper
-                            elevation={1}
-                            sx={{ p: 1, textAlign: "center", borderRadius: 2 }}
-                          >
-                            <Typography variant="subtitle2">
-                              {dayName}
-                            </Typography>
-                            <Typography sx={{ fontSize: 32 }}>
-                              {icon}
-                            </Typography>
-                            <Typography variant="body2">
-                              {maxT}° / {minT}°
-                            </Typography>
-                          </Paper>
-                        </Grid>
-                      );
-                    })}
-                  </Grid>
-                )}
-              </Container>
-            )}
+                        return (
+                          <Grid item xs={6} sm={4} md={2} key={idx}>
+                            <Paper
+                              elevation={1}
+                              sx={{ p: 1, textAlign: "center", borderRadius: 2 }}
+                            >
+                              <Typography variant="subtitle2">
+                                {dayName}
+                              </Typography>
+                              <Typography sx={{ fontSize: 32 }}>
+                                {icon}
+                              </Typography>
+                              <Typography variant="body2">
+                                {maxT}° / {minT}°
+                              </Typography>
+                            </Paper>
+                          </Grid>
+                        );
+                      })}
+                    </Grid>
+                  )}
+                </Container>
+              )}
+            </div>
+            
 
             {/* Image Gallery */}
             <div className="image-gallery">
