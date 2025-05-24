@@ -11,79 +11,89 @@ import {
   ResponsiveContainer,
   LineChart,
   Line,
-} from "recharts";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+} from "recharts"; // Recharts components for data visualization
+import { getAuthToken } from "../../firebase.js"; // Firebase authentication helper
 
 export default function Reports() {
-  const [selectedFacility, setSelectedFacility] = useState("Tennis");
+  // State for storing various report data
+  const [hourlyBookings, setHourlyBookings] = useState([]); // Hourly booking counts
+  const [topFacilities, setTopFacilities] = useState([]); // Top booked facilities
+  const [dailyBookings, setDailyBookings] = useState([]); // Daily booking trends
+  const [summaryStats, setSummaryStats] = useState({ // Summary statistics
+    totalBookings: 0,
+    mostUsedFacility: "Loading...",
+    peakHour: "Loading..."
+  });
+  const [loading, setLoading] = useState(true); // Loading state
 
-  // Dummy data for per-facility peak usage chart only
-  const facilityUsage = [
-    { hour: "08:00", count: 4 },
-    { hour: "09:00", count: 7 },
-    { hour: "10:00", count: 10 },
-    { hour: "11:00", count: 3 },
-    { hour: "12:00", count: 6 },
-  ];
+  // Fetch report data when component mounts
+  useEffect(() => {
+    const fetchReportData = async () => {
+      try {
+        // Get authentication token
+        const token = await getAuthToken();
+        const headers = {
+          Authorization: `Bearer ${token}`,
+        };
 
-  // Original data (leave untouched for backend use)
-  const hourlyBookings = [
-    { hour: "08:00", bookings: 5 },
-    { hour: "09:00", bookings: 8 },
-    { hour: "10:00", bookings: 14 },
-    { hour: "11:00", bookings: 6 },
-    { hour: "12:00", bookings: 9 },
-  ];
+        // Fetch all data endpoints in parallel for better performance
+        const [hourlyRes, facilitiesRes, dailyRes, summaryRes] = await Promise.all([
+          fetch('http://localhost:8080/api/admin/hourly-bookings', { headers }),
+          fetch('http://localhost:8080/api/admin/top-facilities', { headers }),
+          fetch('http://localhost:8080/api/admin/daily-bookings', { headers }),
+          fetch('http://localhost:8080/api/admin/summary-stats', { headers })
+        ]);
 
-  const dailyBookings = [
-    { day: "Mon", bookings: 10 },
-    { day: "Tue", bookings: 12 },
-    { day: "Wed", bookings: 8 },
-    { day: "Thu", bookings: 14 },
-    { day: "Fri", bookings: 6 },
-  ];
+        // Check if all responses were successful
+        if (!hourlyRes.ok || !facilitiesRes.ok || !dailyRes.ok || !summaryRes.ok) {
+          throw new Error('Failed to fetch report data');
+        }
 
-  const topFacilities = [
-    { name: "Tennis", bookings: 40 },
-    { name: "Soccer", bookings: 35 },
-    { name: "Basketball", bookings: 28 },
-    { name: "Swimming", bookings: 20 },
-  ];
+        // Parse all JSON responses
+        const hourlyData = await hourlyRes.json();
+        const facilitiesData = await facilitiesRes.json();
+        const dailyData = await dailyRes.json();
+        const summaryData = await summaryRes.json();
 
-  const summaryStats = {
-    totalBookings: 110,
-    mostUsedFacility: "Tennis",
-    peakHour: "10:00",
-  };
+        // Update state with fetched data
+        setHourlyBookings(hourlyData.hourlyBookings);
+        setTopFacilities(facilitiesData.topFacilities);
+        setDailyBookings(dailyData.dailyBookings);
+        setSummaryStats({
+          totalBookings: summaryData.totalBookings,
+          mostUsedFacility: summaryData.mostUsedFacility,
+          peakHour: summaryData.peakHour
+        });
+      } catch (error) {
+        console.error('Error fetching report data:', error);
+        // Consider adding error state handling here
+      } finally {
+        setLoading(false); // Ensure loading state is updated
+      }
+    };
 
-  const exportChartToPDF = (title, headers, rows, fileName) => {
-    const doc = new jsPDF();
-    doc.text(title, 14, 15);
-    autoTable(doc, {
-      startY: 25,
-      head: [headers],
-      body: rows,
-    });
-    doc.save(fileName);
-  };
+    fetchReportData();
+  }, []); // Empty dependency array ensures this runs only once on mount
 
-  const exportChartToCSV = (headers, rows, fileName) => {
-    const csvContent =
-      "data:text/csv;charset=utf-8," +
-      [headers, ...rows].map((e) => e.join(",")).join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", fileName);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+  // Loading state UI
+  if (loading) {
+    return (
+      <div style={{ display: "flex", height: "100vh", width: "100vw" }}>
+        <Sidebar activeItem="reports" />
+        <div style={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center" }}>
+          <p>Loading reports...</p>
+        </div>
+      </div>
+    );
+  }
 
+  // Main component render
   return (
     <div style={{ display: "flex", height: "100vh", width: "100vw" }}>
+      {/* Sidebar navigation */}
       <Sidebar activeItem="reports" />
+      
+      {/* Main content area */}
       <div
         style={{
           flex: 1,
@@ -93,7 +103,7 @@ export default function Reports() {
           fontFamily: "'Segoe UI', sans-serif",
         }}
       >
-        {/* Summary stats */}
+        {/* Summary statistics cards */}
         <div
           style={{
             display: "flex",
@@ -103,14 +113,8 @@ export default function Reports() {
           }}
         >
           {[
-            {
-              title: "Total Bookings This Week",
-              value: summaryStats.totalBookings,
-            },
-            {
-              title: "Most Used Facility",
-              value: summaryStats.mostUsedFacility,
-            },
+            { title: "Total Bookings This Week", value: summaryStats.totalBookings },
+            { title: "Most Used Facility", value: summaryStats.mostUsedFacility },
             { title: "Peak Hour", value: summaryStats.peakHour },
           ].map((stat, i) => (
             <div
@@ -133,64 +137,10 @@ export default function Reports() {
           ))}
         </div>
 
-        {/* Peak Usage by Facility Chart - backend must replace dummy facilityUsage with real API data */}
+        {/* Peak Usage Times Bar Chart */}
         <div className="card" style={{ marginBottom: "2rem" }}>
-          <h3>Peak Usage Times Per Facility</h3>
-          <label>
-            Select Facility:
-            <select
-              value={selectedFacility}
-              onChange={(e) => setSelectedFacility(e.target.value)}
-              style={{ marginLeft: "0.5rem" }}
-            >
-              <option value="Tennis">Tennis</option>
-              <option value="Soccer">Soccer</option>
-              <option value="Basketball">Basketball</option>
-              <option value="Swimming">Swimming</option>
-            </select>
-          </label>
-          <div style={{ width: "100%", height: 300 }}>
-            <ResponsiveContainer>
-              <BarChart data={facilityUsage}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="hour" />
-                <YAxis />
-                <Tooltip />
-                {/* Match fill color to existing chart for visual consistency */}
-                <Bar dataKey="count" fill="#00c0df" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="export-buttons" style={{ marginTop: "1rem" }}>
-            <button
-              onClick={() =>
-                exportChartToPDF(
-                  `Peak Usage Times - ${selectedFacility}`,
-                  ["Hour", "Bookings"],
-                  facilityUsage.map((d) => [d.hour, d.count]),
-                  `${selectedFacility}_Peak_Usage.pdf`
-                )
-              }
-            >
-              Export as PDF
-            </button>
-            <button
-              onClick={() =>
-                exportChartToCSV(
-                  ["Hour", "Bookings"],
-                  facilityUsage.map((d) => [d.hour, d.count]),
-                  `${selectedFacility}_Peak_Usage.csv`
-                )
-              }
-            >
-              Export as CSV
-            </button>
-          </div>
-        </div>
-
-        {/* Peak Usage Times Chart (all facilities) - uses actual backend data */}
-        <div className="card" style={{ marginBottom: "2rem" }}>
-          <h3>Peak Usage Times (All Facilities)</h3>
+          <h3>Peak Usage Times</h3>
+          <p>This chart shows the number of bookings per hour.</p>
           <div style={{ width: "100%", height: 300 }}>
             <ResponsiveContainer>
               <BarChart data={hourlyBookings}>
@@ -202,36 +152,61 @@ export default function Reports() {
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <div className="export-buttons" style={{ marginTop: "1rem" }}>
-            <button
-              onClick={() =>
-                exportChartToPDF(
-                  "Peak Usage Times (All Facilities)",
-                  ["Hour", "Bookings"],
-                  hourlyBookings.map((d) => [d.hour, d.bookings]),
-                  "AllFacilities_Peak_Usage.pdf"
-                )
-              }
-            >
-              Export as PDF
-            </button>
-            <button
-              onClick={() =>
-                exportChartToCSV(
-                  ["Hour", "Bookings"],
-                  hourlyBookings.map((d) => [d.hour, d.bookings]),
-                  "AllFacilities_Peak_Usage.csv"
-                )
-              }
-            >
-              Export as CSV
-            </button>
-          </div>
         </div>
 
-        {/* Bookings Per Day - uses actual backend data */}
+        {/* Top Booked Facilities List with Percentage Bars */}
+        <div className="card" style={{ marginBottom: "2rem" }}>
+          <h3>Facilities</h3>
+          <p>Number of times facilities were booked.</p>
+          <ul style={{ listStyle: "none", padding: 0, marginTop: "1rem" }}>
+            {topFacilities.map((facility, index) => {
+              // Calculate percentage relative to the most booked facility
+              const maxBookings = topFacilities[0].bookings;
+              const percentage = Math.round((facility.bookings / maxBookings) * 100);
+              
+              return (
+                <li
+                  key={index}
+                  style={{
+                    marginBottom: "0.75rem",
+                    fontSize: "1rem",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <span>{facility.name}</span>
+                  <div
+                    style={{
+                      width: "60%",
+                      marginLeft: "1rem",
+                      background: "#e0e0e0",
+                      borderRadius: "20px",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${percentage}%`,
+                        background: "#00c0df",
+                        height: "12px",
+                        borderRadius: "20px",
+                      }}
+                    />
+                  </div>
+                  <span style={{ marginLeft: "1rem", minWidth: "30px" }}>
+                    {facility.bookings}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+
+        {/* Daily Bookings Line Chart */}
         <div className="card">
           <h3>Bookings Per Day</h3>
+          <p>View the daily booking distribution over the past week.</p>
           <div style={{ width: "100%", height: 300 }}>
             <ResponsiveContainer>
               <LineChart data={dailyBookings}>
@@ -247,31 +222,6 @@ export default function Reports() {
                 />
               </LineChart>
             </ResponsiveContainer>
-          </div>
-          <div className="export-buttons" style={{ marginTop: "1rem" }}>
-            <button
-              onClick={() =>
-                exportChartToPDF(
-                  "Bookings Per Day",
-                  ["Day", "Bookings"],
-                  dailyBookings.map((d) => [d.day, d.bookings]),
-                  "Bookings_Per_Day.pdf"
-                )
-              }
-            >
-              Export as PDF
-            </button>
-            <button
-              onClick={() =>
-                exportChartToCSV(
-                  ["Day", "Bookings"],
-                  dailyBookings.map((d) => [d.day, d.bookings]),
-                  "Bookings_Per_Day.csv"
-                )
-              }
-            >
-              Export as CSV
-            </button>
           </div>
         </div>
       </div>
