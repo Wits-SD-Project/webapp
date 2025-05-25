@@ -1,62 +1,92 @@
-# .github/workflows/uat.yml
-name: User Acceptance Tests
+name: Front-end & Back-end Tests + Coverage
 
 on:
   push:
-    branches: [main] # run on every push to main
+    branches: [main]
   pull_request:
-    branches: [main] # and on PRs targeting main
+    branches: [main]
 
 permissions:
   contents: write
   pull-requests: write
 
 jobs:
-  uat:
+  # ───────────────────────────── FRONT-END ─────────────────────────────
+  frontend-tests:
     runs-on: ubuntu-latest
-
     defaults:
       run:
-        working-directory: ./frontend # 🌐 your CRA source
+        working-directory: ./frontend
 
     steps:
-      # 1️⃣ Checkout ------------------------------------------------------------------
       - uses: actions/checkout@v4
 
-      # 2️⃣ Node + NPM cache ----------------------------------------------------------
       - uses: actions/setup-node@v3
         with:
           node-version: 18
           cache: npm
           cache-dependency-path: ./frontend/package-lock.json
 
-      # 3️⃣ Install deps --------------------------------------------------------------
-      - name: 📦 Install dependencies
+      - name: 📦 Install deps
         run: npm ci --no-audit --fund=false
 
-      # 4️⃣ Run tests with coverage ---------------------------------------------------
-      # Continue-on-error lets the workflow proceed even if tests fail,
-      # so Codecov still gets the report — useful for debugging.
-      - name: 🧪 Run Jest with coverage
-        id: tests
+      - name: 🧪 Jest + coverage (frontend)
+        id: fe-tests
         run: npm run test:coverage -- --ci
-        continue-on-error: true
+        continue-on-error: true # keep going for coverage upload
 
-      # 5️⃣ Always publish the HTML / lcov artefact -----------------------------------
-      - name: 📂 Upload coverage artefact
+      - name: 📂 Upload HTML report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: frontend-coverage
-          path: |
-            frontend/coverage
+          path: frontend/coverage
 
-      # 6️⃣ Upload to Codecov ---------------------------------------------------------
-      - name: 📈 Upload to Codecov
-        if: always() # upload even if tests failed
+      - name: 📈 Upload coverage to Codecov
+        if: always()
         uses: codecov/codecov-action@v5
         with:
           files: frontend/coverage/lcov.info
-          flags: frontend # optional tag (helps split reports)
+          flags: frontend
           token: ${{ secrets.CODECOV_TOKEN }} # omit if repo is public
-          fail_ci_if_error: false # don’t fail the job on Codecov hiccups
+          fail_ci_if_error: false
+
+  # ───────────────────────────── BACK-END ──────────────────────────────
+  backend-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./server
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 20 # backend uses Node 20 LTS
+          cache: npm
+          cache-dependency-path: ./server/package-lock.json
+
+      - name: 📦 Install deps
+        run: npm ci --no-audit --fund=false
+
+      - name: 🧪 Jest + coverage (backend)
+        id: be-tests
+        run: npm run test -- --coverage --ci
+        continue-on-error: true
+
+      - name: 📂 Upload HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: server/coverage
+
+      - name: 📈 Upload coverage to Codecov
+        if: always()
+        uses: codecov/codecov-action@v5
+        with:
+          files: server/coverage/lcov.info
+          flags: backend
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
