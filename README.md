@@ -18,7 +18,8 @@
 
 > A smart sports facility management platform for community engagement and operational efficiency.  
 > **Live App:** [SportsSphere](https://lively-island-05ba7a810.6.azurestaticapps.net)
-> **Documentation:** [Documentation](https://vimeo.com/1087582921/8b32e5ffd3?ts=0&share=copy) 
+> **Video:** [Video](https://vimeo.com/1087582921/8b32e5ffd3?ts=0&share=copy)
+> **Documentation:** [Documentation](https://www.canva.com/design/DAGocy6r7UY/RmKV4gQdI7iIItOu-WboPA/edit?utm_content=DAGocy6r7UY&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton) 
 > **Code coverage dashboard:** [Codecov](https://app.codecov.io/github/Wits-SD-Project/webapp)
 
 **SportsSphere** is a full-stack web application that empowers residents, facility staff, and administrators to manage community sports facilities seamlessly. From real-time bookings to maintenance tracking and automated reporting, our system is designed to streamline every aspect of facility usage.
