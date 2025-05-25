@@ -332,13 +332,101 @@ export default function ManageFacilities() {
               <tbody>
                 {facilities.map((f) => (
                   <tr key={f.id}>
-                    <td>{f.name}</td>
-                    <td>{f.type}</td>
-                    <td>{f.isOutdoors}</td>
+                    {/* Facility Name */}
                     <td>
-                      <span className={getAvailabilityClass(f.availability)}>
-                        {f.availability}
-                      </span>
+                      {f.isEditing ? (
+                        <input
+                          type="text"
+                          value={f.name}
+                          onChange={(e) =>
+                            setFacilities((prev) =>
+                              prev.map((fac) =>
+                                fac.id === f.id
+                                  ? { ...fac, name: e.target.value }
+                                  : fac
+                              )
+                            )
+                          }
+                        />
+                      ) : (
+                        f.name
+                      )}
+                    </td>
+
+                    {/* Type */}
+                    <td>
+                      {f.isEditing ? (
+                        <select
+                          value={f.type}
+                          onChange={(e) =>
+                            setFacilities((prev) =>
+                              prev.map((fac) =>
+                                fac.id === f.id
+                                  ? { ...fac, type: e.target.value }
+                                  : fac
+                              )
+                            )
+                          }
+                        >
+                          <option value="Sports">Sports</option>
+                          <option value="Wellness">Wellness</option>
+                          <option value="Recreation">Recreation</option>
+                        </select>
+                      ) : (
+                        f.type
+                      )}
+                    </td>
+
+                    {/* Outdoors */}
+                    <td>
+                      {f.isEditing ? (
+                        <select
+                          value={f.isOutdoors}
+                          onChange={(e) =>
+                            setFacilities((prev) =>
+                              prev.map((fac) =>
+                                fac.id === f.id
+                                  ? { ...fac, isOutdoors: e.target.value }
+                                  : fac
+                              )
+                            )
+                          }
+                        >
+                          <option value="Yes">Yes</option>
+                          <option value="No">No</option>
+                        </select>
+                      ) : (
+                        f.isOutdoors
+                      )}
+                    </td>
+
+                    {/* Availability */}
+                    <td>
+                      {f.isEditing ? (
+                        <select
+                          value={f.availability}
+                          onChange={(e) =>
+                            setFacilities((prev) =>
+                              prev.map((fac) =>
+                                fac.id === f.id
+                                  ? { ...fac, availability: e.target.value }
+                                  : fac
+                              )
+                            )
+                          }
+                          className={getAvailabilityClass(f.availability)}
+                        >
+                          <option value="Available">Available</option>
+                          <option value="Closed">Closed</option>
+                          <option value="Under Maintenance">
+                            Under Maintenance
+                          </option>
+                        </select>
+                      ) : (
+                        <span className={getAvailabilityClass(f.availability)}>
+                          {f.availability}
+                        </span>
+                      )}
                     </td>
                     <td className="icon-actions">
                       <img
@@ -413,4 +501,3 @@ export default function ManageFacilities() {
     </main>
   );
 }
-

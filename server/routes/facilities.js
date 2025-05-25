@@ -79,7 +79,7 @@ router.post("/upload", authenticate, async (req, res) => {
       errorCode: "FIELD_TOO_LONG",
     });
 
-  if (cleanDescription.length > 500) {
+  if (cleanDescription.length > 5000) {
     return res.status(400).json({
       success: false,
       message: "Description exceeds maximum length of 500 characters",

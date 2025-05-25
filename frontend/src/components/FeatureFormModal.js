@@ -79,7 +79,7 @@ export default function FeatureFormModal({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               variant="outlined"
-              placeholder="Describe the facility (minimum 50 characters)"
+              placeholder="Describe the facility (min 50 - max 500 characters)"
             />
           </Grid>
 

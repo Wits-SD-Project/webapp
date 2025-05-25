@@ -3,6 +3,7 @@ import Sidebar from "../../components/ResSideBar.js";
 import "../../styles/resMaintenance.css";
 import { getAuthToken } from "../../firebase";
 import { getAuth } from "firebase/auth";
+import { toast } from "react-toastify";
 
 export default function ResMaintenance() {
   const [facilities, setFacilities] = useState([]);
@@ -44,7 +45,7 @@ export default function ResMaintenance() {
       try {
         const token = await getAuthToken();
         const response = await fetch(
-          `${process.env.REACT_APP_API_BASE_URL}/api/admin/facilities`,
+          `${process.env.REACT_APP_API_BASE_URL}/api/admin/obtain`,
           {
             method: "GET",
             headers: {
@@ -76,6 +77,7 @@ export default function ResMaintenance() {
       alert("Please select a facility and describe the issue");
       return;
     }
+    
 
     try {
       const selectedFacility = facilities.find(
@@ -87,7 +89,9 @@ export default function ResMaintenance() {
         return;
       }
 
+
       const token = await getAuthToken();
+      const createdby = selectedFacility.created_by;
 
       const response = await fetch(
         `${process.env.REACT_APP_API_BASE_URL}/api/admin/maintenance-reports`,
@@ -101,12 +105,14 @@ export default function ResMaintenance() {
             facilityId: selectedFacilityId,
             facilityName: selectedFacility.name,
             description: issueDescription,
-            facilityStaff: selectedFacility.created_by || "",
+            creator: createdby,
           }),
         }
       );
 
       if (!response.ok) {
+        const data = await response.json();
+        toast.error(data.message)
         throw new Error("Failed to submit maintenance report");
       }
 
@@ -118,7 +124,7 @@ export default function ResMaintenance() {
       setIssueDescription("");
     } catch (error) {
       console.error("Error adding maintenance report: ", error);
-      alert("Failed to submit report. Please try again.");
+      toast.error(error.message);
     }
   };
 
