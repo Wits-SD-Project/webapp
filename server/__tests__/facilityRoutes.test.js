@@ -366,3 +366,245 @@ describe('FACILITIES router – timeslot & booking branches', () => {
     expect(res.body.reports).toHaveLength(0);
   });
 });
+
+/* ---------------------- POST /upload VALIDATION EXTENSIONS ---------------------- */
+
+describe('POST /facilities/upload – extended validation', () => {
+  beforeEach(() => adminMock.__firestoreData.clear());
+
+  test('rejects description over 500 chars', async () => {
+    const app = makeApp();
+    const res = await request(app).post('/facilities/upload').send({
+      name: 'Test',
+      type: 'Type',
+      isOutdoors: true,
+      description: 'x'.repeat(501),
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.errorCode).toBe('DESCRIPTION_TOO_LONG');
+  });
+
+  test('accepts valid features array', async () => {
+    const app = makeApp();
+    const res = await request(app).post('/facilities/upload').send({
+      name: 'Test',
+      type: 'Type',
+      isOutdoors: true,
+      features: ['lighting', 'showers'],
+    });
+    expect(res.status).toBe(201);
+    expect(res.body.facility.features).toEqual(['lighting', 'showers']);
+  });
+
+  test('rejects non-array features', async () => {
+    const app = makeApp();
+    const res = await request(app).post('/facilities/upload').send({
+      name: 'Test',
+      type: 'Type',
+      isOutdoors: true,
+      features: 'not-an-array',
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.errorCode).toBe('INVALID_FEATURES');
+  });
+});
+
+/* ------------------------ COORDINATES VALIDATION TESTS ------------------------- */
+
+describe('Facility coordinates handling', () => {
+  test('stores valid coordinates', async () => {
+    const app = makeApp();
+    const res = await request(app).post('/facilities/upload').send({
+      name: 'GeoTest',
+      type: 'Geo',
+      isOutdoors: true,
+      coordinates: { lat: 40.7128, lng: -74.0060 },
+    });
+    
+    expect(res.status).toBe(201);
+    expect(res.body.facility.coordinates).toEqual({
+      lat: 40.7128,
+      lng: -74.0060,
+    });
+  });
+
+  test('ignores invalid coordinate types', async () => {
+    const app = makeApp();
+    const res = await request(app).post('/facilities/upload').send({
+      name: 'BadGeo',
+      type: 'Geo',
+      isOutdoors: true,
+      coordinates: { lat: 'forty', lng: -74.0060 },
+    });
+    
+    expect(res.status).toBe(201);
+    expect(res.body.facility.coordinates).toBeNull();
+  });
+});
+
+/* ---------------------- UPDATE FACILITY FIELD VALIDATION ----------------------- */
+
+describe('PUT /updateFacility/:id – field updates', () => {
+  let facilityId;
+
+  beforeEach(async () => {
+    const app = makeApp();
+    const res = await request(app)
+      .post('/facilities/upload')
+      .send({ name: 'UpdateTest', type: 'Test', isOutdoors: true });
+    facilityId = res.body.facility.id;
+  });
+
+  test('updates description successfully', async () => {
+    const app = makeApp();
+    const res = await request(app)
+      .put(`/facilities/updateFacility/${facilityId}`)
+      .send({
+        name: 'UpdateTest',
+        type: 'Test',
+        isOutdoors: true,
+        description: 'New description',
+      });
+    
+    expect(res.status).toBe(200);
+    expect(res.body.facility.description).toBe('New description');
+  });
+
+  test('clears description when empty string provided', async () => {
+    const app = makeApp();
+    const res = await request(app)
+      .put(`/facilities/updateFacility/${facilityId}`)
+      .send({
+        name: 'UpdateTest',
+        type: 'Test',
+        isOutdoors: true,
+        description: '',
+      });
+    
+    expect(res.status).toBe(200);
+    expect(res.body.facility.description).toBe('');
+  });
+
+  test('rejects non-string features array', async () => {
+    const app = makeApp();
+    const res = await request(app)
+      .put(`/facilities/updateFacility/${facilityId}`)
+      .send({
+        name: 'UpdateTest',
+        type: 'Test',
+        isOutdoors: true,
+        features: [123, true],
+      });
+    
+    expect(res.status).toBe(400);
+    expect(res.body.errorCode).toBe('INVALID_FEATURES');
+  });
+});
+
+/* ------------------------ FACILITY DELETION EDGE CASES ------------------------- */
+
+describe('DELETE /:id – edge cases', () => {
+  test('deletes facility with no timeslots', async () => {
+    const app = makeApp();
+    const postRes = await request(app)
+      .post('/facilities/upload')
+      .send({ name: 'NoSlots', type: 'Test', isOutdoors: true });
+    
+    const delRes = await request(app).delete(`/facilities/${postRes.body.facility.id}`);
+    expect(delRes.status).toBe(200);
+    expect(adminMock.__firestoreData.has(postRes.body.facility.id)).toBeFalse();
+  });
+});
+
+/* ------------------------- FACILITY GET ENDPOINT TESTS ------------------------- */
+
+describe('GET /:id – extended cases', () => {
+  test('returns 404 for non-existent facility', async () => {
+    const app = makeApp();
+    const res = await request(app).get('/facilities/non-existent-id');
+    expect(res.status).toBe(404);
+    expect(res.body.message).toMatch(/not found/i);
+  });
+
+  test('includes all fields in response', async () => {
+    const app = makeApp();
+    const postRes = await request(app).post('/facilities/upload').send({
+      name: 'FullFacility',
+      type: 'Full',
+      isOutdoors: true,
+      description: 'Complete description',
+      features: ['feature1', 'feature2'],
+      coordinates: { lat: 35.6895, lng: 139.6917 },
+    });
+    
+    const getRes = await request(app).get(`/facilities/${postRes.body.facility.id}`);
+    expect(getRes.body).toMatchObject({
+      description: 'Complete description',
+      features: ['feature1', 'feature2'],
+      coordinates: { lat: 35.6895, lng: 139.6917 },
+    });
+  });
+});
+
+/* ---------------------- MAINTENANCE REPORT EDGE CASES ---------------------- */
+
+describe('Maintenance report operations', () => {
+  test('handles non-existent report update', async () => {
+    const app = makeApp();
+    const res = await request(app)
+      .put('/facilities/updateReportStatus/non-existent')
+      .send({ status: 'resolved' });
+    
+    expect(res.status).toBe(404);
+    expect(res.body.message).toMatch(/not found/i);
+  });
+
+  test('rejects invalid status values', async () => {
+    // Seed a report
+    const app = makeApp('staff-1');
+    await adminMock.__firestoreData.set('report-1', {
+      facilityStaff: 'staff-1',
+      status: 'pending',
+    });
+
+    const res = await request(app)
+      .put('/facilities/updateReportStatus/report-1')
+      .send({ status: 'invalid-status' });
+    
+    expect(res.status).toBe(400); // Assuming status validation exists
+  });
+});
+
+/* ----------------------- TIMESLOT VALIDATION EXTENSIONS ----------------------- */
+
+describe('Timeslot operations – validation extensions', () => {
+  let facilityId;
+
+  beforeEach(async () => {
+    const app = makeApp();
+    const res = await request(app)
+      .post('/facilities/upload')
+      .send({ name: 'TimeslotTest', type: 'Test', isOutdoors: true });
+    facilityId = res.body.facility.id;
+  });
+
+  test('rejects non-object timeslots structure', async () => {
+    const app = makeApp();
+    const res = await request(app)
+      .put(`/facilities/${facilityId}/timeslots`)
+      .send({ timeslots: 'not-an-object' });
+    
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/invalid/i);
+  });
+
+  test('handles empty timeslots object', async () => {
+    const app = makeApp();
+    const res = await request(app)
+      .put(`/facilities/${facilityId}/timeslots`)
+      .send({ timeslots: {} });
+    
+    expect(res.status).toBe(200);
+    expect(res.body.message).toMatch(/updated/i);
+  });
+});

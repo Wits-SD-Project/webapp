@@ -3,36 +3,132 @@ const router = express.Router();
 const { admin } = require("../firebase"); // Changed to import admin
 const authenticate = require("../authenticate");
 
-router.post('/toggle-approval', async (req, res) => {
+router.post("/toggle-approval", async (req, res) => {
+  const { email, action } = req.body; // Added 'action' parameter
 
-  const { email } = req.body;
-  if (!email || email === 'admin@gmail.com')
-    return res.status(400).json({ message: 'Invalid email.' });
+  // Validate input
+  if (!email || typeof email !== "string" || !email.includes("@")) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid email address provided.",
+    });
+  }
+
+  // Prevent modifying admin account
+  if (email === "admin@gmail.com") {
+    return res.status(403).json({
+      success: false,
+      message: "Admin account cannot be modified.",
+    });
+  }
+
+  // Validate action type
+  const validActions = ["approve", "reject", "revoke"];
+  if (action && !validActions.includes(action)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid action specified. Must be approve, reject, or revoke.",
+    });
+  }
 
   try {
-    const ref  = admin.firestore().collection('users').doc(email);
-    const snap = await ref.get();
-    if (!snap.exists) return res.status(404).json({ message: 'User not found.' });
+    const userRef = admin.firestore().collection("users").doc(email);
+    const userDoc = await userRef.get();
 
-    const next = !snap.data().approved;
-    await ref.update({ approved: next });
-
-    const uid = snap.data().uid;
-    if (uid) {
-      await admin.auth().setCustomUserClaims(uid, {
-        accepted: snap.data().accepted || false,
-        approved: next,
+    if (!userDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found in database.",
       });
     }
 
-    res.status(200).json({ approved: next });
+    const userData = userDoc.data();
+    let updateData = {
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    let authClaims = {
+      role: userData.role,
+    };
+
+    // Determine action
+    if (action === "revoke") {
+      // Revoke access (set accepted to false)
+      updateData.accepted = false;
+      authClaims.accepted = false;
+      authClaims.approved = userData.approved; // Maintain approval status
+    } else {
+      // Handle approve/reject (toggle approval status)
+      const newApprovalStatus =
+        action === "approve"
+          ? true
+          : action === "reject"
+          ? false
+          : !userData.approved;
+
+      updateData.approved = newApprovalStatus;
+      authClaims.approved = newApprovalStatus;
+
+      // If approving, automatically accept
+      if (newApprovalStatus) {
+        updateData.accepted = true;
+        authClaims.accepted = true;
+      } else {
+        // If rejecting, maintain current accepted status
+        authClaims.accepted = userData.accepted;
+      }
+    }
+
+    // Update Firestore
+    await userRef.update(updateData);
+
+    // Update Auth claims if UID exists
+    if (userData.uid) {
+      await admin.auth().setCustomUserClaims(userData.uid, authClaims);
+    }
+
+    // Determine response message based on action
+    let message;
+    if (action === "approve") {
+      message = "User approved and access granted successfully.";
+    } else if (action === "reject") {
+      message = "User rejected successfully.";
+    } else if (action === "revoke") {
+      message = "User access revoked successfully.";
+    } else {
+      message = `User ${
+        updateData.approved ? "approved" : "rejected"
+      } successfully.`;
+    }
+
+    // Success response
+    // In the success response section of the route handler
+    res.status(200).json({
+      success: true,
+      approved:
+        updateData.approved !== undefined
+          ? updateData.approved
+          : userData.approved, // Changed from userData.approved
+      accepted:
+        updateData.accepted !== undefined
+          ? updateData.accepted
+          : userData.accepted,
+      message: message,
+    });
   } catch (err) {
-    console.error('toggle-approval error:', err);
-    res.status(500).json({ message: 'Failed to update approval status.' });
+    console.error("Toggle approval error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error while updating user status.",
+      error: process.env.NODE_ENV === "development" ? err.message : undefined,
+    });
   }
 });
 
 router.post("/events", authenticate, async (req, res) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).json({ message: "Forbidden" }); // Explicit 403
+  }
+
   try {
     const userRef = admin.firestore().collection("users").doc(req.user.email);
     const snap = await userRef.get();
@@ -43,20 +139,21 @@ router.post("/events", authenticate, async (req, res) => {
         .json({ success: false, message: "User not found." });
     }
 
-    const userData = snap.data();
-    if (userData.role !== "admin") {
-      return res
-        .status(403)
-        .json({ success: false, message: "Access denied. Admins only." });
-    }
-
-    const { eventName, facilityName,facilityId, description, startTime, endTime ,posterImage} =
-      req.body;
+    const {
+      eventName,
+      facilityName,
+      facilityId,
+      description,
+      startTime,
+      endTime,
+      posterImage,
+    } = req.body;
 
     // === Step 1: Validate input ===
     if (
       !eventName ||
-      typeof eventName !== "string" ||!facilityName ||
+      typeof eventName !== "string" ||
+      !facilityName ||
       typeof facilityName !== "string" ||
       !facilityId ||
       typeof facilityId !== "string" ||
@@ -65,12 +162,10 @@ router.post("/events", authenticate, async (req, res) => {
       !startTime ||
       !endTime
     ) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Missing or invalid required fields.",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Missing or invalid required fields.",
+      });
     }
 
     const start = new Date(startTime);
@@ -84,21 +179,17 @@ router.post("/events", authenticate, async (req, res) => {
     }
 
     if (start >= end) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Start time must be before end time.",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Start time must be before end time.",
+      });
     }
 
     if (start < now) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Cannot schedule events in the past.",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Cannot schedule events in the past.",
+      });
     }
 
     const eventRef = admin.firestore().collection("admin-events");
@@ -111,13 +202,11 @@ router.post("/events", authenticate, async (req, res) => {
       .get();
 
     if (!duplicateSnap.empty) {
-      return res
-        .status(409)
-        .json({
-          success: false,
-          message:
-            "Duplicate event with same name and start time at this facility.",
-        });
+      return res.status(409).json({
+        success: false,
+        message:
+          "Duplicate event with same name and start time at this facility.",
+      });
     }
 
     // === Step 3: Check for overlapping events at the same facility ===
@@ -128,12 +217,10 @@ router.post("/events", authenticate, async (req, res) => {
       .get();
 
     if (!overlappingSnap.empty) {
-      return res
-        .status(409)
-        .json({
-          success: false,
-          message: "Overlapping event already scheduled at this facility.",
-        });
+      return res.status(409).json({
+        success: false,
+        message: "Overlapping event already scheduled at this facility.",
+      });
     }
 
     // === Step 4: Add new event ===
@@ -177,17 +264,17 @@ router.post("/events", authenticate, async (req, res) => {
 });
 
 // Get all users - Admin SDK version
-router.get('/users', async (req, res) => {
+router.get("/users", async (req, res) => {
   try {
-    const snap = await admin.firestore().collection('users').get();
+    const snap = await admin.firestore().collection("users").get();
     const users = snap.docs
       .map((d) => ({ id: d.id, ...d.data() }))
-      .filter((u) => u.email !== 'admin@gmail.com');
+      .filter((u) => u.email !== "admin@gmail.com");
 
     res.status(200).json(users);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Failed to fetch users.' });
+    res.status(500).json({ message: "Failed to fetch users." });
   }
 });
 
@@ -210,14 +297,14 @@ router.put("/events/:id", authenticate, async (req, res) => {
     }
 
     const eventId = req.params.id;
-    const { 
-      eventName, 
-      facilityName, 
-      facilityId, 
-      description, 
-      startTime, 
+    const {
+      eventName,
+      facilityName,
+      facilityId,
+      description,
+      startTime,
       endTime,
-      posterImage // Add new field
+      posterImage, // Add new field
     } = req.body;
 
     // === Step 1: Validate input ===
@@ -233,12 +320,10 @@ router.put("/events/:id", authenticate, async (req, res) => {
       !startTime ||
       !endTime
     ) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Missing or invalid required fields.",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Missing or invalid required fields.",
+      });
     }
 
     const start = new Date(startTime);
@@ -252,21 +337,17 @@ router.put("/events/:id", authenticate, async (req, res) => {
     }
 
     if (start >= end) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Start time must be before end time.",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Start time must be before end time.",
+      });
     }
 
     if (start < now) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Cannot update event to a past time.",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Cannot update event to a past time.",
+      });
     }
 
     const eventRef = admin.firestore().collection("admin-events").doc(eventId);
@@ -289,13 +370,11 @@ router.put("/events/:id", authenticate, async (req, res) => {
 
     const isDuplicate = duplicateSnap.docs.some((doc) => doc.id !== eventId);
     if (isDuplicate) {
-      return res
-        .status(409)
-        .json({
-          success: false,
-          message:
-            "Duplicate event with same name and start time at this facility.",
-        });
+      return res.status(409).json({
+        success: false,
+        message:
+          "Duplicate event with same name and start time at this facility.",
+      });
     }
 
     // === Step 3: Check for overlapping time at the same facility (excluding current) ===
@@ -309,12 +388,10 @@ router.put("/events/:id", authenticate, async (req, res) => {
       (doc) => doc.id !== eventId
     );
     if (isOverlapping) {
-      return res
-        .status(409)
-        .json({
-          success: false,
-          message: "Overlapping event exists at this facility.",
-        });
+      return res.status(409).json({
+        success: false,
+        message: "Overlapping event exists at this facility.",
+      });
     }
 
     // === Step 4: Update event ===
@@ -327,7 +404,7 @@ router.put("/events/:id", authenticate, async (req, res) => {
       endTime: end.toISOString(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       // Add posterImage if provided, otherwise maintain existing
-      ...(posterImage !== undefined && { posterImage })
+      ...(posterImage !== undefined && { posterImage }),
     });
 
     const updatedEvent = {
@@ -432,7 +509,7 @@ router.post("/block-slot", authenticate, async (req, res) => {
       status: "approved",
       createdByRole: "admin",
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      isBlocked:true,
+      isBlocked: true,
     });
 
     res.status(201).json({ success: true, message: "Timeslot blocked" });
@@ -443,9 +520,13 @@ router.post("/block-slot", authenticate, async (req, res) => {
 });
 
 // Fetch all admin events
-router.get('/events', async (req, res) => {
+router.get("/events", async (req, res) => {
   try {
-    const snap = await admin.firestore().collection('admin-events').orderBy('startTime').get();
+    const snap = await admin
+      .firestore()
+      .collection("admin-events")
+      .orderBy("startTime")
+      .get();
 
     const events = snap.docs
       .map((d) => ({ id: d.id, ...d.data() }))
@@ -453,7 +534,10 @@ router.get('/events', async (req, res) => {
       .map((e) => ({
         id: e.id,
         eventName: e.eventName,
-        facility: { id: e.facilityId, name: e.facilityName || e.facility || 'Unknown Facility' },
+        facility: {
+          id: e.facilityId,
+          name: e.facilityName || e.facility || "Unknown Facility",
+        },
         description: e.description,
         startTime: new Date(e.startTime),
         endTime: new Date(e.endTime),
@@ -463,25 +547,29 @@ router.get('/events', async (req, res) => {
 
     res.status(200).json({ success: true, count: events.length, events });
   } catch (err) {
-    console.error('Error fetching admin events:', err);
-    res.status(500).json({ message: 'Failed to fetch admin events' });
+    console.error("Error fetching admin events:", err);
+    res.status(500).json({ message: "Failed to fetch admin events" });
   }
 });
 
-// 🛠 GET maintenance issue summary
-router.get('/maintenance-summary', authenticate, async (req, res) => {
+//  GET maintenance issue summary
+router.get("/maintenance-summary", authenticate, async (req, res) => {
   const { facility, dateRange } = req.query;
 
-  const me = await admin.firestore().collection('users').doc(req.user.email).get();
-  if (!me.exists || me.data().role !== 'admin')
-    return res.status(403).json({ message: 'Access denied. Admins only.' });
+  const me = await admin
+    .firestore()
+    .collection("users")
+    .doc(req.user.email)
+    .get();
+  if (!me.exists || me.data().role !== "admin")
+    return res.status(403).json({ message: "Access denied. Admins only." });
 
   try {
-    let q = admin.firestore().collection('maintenance-reports');
-    if (facility) q = q.where('facilityName', '==', facility);
-    if (dateRange === 'last30days') {
+    let q = admin.firestore().collection("maintenance-reports");
+    if (facility) q = q.where("facilityName", "==", facility);
+    if (dateRange === "last30days") {
       const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-      q = q.where('createdAt', '>=', since);
+      q = q.where("createdAt", ">=", since);
     }
 
     const issues = (await q.get()).docs.map((d) => d.data());
@@ -491,14 +579,14 @@ router.get('/maintenance-summary', authenticate, async (req, res) => {
     const grouped = {};
 
     for (const i of issues) {
-      if (i.status === 'open' || i.status === 'opened') openCount++;
-      else if (i.status === 'closed') closedCount++;
+      if (i.status === "open" || i.status === "opened") openCount++;
+      else if (i.status === "closed") closedCount++;
 
       if (!facility) {
-        const f = i.facilityName || 'Unknown';
+        const f = i.facilityName || "Unknown";
         grouped[f] = grouped[f] || { open: 0, closed: 0 };
-        if (i.status === 'open' || i.status === 'opened') grouped[f].open++;
-        if (i.status === 'closed') grouped[f].closed++;
+        if (i.status === "open" || i.status === "opened") grouped[f].open++;
+        if (i.status === "closed") grouped[f].closed++;
       }
     }
 
@@ -506,8 +594,8 @@ router.get('/maintenance-summary', authenticate, async (req, res) => {
     if (!facility) resp.groupedByFacility = grouped;
     res.status(200).json(resp);
   } catch (err) {
-    console.error('summary error:', err);
-    res.status(500).json({ message: 'Internal server error.' });
+    console.error("summary error:", err);
+    res.status(500).json({ message: "Internal server error." });
   }
 });
 
@@ -534,7 +622,10 @@ router.get("/maintenance-reports", authenticate, async (req, res) => {
 
     if (role === "admin") {
       // Admin gets all reports
-      snapshot = await admin.firestore().collection("maintenance-reports").get();
+      snapshot = await admin
+        .firestore()
+        .collection("maintenance-reports")
+        .get();
     } else if (role === "resident") {
       // Resident only gets their own reports
       snapshot = await admin
@@ -547,7 +638,7 @@ router.get("/maintenance-reports", authenticate, async (req, res) => {
     const reports = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate?.() || null
+      createdAt: doc.data().createdAt?.toDate?.() || null,
     }));
 
     res.status(200).json({ success: true, reports });
@@ -559,7 +650,6 @@ router.get("/maintenance-reports", authenticate, async (req, res) => {
     });
   }
 });
-
 
 router.get("/facilities", authenticate, async (req, res) => {
   try {
@@ -582,8 +672,8 @@ router.get("/facilities", authenticate, async (req, res) => {
   }
 });
 
-router.post('/events/notify', async (req, res) => {
-   const formatDateTime = (date) => {
+router.post("/events/notify", async (req, res) => {
+  const formatDateTime = (date) => {
     if (!date) return "";
     return date.toLocaleString("en-US", {
       month: "short",
@@ -597,58 +687,62 @@ router.post('/events/notify', async (req, res) => {
   try {
     const { eventId, eventName, facilityName, startTime, endTime } = req.body;
 
-
     // Validate required fields
     if (!eventId || !eventName || !facilityName || !startTime || !endTime) {
       return res.status(400).json({
         success: false,
-        message: 'Missing required fields for notification',
+        message: "Missing required fields for notification",
       });
     }
 
     // Fetch all residents
-    const usersSnapshot = await admin.firestore()
-      .collection('users')
-      .where('role', '==', 'resident')
+    const usersSnapshot = await admin
+      .firestore()
+      .collection("users")
+      .where("role", "==", "resident")
       .get();
 
     if (usersSnapshot.empty) {
       return res.status(200).json({
         success: true,
-        message: 'No residents found to notify',
+        message: "No residents found to notify",
       });
     }
 
     // Prepare batch notification creation
     const batch = admin.firestore().batch();
-    const notificationsRef = admin.firestore().collection('notifications');
+    const notificationsRef = admin.firestore().collection("notifications");
 
-    usersSnapshot.forEach(docSnap => {
+    usersSnapshot.forEach((docSnap) => {
       const resident = docSnap.data();
       const newNotificationRef = notificationsRef.doc();
 
       const notificationData = {
         createdAt: new Date().toISOString(),
-        facilityName: facilityName || 'Unknown Facility',
-        slot: `${formatDateTime(new Date(startTime))} - ${formatDateTime(new Date(endTime))}`,
+        facilityName: facilityName || "Unknown Facility",
+        slot: `${formatDateTime(new Date(startTime))} - ${formatDateTime(
+          new Date(endTime)
+        )}`,
         status: "new-event",
-        eventName: eventName || 'New Event',
-        userName: resident.email || 'unknown@email.com',
+        eventName: eventName || "New Event",
+        userName: resident.email || "unknown@email.com",
         read: false,
         type: "event",
         startTime,
         endTime,
-        eventId
+        eventId,
       };
 
       // Optional: Remove undefined values
-      Object.keys(notificationData).forEach(key => {
+      Object.keys(notificationData).forEach((key) => {
         if (notificationData[key] === undefined) {
           delete notificationData[key];
         }
       });
 
-      batch.set(newNotificationRef, notificationData, { ignoreUndefinedProperties: true });
+      batch.set(newNotificationRef, notificationData, {
+        ignoreUndefinedProperties: true,
+      });
     });
 
     // Commit batch
@@ -656,70 +750,95 @@ router.post('/events/notify', async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: `Notifications sent to ${usersSnapshot.size} residents`
+      message: `Notifications sent to ${usersSnapshot.size} residents`,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Failed to send notifications',
-      error: error.message
+      message: "Failed to send notifications",
+      error: error.message,
     });
   }
 });
 
-router.get('/upcoming', authenticate, async (req, res) => {
+router.get("/upcoming", authenticate, async (req, res) => {
   try {
-    const snapshot = await admin.firestore()
-      .collection('admin-events')
-      .get();
+    const snapshot = await admin.firestore().collection("admin-events").get();
 
     const now = new Date().toISOString(); // Current time as ISO string
     const events = [];
 
-    snapshot.forEach(doc => {
+    snapshot.forEach((doc) => {
       const eventData = doc.data();
-      
+
       // Since times are already ISO strings, we can use them directly
       events.push({
         id: doc.id,
         ...eventData,
         // No need to convert timestamps
         startTime: eventData.startTime,
-        endTime: eventData.endTime
+        endTime: eventData.endTime,
       });
     });
 
     // Filter for upcoming events (compare ISO strings directly)
-    const upcomingEvents = events.filter(event => 
-      event.startTime && event.startTime > now
+    const upcomingEvents = events.filter(
+      (event) => event.startTime && event.startTime > now
     );
 
     res.json({ events: upcomingEvents });
   } catch (error) {
-    console.error('Error fetching events:', error);
-    res.status(500).json({ error: 'Failed to fetch events' });
+    console.error("Error fetching events:", error);
+    res.status(500).json({ error: "Failed to fetch events" });
+  }
+});
+// fetch top 4 facilities for Admin Dashboard bar graph
+router.get('/top-4-facilities', authenticate, async (req, res) => {
+  try {
+    const facilitiesSnapshot = await admin.firestore()
+      .collection('facilities-test')
+      .get();
+
+    const bookingCounts = await Promise.all(
+      facilitiesSnapshot.docs.map(async doc => {
+        const bookings = await admin.firestore()
+          .collection('bookings')
+          .where('facilityId', '==', doc.id)
+          .get();
+        return {
+          name: doc.data().name,
+          bookings: bookings.size
+        };
+      })
+    );
+
+    const top4Facilities = bookingCounts
+      .sort((a, b) => b.bookings - a.bookings)
+      .slice(0, 4); // Get only top 4
+
+    res.json({ top4Facilities });
+  } catch (error) {
+    console.error('Error fetching top 4 facilities:', error);
+    res.status(500).json({ error: 'Failed to fetch top 4 facilities' });
   }
 });
 
-router.get('/unread-count',authenticate, async (req, res) => {
+router.get("/unread-count", authenticate, async (req, res) => {
   try {
     const userEmail = req.user.email; // Assuming you have auth middleware
-    const notificationsRef = admin.firestore().collection('notifications');
-    
+    const notificationsRef = admin.firestore().collection("notifications");
+
     const snapshot = await notificationsRef
-      .where('userName', '==', userEmail)
-      .where('read', '==', false)
+      .where("userName", "==", userEmail)
+      .where("read", "==", false)
       .get();
 
     res.json({ count: snapshot.size });
   } catch (error) {
-    console.error('Error fetching notifications:', error);
-    res.status(500).json({ error: 'Failed to fetch notifications' });
+    console.error("Error fetching notifications:", error);
+    res.status(500).json({ error: "Failed to fetch notifications" });
   }
 });
-
-// Hourly bookings data
-// server/routes/admin.js
 
 // Hourly bookings data
 router.get('/hourly-bookings', authenticate, async (req, res) => {
@@ -729,45 +848,80 @@ router.get('/hourly-bookings', authenticate, async (req, res) => {
 
     const bookingsSnapshot = await admin.firestore()
       .collection('bookings')
-      // Assuming you've also fixed Issue 1 (using 'date' field and correct comparison)
-      // For example, if 'date' is "YYYY-MM-DD":
+
+
       .where('date', '>=', sevenDaysAgo.toISOString().split('T')[0])
       .get();
 
+    // Get all facilities for mapping
+    const facilitiesSnapshot = await admin.firestore()
+      .collection('facilities-test')
+      .get();
+    
+    const facilityMap = {};
+    facilitiesSnapshot.forEach(doc => {
+      facilityMap[doc.id] = doc.data().name;
+    });
+
     const hourlyCounts = Array(12).fill(0).map((_, i) => {
       const hour = i + 6; // From 6 AM to 5 PM
-      return { hour: `${hour} ${hour < 12 ? 'AM' : 'PM'}`, bookings: 0 };
+      return { 
+        hour: `${hour} ${hour < 12 ? 'AM' : 'PM'}`, 
+        bookings: 0,
+        facility: 'All' // Default for aggregated data
+      };
+    });
+
+    // Create facility-specific hourly data
+    const facilityHourlyData = {};
+    Object.values(facilityMap).forEach(facilityName => {
+      facilityHourlyData[facilityName] = Array(12).fill(0).map((_, i) => {
+        const hour = i + 6;
+        return { 
+          hour: `${hour} ${hour < 12 ? 'AM' : 'PM'}`, 
+          bookings: 0,
+          facility: facilityName
+        };
+      });
     });
 
     bookingsSnapshot.forEach(doc => {
       const booking = doc.data();
-      if (booking.date && booking.slot) { // Ensure necessary fields exist
+      if (booking.date && booking.slot && booking.facilityId) {
         try {
-          const slotStartTime = booking.slot.split(' - ')[0]; // Get "09:00" from "09:00 - 10:00"
-          // Construct a full ISO-like string that new Date() can parse reliably
+          const slotStartTime = booking.slot.split(' - ')[0];
+
           const bookingDateTimeString = `${booking.date}T${slotStartTime}:00`;
           const bookingDateObject = new Date(bookingDateTimeString);
 
-          if (!isNaN(bookingDateObject.getTime())) { // Check if the date is valid
-            const hour = bookingDateObject.getHours(); // This will now be the correct hour
+          if (!isNaN(bookingDateObject.getTime())) {
+            const hour = bookingDateObject.getHours();
+            const displayHour = hour === 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+            const period = hour < 12 || hour === 24 ? 'AM' : 'PM';
 
-            // Your existing logic to map to displayHour and hourLabel
-            const displayHour = hour === 0 ? 12 : (hour > 12 ? hour - 12 : hour); // Handle midnight as 12 AM
-            const period = hour < 12 || hour === 24 ? 'AM' : 'PM'; // Adjust period for midnight/noon if needed
-            // Ensure consistent hour formatting in hourLabel, especially for single-digit hours if not padded
-            // The hourlyCounts array uses non-padded hours like "6 AM", "7 AM" etc.
+
+
+
             const hourLabel = `${displayHour} ${period}`;
 
+            // Update aggregated data
             const hourIndex = hourlyCounts.findIndex(h => h.hour === hourLabel);
             if (hourIndex !== -1) {
               hourlyCounts[hourIndex].bookings++;
-            } else {
-              // This might happen if a booking hour is outside your 6 AM - 5 PM window
-              // Or if the hourLabel formatting here doesn't exactly match what's in hourlyCounts
-              console.warn(`Could not find hourIndex for hourLabel: ${hourLabel} from booking hour: ${hour}`);
+
+
+
+
             }
-          } else {
-            console.warn(`Could not parse date for booking ID ${doc.id}: ${bookingDateTimeString}`);
+
+            // Update facility-specific data
+            const facilityName = facilityMap[booking.facilityId];
+            if (facilityName && facilityHourlyData[facilityName]) {
+              const facilityHourIndex = facilityHourlyData[facilityName].findIndex(h => h.hour === hourLabel);
+              if (facilityHourIndex !== -1) {
+                facilityHourlyData[facilityName][facilityHourIndex].bookings++;
+              }
+            }
           }
         } catch (e) {
           console.warn(`Error processing slot for booking ID ${doc.id}: ${booking.slot}`, e);
@@ -775,7 +929,13 @@ router.get('/hourly-bookings', authenticate, async (req, res) => {
       }
     });
 
-    res.json({ hourlyBookings: hourlyCounts });
+    // Combine all data
+    let allHourlyData = [...hourlyCounts];
+    Object.values(facilityHourlyData).forEach(facilityData => {
+      allHourlyData = allHourlyData.concat(facilityData);
+    });
+
+    res.json({ hourlyBookings: allHourlyData });
   } catch (error) {
     console.error('Error fetching hourly bookings:', error);
     res.status(500).json({ error: 'Failed to fetch hourly bookings' });
@@ -784,167 +944,176 @@ router.get('/hourly-bookings', authenticate, async (req, res) => {
 // ------------------------------
 // [2] Top Facilities
 // ------------------------------
-router.get('/top-facilities', authenticate, async (req, res) => {
-  console.log('[GET] /top-facilities accessed');
+router.get("/top-facilities", authenticate, async (req, res) => {
   try {
-    const facilitiesSnapshot = await admin.firestore()
-      .collection('facilities-test')
+    const facilitiesSnapshot = await admin
+      .firestore()
+      .collection("facilities-test")
       .get();
 
-    console.log(`Fetched ${facilitiesSnapshot.size} facilities`);
-
     const bookingCounts = await Promise.all(
-      facilitiesSnapshot.docs.map(async doc => {
-        const bookings = await admin.firestore()
-          .collection('bookings')
-          .where('facilityId', '==', doc.id)
+      facilitiesSnapshot.docs.map(async (doc) => {
+        const bookings = await admin
+          .firestore()
+          .collection("bookings")
+          .where("facilityId", "==", doc.id)
           .get();
-        console.log(`Facility "${doc.data().name}" has ${bookings.size} bookings`);
         return {
           name: doc.data().name,
-          bookings: bookings.size
+          bookings: bookings.size,
         };
       })
     );
 
-    const topFacilities = bookingCounts
-      .sort((a, b) => b.bookings - a.bookings)
-      
+    const topFacilities = bookingCounts.sort((a, b) => b.bookings - a.bookings);
 
-    console.log('Top 4 facilities:', topFacilities);
     res.json({ topFacilities });
   } catch (error) {
-    console.error('Error fetching top facilities:', error);
-    res.status(500).json({ error: 'Failed to fetch top facilities' });
+    console.error("Error fetching top facilities:", error);
+    res.status(500).json({ error: "Failed to fetch top facilities" });
   }
 });
 
 // ------------------------------
 // [3] Daily Bookings
 // ------------------------------
-router.get('/daily-bookings', authenticate, async (req, res) => {
-  console.log('[GET] /daily-bookings accessed');
+router.get("/daily-bookings", authenticate, async (req, res) => {
   try {
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const dailyCounts = days.map(day => ({ day, bookings: 0 }));
+    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const dailyCounts = days.map((day) => ({ day, bookings: 0 }));
 
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    console.log('Fetching bookings from:', sevenDaysAgo.toISOString());
 
-    const bookingsSnapshot = await admin.firestore()
-      .collection('bookings')
-      .where('date', '>=', sevenDaysAgo.toISOString())
+    const bookingsSnapshot = await admin
+      .firestore()
+      .collection("bookings")
+      .where("date", ">=", sevenDaysAgo.toISOString())
       .get();
 
-    console.log(`Fetched ${bookingsSnapshot.size} bookings`);
-
-    bookingsSnapshot.forEach(doc => {
+    bookingsSnapshot.forEach((doc) => {
       const date = new Date(doc.data().date);
       const dayIndex = date.getDay();
       dailyCounts[dayIndex].bookings++;
       console.log(`Booking on ${days[dayIndex]} (index ${dayIndex})`);
     });
 
-    console.log('Daily bookings breakdown:', dailyCounts);
     res.json({ dailyBookings: dailyCounts });
   } catch (error) {
-    console.error('Error fetching daily bookings:', error);
-    res.status(500).json({ error: 'Failed to fetch daily bookings' });
+    console.error("Error fetching daily bookings:", error);
+    res.status(500).json({ error: "Failed to fetch daily bookings" });
   }
 });
 
 // ------------------------------
 // [4] Summary Statistics
 // ------------------------------
-router.get('/summary-stats', authenticate, async (req, res) => {
-  console.log('[GET] /summary-stats accessed');
+router.get("/summary-stats", authenticate, async (req, res) => {
   try {
     const today = new Date();
     const dayOfWeek = today.getDay();
     const startOfWeek = new Date(today);
     startOfWeek.setDate(today.getDate() - dayOfWeek);
     startOfWeek.setHours(0, 0, 0, 0);
-    console.log('Start of week:', startOfWeek.toISOString());
 
-    const bookingsThisWeek = await admin.firestore()
-      .collection('bookings')
-      .where('date', '>=', startOfWeek.toISOString())
+    const bookingsThisWeek = await admin
+      .firestore()
+      .collection("bookings")
+      .where("date", ">=", startOfWeek.toISOString())
       .get();
 
-    console.log(`Total bookings this week: ${bookingsThisWeek.size}`);
-
-    const facilities = await admin.firestore().collection('facilities-test').get();
-    console.log(`Fetched ${facilities.size} facilities`);
+    const facilities = await admin
+      .firestore()
+      .collection("facilities-test")
+      .get();
 
     const facilityBookings = await Promise.all(
-      facilities.docs.map(async doc => {
-        const bookings = await admin.firestore()
-          .collection('bookings')
-          .where('facilityId', '==', doc.id)
+      facilities.docs.map(async (doc) => {
+        const bookings = await admin
+          .firestore()
+          .collection("bookings")
+          .where("facilityId", "==", doc.id)
           .get();
-        console.log(`Facility "${doc.data().name}" has ${bookings.size} bookings`);
         return {
           name: doc.data().name,
-          count: bookings.size
+          count: bookings.size,
         };
       })
     );
 
-    const mostUsedFacility = facilityBookings.sort((a, b) => b.count - a.count)[0];
-    console.log('Most used facility:', mostUsedFacility);
-const hourlyBookings = Array(12).fill(0).map((_, i) => {
-      const hour = i + 6; // From 6 AM to 5 PM
-      return { hour: `${hour} ${hour < 12 ? 'AM' : 'PM'}`, bookings: 0 };
-    });
+    const mostUsedFacility = facilityBookings.sort(
+      (a, b) => b.count - a.count
+    )[0];
+    const hourlyBookings = Array(12)
+      .fill(0)
+      .map((_, i) => {
+        const hour = i + 6; // From 6 AM to 5 PM
+        return { hour: `${hour} ${hour < 12 ? "AM" : "PM"}`, bookings: 0 };
+      });
 
-    bookingsThisWeek.forEach(doc => {
+    bookingsThisWeek.forEach((doc) => {
       const bookingData = doc.data();
-      if (bookingData.date && bookingData.slot) { // Ensure necessary fields exist
+      if (bookingData.date && bookingData.slot) {
+        // Ensure necessary fields exist
         try {
-          const slotStartTime = bookingData.slot.split(' - ')[0]; // "09:00"
+          const slotStartTime = bookingData.slot.split(" - ")[0]; // "09:00"
           const bookingDateTimeString = `${bookingData.date}T${slotStartTime}:00`;
           const bookingDateObject = new Date(bookingDateTimeString);
 
-          if (!isNaN(bookingDateObject.getTime())) { // Check if the date is valid
+          if (!isNaN(bookingDateObject.getTime())) {
+            // Check if the date is valid
             const hour = bookingDateObject.getHours();
 
-            if (hour >= 6 && hour <= 17) { // Only count hours between 6AM and 5PM
-              const displayHour = hour === 0 ? 12 : (hour > 12 ? hour - 12 : hour);
-              const period = hour < 12 || hour === 24 ? 'AM' : 'PM';
+            if (hour >= 6 && hour <= 17) {
+              // Only count hours between 6AM and 5PM
+              const displayHour =
+                hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+              const period = hour < 12 || hour === 24 ? "AM" : "PM";
               const hourLabel = `${displayHour} ${period}`;
 
-              const hourIndex = hourlyBookings.findIndex(h => h.hour === hourLabel);
+              const hourIndex = hourlyBookings.findIndex(
+                (h) => h.hour === hourLabel
+              );
               if (hourIndex !== -1) {
                 hourlyBookings[hourIndex].bookings++;
               } else {
-                 console.warn(`Summary: Could not find hourIndex for hourLabel: ${hourLabel} from booking hour: ${hour}`);
+                console.warn(
+                  `Summary: Could not find hourIndex for hourLabel: ${hourLabel} from booking hour: ${hour}`
+                );
               }
             }
           } else {
-            console.warn(`Summary: Could not parse date for booking ID ${doc.id}: ${bookingDateTimeString}`);
+            console.warn(
+              `Summary: Could not parse date for booking ID ${doc.id}: ${bookingDateTimeString}`
+            );
           }
         } catch (e) {
-          console.warn(`Summary: Error processing slot for booking ID ${doc.id}: ${bookingData.slot}`, e);
+          console.warn(
+            `Summary: Error processing slot for booking ID ${doc.id}: ${bookingData.slot}`,
+            e
+          );
         }
       }
     });
 
-    const sortedHourlyBookings = [...hourlyBookings].sort((a, b) => b.bookings - a.bookings);
-    const peakHour = sortedHourlyBookings.length > 0 && sortedHourlyBookings[0].bookings > 0
-                     ? sortedHourlyBookings[0].hour
-                     : "No data";
+    const sortedHourlyBookings = [...hourlyBookings].sort(
+      (a, b) => b.bookings - a.bookings
+    );
+    const peakHour =
+      sortedHourlyBookings.length > 0 && sortedHourlyBookings[0].bookings > 0
+        ? sortedHourlyBookings[0].hour
+        : "No data";
 
     res.json({
       totalBookings: bookingsThisWeek.size,
       mostUsedFacility: mostUsedFacility?.name || "No data",
-      peakHour: peakHour || "No data"
+      peakHour: peakHour || "No data",
     });
   } catch (error) {
-    console.error('Error fetching summary stats:', error);
+    console.error("Error fetching summary stats:", error);
     res.status(500).json({
-      error: 'Failed to fetch summary stats',
-      details: error.message
+      error: "Failed to fetch summary stats",
+      details: error.message,
     });
   }
 });
@@ -952,30 +1121,30 @@ const hourlyBookings = Array(12).fill(0).map((_, i) => {
 // POST /api/admin/maintenance-reports
 router.post("/maintenance-reports", authenticate, async (req, res) => {
   try {
-    const {
-      facilityId,
-      facilityName,
-      description,
-      facilityStaff,
-    } = req.body;
+    const { facilityId, facilityName, description, facilityStaff } = req.body;
 
     const user = req.user;
 
     if (!facilityId || !facilityName || !description) {
-      return res.status(400).json({ success: false, message: "Missing fields" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Missing fields" });
     }
 
-    const docRef = await admin.firestore().collection("maintenance-reports").add({
-      facilityId,
-      facilityName,
-      description,
-      status: "opened",
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      resolvedAt: null,
-      facilityStaff: facilityStaff || "",
-      userId: user.uid,
-      username: user.email,
-    });
+    const docRef = await admin
+      .firestore()
+      .collection("maintenance-reports")
+      .add({
+        facilityId,
+        facilityName,
+        description,
+        status: "opened",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        resolvedAt: null,
+        facilityStaff: facilityStaff || "",
+        userId: user.uid,
+        username: user.email,
+      });
 
     res.status(201).json({ success: true, id: docRef.id });
   } catch (error) {
@@ -989,13 +1158,14 @@ router.get("/get-notifications", authenticate, async (req, res) => {
     const user = req.user;
 
     // Get notifications for the current user
-    const notificationsSnapshot = await admin.firestore()
+    const notificationsSnapshot = await admin
+      .firestore()
       .collection("notifications")
       .where("userName", "==", user.email)
       .orderBy("createdAt", "desc")
       .get();
 
-    const notifications = notificationsSnapshot.docs.map(doc => {
+    const notifications = notificationsSnapshot.docs.map((doc) => {
       const data = doc.data();
       return {
         id: doc.id,
@@ -1006,9 +1176,9 @@ router.get("/get-notifications", authenticate, async (req, res) => {
     res.status(200).json({ success: true, notifications });
   } catch (error) {
     console.error("Error fetching notifications:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Failed to load notifications" 
+    res.status(500).json({
+      success: false,
+      message: "Failed to load notifications",
     });
   }
 });
@@ -1017,27 +1187,28 @@ router.get("/staff-dashboard", authenticate, async (req, res) => {
   try {
     const user = req.user;
     const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
+    const todayStr = today.toISOString().split("T")[0];
 
     // Get all bookings assigned to this staff member
-    const bookingsSnapshot = await admin.firestore()
-      .collection('bookings')
-      .where('facilityStaff', '==', user.uid)
+    const bookingsSnapshot = await admin
+      .firestore()
+      .collection("bookings")
+      .where("facilityStaff", "==", user.uid)
       .get();
 
     let upcomingBookings = [];
     let pendingCount = 0;
 
-    bookingsSnapshot.forEach(doc => {
+    bookingsSnapshot.forEach((doc) => {
       const data = doc.data();
-      if (data.status === 'approved' && data.date >= todayStr) {
+      if (data.status === "approved" && data.date >= todayStr) {
         upcomingBookings.push({
           ...data,
           id: doc.id,
-          date: data.date // Already in YYYY-MM-DD format
+          date: data.date, // Already in YYYY-MM-DD format
         });
       }
-      if (data.status === 'pending') {
+      if (data.status === "pending") {
         pendingCount++;
       }
     });
@@ -1058,14 +1229,14 @@ router.get("/staff-dashboard", authenticate, async (req, res) => {
       data: {
         upcomingCount: upcomingBookings.length,
         pendingCount,
-        daysUntilNext
-      }
+        daysUntilNext,
+      },
     });
   } catch (error) {
-    console.error('Error fetching staff dashboard data:', error);
+    console.error("Error fetching staff dashboard data:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to load dashboard data'
+      message: "Failed to load dashboard data",
     });
   }
 });
@@ -1073,25 +1244,26 @@ router.get("/staff-dashboard", authenticate, async (req, res) => {
 router.get("/staff-upcoming-bookings", authenticate, async (req, res) => {
   try {
     const user = req.user;
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().split("T")[0];
 
     // Get all approved bookings assigned to this staff member with future dates
-    const bookingsSnapshot = await admin.firestore()
-      .collection('bookings')
-      .where('facilityStaff', '==', user.uid)
-      .where('status', '==', 'approved')
-      .where('date', '>=', today)
+    const bookingsSnapshot = await admin
+      .firestore()
+      .collection("bookings")
+      .where("facilityStaff", "==", user.uid)
+      .where("status", "==", "approved")
+      .where("date", ">=", today)
       .get();
 
     const bookings = [];
-    bookingsSnapshot.forEach(doc => {
+    bookingsSnapshot.forEach((doc) => {
       const data = doc.data();
       bookings.push({
         facilityName: data.facilityName,
         userName: data.userName,
         date: data.date,
         slot: data.slot,
-        id: doc.id
+        id: doc.id,
       });
     });
 
@@ -1100,13 +1272,13 @@ router.get("/staff-upcoming-bookings", authenticate, async (req, res) => {
 
     res.status(200).json({
       success: true,
-      bookings
+      bookings,
     });
   } catch (error) {
-    console.error('Error fetching upcoming bookings:', error);
+    console.error("Error fetching upcoming bookings:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to load upcoming bookings'
+      message: "Failed to load upcoming bookings",
     });
   }
 });
@@ -1114,21 +1286,24 @@ router.get("/staff-upcoming-bookings", authenticate, async (req, res) => {
 router.get("/view-bookings", authenticate, async (req, res) => {
   try {
     const user = req.user;
-    
-    const bookingsSnapshot = await admin.firestore()
-      .collection('bookings')
-      .where('facilityStaff', '==', user.uid)
+
+    const bookingsSnapshot = await admin
+      .firestore()
+      .collection("bookings")
+      .where("facilityStaff", "==", user.uid)
       .get();
 
-    const bookings = bookingsSnapshot.docs.map(doc => ({
+    const bookings = bookingsSnapshot.docs.map((doc) => ({
       id: doc.id,
-      ...doc.data()
+      ...doc.data(),
     }));
 
     res.status(200).json({ success: true, bookings });
   } catch (error) {
-    console.error('Error fetching bookings:', error);
-    res.status(500).json({ success: false, message: 'Failed to load bookings' });
+    console.error("Error fetching bookings:", error);
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to load bookings" });
   }
 });
 
@@ -1140,56 +1315,64 @@ router.put("/:id/status", authenticate, async (req, res) => {
     const user = req.user;
 
     // Validate status
-    if (!['approved', 'rejected'].includes(status)) {
-      return res.status(400).json({ success: false, message: 'Invalid status' });
+    if (!["approved", "rejected"].includes(status)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid status" });
     }
 
     // Get the booking first to verify ownership
-    const bookingRef = admin.firestore().collection('bookings').doc(id);
+    const bookingRef = admin.firestore().collection("bookings").doc(id);
     const bookingSnap = await bookingRef.get();
 
     if (!bookingSnap.exists) {
-      return res.status(404).json({ success: false, message: 'Booking not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Booking not found" });
     }
 
     const booking = bookingSnap.data();
 
     // Verify this staff member is assigned to the facility
     if (booking.facilityStaff !== user.uid) {
-      return res.status(403).json({ success: false, message: 'Unauthorized' });
+      return res.status(403).json({ success: false, message: "Unauthorized" });
     }
 
     // Update booking status
     await bookingRef.update({ status });
 
     // Create notification
-    await admin.firestore().collection('notifications').add({
-      userName: booking.userName || booking.user || 'Unknown',
-      facilityName: booking.facilityName,
-      status,
-      slot: booking.slot || booking.datetime || '',
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      read: false,
-      userId: booking.userId
-    });
+    await admin
+      .firestore()
+      .collection("notifications")
+      .add({
+        userName: booking.userName || booking.user || "Unknown",
+        facilityName: booking.facilityName,
+        status,
+        slot: booking.slot || booking.datetime || "",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        read: false,
+        userId: booking.userId,
+      });
 
     // If approved, update facility timeslot
-    if (status === 'approved') {
-      const facilities = await admin.firestore()
-        .collection('facilities-test')
-        .where('name', '==', booking.facilityName)
+    if (status === "approved") {
+      const facilities = await admin
+        .firestore()
+        .collection("facilities-test")
+        .where("name", "==", booking.facilityName)
         .get();
 
       if (!facilities.empty) {
         const facilityRef = facilities.docs[0].ref;
         const facilityData = facilities.docs[0].data();
-        
-        const updatedSlots = (facilityData.timeslots || []).map(slot => {
+
+        const updatedSlots = (facilityData.timeslots || []).map((slot) => {
           if (`${slot.start} - ${slot.end}` === booking.slot) {
             return {
               ...slot,
               isBooked: true,
-              bookedBy: booking.userName || booking.user || 'Unknown'
+              bookedBy: booking.userName || booking.user || "Unknown",
             };
           }
           return slot;
@@ -1201,25 +1384,30 @@ router.put("/:id/status", authenticate, async (req, res) => {
 
     res.status(200).json({ success: true });
   } catch (error) {
-    console.error('Error updating booking status:', error);
-    res.status(500).json({ success: false, message: 'Failed to update booking' });
+    console.error("Error updating booking status:", error);
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to update booking" });
   }
 });
 router.get("/obtain", authenticate, async (req, res) => {
   try {
-    const facilitiesSnapshot = await admin.firestore()
-      .collection('facilities-test')
+    const facilitiesSnapshot = await admin
+      .firestore()
+      .collection("facilities-test")
       .get();
 
-    const facilities = facilitiesSnapshot.docs.map(doc => ({
+    const facilities = facilitiesSnapshot.docs.map((doc) => ({
       id: doc.id,
-      ...doc.data()
+      ...doc.data(),
     }));
 
     res.status(200).json({ success: true, facilities });
   } catch (error) {
-    console.error('Error fetching facilities:', error);
-    res.status(500).json({ success: false, message: 'Failed to load facilities' });
+    console.error("Error fetching facilities:", error);
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to load facilities" });
   }
 });
 

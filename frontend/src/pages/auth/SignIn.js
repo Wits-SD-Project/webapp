@@ -13,7 +13,6 @@ import { signInWithPopup, GoogleAuthProvider } from "firebase/auth"; // Firebase
 import { auth } from "../../firebase"; // Firebase configuration
 
 export default function SignIn() {
-  const [loading, setLoading] = useState(false); // Not used here, can be removed or added to spinner logic
   const [providerLoading, setProviderLoading] = useState(null); // Tracks which provider (e.g., Google) is loading
   const navigate = useNavigate(); // For redirecting users after login
   const { setAuthUser } = useAuth(); // Auth context setter for global user state
@@ -56,29 +55,32 @@ export default function SignIn() {
         const redirectPath = {
           admin: "/admin-dashboard",
           staff: "/staff-dashboard",
-          resident: "/res-dashboard"
+          resident: "/res-events"
         }[user.role] || "/";
 
         navigate(redirectPath); // Navigate to appropriate dashboard
       }
     } catch (err) {
-      console.error("Third-party sign in error:", err);
-      setAuthUser(null); // Clear any existing auth state
+    console.error("Third-party sign in error:", err);
+    setAuthUser(null);
 
-      // Show appropriate error message based on backend response
-      if (err.response?.data?.message === "User not registered.") {
-        toast.error("Account not registered. Please sign up first.");
-      } else if (err.response?.data?.message === "Account not yet approved.") {
-        toast.error("⏳ Waiting for admin approval.");
-      } else if (err.response?.data?.message === "Access denied.") {
-        toast.error("⛔ Access denied.");
-      } else {
-        toast.error("Sign in failed. Please try again.");
-      }
-    } finally {
-      setProviderLoading(null); // Reset loading state
+    // Use the `err.data.message` for toast messages
+    const message = err.data?.message || err.message;
+
+    if (message === "User not registered.") {
+      toast.error("Account not registered. Please sign up first.");
+    } else if (message === "Account not yet approved.") {
+      toast.error("⏳ Waiting for admin approval.");
+    } else if (message === "Access denied.") {
+      toast.error("⛔ Access denied.");
+    } else {
+      toast.error(message || "Sign in failed. Please try again.");
     }
-  };
+  } finally {
+    setProviderLoading(null);
+  }
+};
+
 
   return (
     <main className="login-container">

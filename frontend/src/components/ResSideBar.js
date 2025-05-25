@@ -38,10 +38,10 @@ export default function Sidebar({ activeItem }) {
 
   const menuItems = [
     {
-      name: "Dashboard",
+      name: "Events",
       icon: dashboardIcon,
-      path: "/res-dashboard",
-      onClick: () => navigate("/res-dashboard"),
+      path: "/res-events",
+      onClick: () => navigate("/res-events"),
     },
     {
       name: "Facility Bookings",
@@ -73,7 +73,7 @@ export default function Sidebar({ activeItem }) {
     <aside className="sidebar">
       <button
         className="logo-button"
-        onClick={() => navigate("/res-dashboard")}
+        onClick={() => navigate("/res-events")}
       >
         <div className="logo-wrapper">
           <img src={logo} alt="Sports Sphere Logo" className="logo" />

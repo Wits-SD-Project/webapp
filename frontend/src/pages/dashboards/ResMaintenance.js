@@ -1,9 +1,7 @@
-
 import { useEffect, useState } from "react";
 import Sidebar from "../../components/ResSideBar.js";
 import "../../styles/resMaintenance.css";
-import { addDoc, collection, getDocs, query, where } from "firebase/firestore";
-import { db ,getAuthToken} from "../../firebase";
+import { getAuthToken } from "../../firebase";
 import { getAuth } from "firebase/auth";
 
 export default function ResMaintenance() {
@@ -13,11 +11,9 @@ export default function ResMaintenance() {
   const [maintenanceReports, setMaintenanceReports] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const auth = getAuth();
-  const [currentUser, setCurrentUser] = useState(null);
 
   const fetchMaintenanceReports = async () => {
     try {
-
       const token = await getAuthToken();
 
       const response = await fetch(
@@ -44,40 +40,35 @@ export default function ResMaintenance() {
   };
 
   useEffect(() => {
-    const auth = getAuth();
-    const user = auth.currentUser;
-    setCurrentUser(user);
+    const fetchFacilities = async () => {
+      try {
+        const token = await getAuthToken();
+        const response = await fetch(
+          `${process.env.REACT_APP_API_BASE_URL}/api/admin/facilities`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
 
-   const fetchFacilities = async () => {
-    try {
-      const user = auth.currentUser;
-      const token = await user.getIdToken();
-      const response = await fetch(
-        `${process.env.REACT_APP_API_BASE_URL}/api/admin/facilities`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
+        if (!response.ok) {
+          throw new Error("Failed to fetch facilities");
         }
-      );
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch facilities");
+        const data = await response.json();
+        setFacilities(data.facilities); // ✅ this is now an array
+      } catch (error) {
+        console.error("Error fetching facilities:", error);
+        setFacilities([]); // fallback to empty array to prevent .map crash
       }
+    };
 
-      const data = await response.json();
-      setFacilities(data.facilities); // ✅ this is now an array
-    } catch (error) {
-      console.error("Error fetching facilities:", error);
-      setFacilities([]); // fallback to empty array to prevent .map crash
-    }
-  };
-
-      fetchFacilities();
-      fetchMaintenanceReports();
-    }, []);
+    fetchFacilities();
+    fetchMaintenanceReports();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -87,29 +78,33 @@ export default function ResMaintenance() {
     }
 
     try {
-      const selectedFacility = facilities.find(f => f.id === selectedFacilityId);
+      const selectedFacility = facilities.find(
+        (f) => f.id === selectedFacilityId
+      );
 
       if (!selectedFacility) {
         alert("Selected facility not found");
         return;
       }
 
-      const user = auth.currentUser;
-      const token = await user.getIdToken();
+      const token = await getAuthToken();
 
-      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/admin/maintenance-reports`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          facilityId: selectedFacilityId,
-          facilityName: selectedFacility.name,
-          description: issueDescription,
-          facilityStaff: selectedFacility.created_by || "",
-        }),
-      });
+      const response = await fetch(
+        `${process.env.REACT_APP_API_BASE_URL}/api/admin/maintenance-reports`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            facilityId: selectedFacilityId,
+            facilityName: selectedFacility.name,
+            description: issueDescription,
+            facilityStaff: selectedFacility.created_by || "",
+          }),
+        }
+      );
 
       if (!response.ok) {
         throw new Error("Failed to submit maintenance report");
@@ -127,22 +122,22 @@ export default function ResMaintenance() {
     }
   };
 
-const formatCreatedAt = (createdAt) => {
-  if (!createdAt) return "No date";
+  const formatCreatedAt = (createdAt) => {
+    if (!createdAt) return "No date";
 
-  const date = new Date(createdAt);
-  if (isNaN(date.getTime())) return "Invalid date";
+    const date = new Date(createdAt);
+    if (isNaN(date.getTime())) return "Invalid date";
 
-  return new Intl.DateTimeFormat("en-ZA", {
-    weekday: "long",       // Monday
-    day: "numeric",        // 5
-    month: "long",         // May
-    year: "numeric",       // 2025
-    hour: "numeric",       // 3
-    minute: "2-digit",     // 45
-    hour12: true,          // PM
-  }).format(date);
-};
+    return new Intl.DateTimeFormat("en-ZA", {
+      weekday: "long", // Monday
+      day: "numeric", // 5
+      month: "long", // May
+      year: "numeric", // 2025
+      hour: "numeric", // 3
+      minute: "2-digit", // 45
+      hour12: true, // PM
+    }).format(date);
+  };
 
   return (
     <main className="res-maintenance">
@@ -152,10 +147,10 @@ const formatCreatedAt = (createdAt) => {
         <main className="main-content">
           <header className="page-header">
             <h1>My Maintenance Reports</h1>
-            <input 
-              type="search" 
-              placeholder="Search reports..." 
-              className="search-box" 
+            <input
+              type="search"
+              placeholder="Search reports..."
+              className="search-box"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />

@@ -1,25 +1,18 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  Card,
-  CardMedia,
-  CardContent,
-  CardActions,
   Typography,
   Button,
-  Grid,
   Drawer,
   List,
   ListItem,
   ListItemText,
-  TextField,
   Box,
 } from "@mui/material";
 import PlaceIcon from "@mui/icons-material/Place";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { toast } from "react-toastify";
-import { db, auth } from "../../firebase";
-import { collection, getDocs } from "firebase/firestore";
+import { auth } from "../../firebase";
 import Sidebar from "../../components/ResSideBar";
 import "../../styles/userDashboard.css";
 import { useNavigate } from "react-router-dom";
@@ -72,11 +65,6 @@ export default function UserDashboard() {
 
     fetchFacilities();
   }, []);
-
-  const openDrawer = (fac) => {
-    setSelectedFacility(fac);
-    setDrawerOpen(true);
-  };
 
   const startBooking = (facility, slot) => {
     setSelectedFacility(facility);
