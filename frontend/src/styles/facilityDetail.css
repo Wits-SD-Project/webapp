@@ -200,6 +200,18 @@
     flex-direction: column;
 }
 
+.location-content, .weather-content {
+    width: 100%;
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+    transition: transform 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 1.5rem;
+}
+
 .details-paper {
     background-color: #fff;
     border-radius: 12px;
@@ -211,7 +223,7 @@
     flex-direction: column;
 }
 
-.details-paper:hover {
+.details-paper:hover, .location-content:hover, .weather-content:hover {
     transform: translateY(-5px);
 }
 
@@ -262,6 +274,7 @@ h3 {
     transition: transform 0.2s ease;
     display: flex;
     flex-direction: column;
+    margin-bottom: 1.5rem;
 }
 
 .booking-paper {
