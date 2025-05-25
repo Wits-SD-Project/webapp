@@ -43,6 +43,8 @@ export default function AdminDashboard() {
     closedCount: 0,
   });
 
+  const [topFacilities, setTopFacilities] = useState([]);
+
   /**
    * Function to export maintenance reports as CSV
    */
@@ -185,15 +187,40 @@ export default function AdminDashboard() {
       }
     };
 
+
     fetchMaintenanceSummary();
+
+    const fetchTopFacilities = async () => {
+      const user = auth.currentUser;
+      if (!user) return;
+    
+      try {
+        const token = await user.getIdToken();
+        const res = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/admin/top-4-facilities`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+    
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Failed to fetch top facilities");
+    
+        setTopFacilities(data.top4Facilities);
+      } catch (err) {
+        console.error("Top facilities error:", err.message);
+      }
+    };
+    
+    // Call this function
+    fetchTopFacilities();
   }, []);
 
   const barData = {
-    labels: ["Tennis", "Soccer", "Basketball", "Swimming"],
+    labels: topFacilities.map(facility => facility.name),
     datasets: [
       {
         label: "Bookings",
-        data: [25, 40, 20, 15],
+        data: topFacilities.map(facility => facility.bookings),
         backgroundColor: "#00c0df",
       },
     ],
@@ -256,7 +283,7 @@ export default function AdminDashboard() {
 
           <div className="graph-container">
             <div className="graph-card clickable" onClick={() => navigate("/admin/reports")}>
-              <h3>Usage Trends by Facility</h3>
+              <h3>Usage Trends of Top 4 Facilities</h3>
               <div className="graph-placeholder" style={{ backgroundColor: "#fff", padding: 0 }}>
                 <Bar data={barData} height={200} options={{ responsive: true, plugins: { legend: { display: false } } }} />
               </div >

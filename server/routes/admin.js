@@ -800,6 +800,37 @@ router.get('/unread-count',authenticate, async (req, res) => {
   }
 });
 
+// fetch top 4 facilities for Admin Dashboard bar graph
+router.get('/top-4-facilities', authenticate, async (req, res) => {
+  try {
+    const facilitiesSnapshot = await admin.firestore()
+      .collection('facilities-test')
+      .get();
+
+    const bookingCounts = await Promise.all(
+      facilitiesSnapshot.docs.map(async doc => {
+        const bookings = await admin.firestore()
+          .collection('bookings')
+          .where('facilityId', '==', doc.id)
+          .get();
+        return {
+          name: doc.data().name,
+          bookings: bookings.size
+        };
+      })
+    );
+
+    const top4Facilities = bookingCounts
+      .sort((a, b) => b.bookings - a.bookings)
+      .slice(0, 4); // Get only top 4
+
+    res.json({ top4Facilities });
+  } catch (error) {
+    console.error('Error fetching top 4 facilities:', error);
+    res.status(500).json({ error: 'Failed to fetch top 4 facilities' });
+  }
+});
+
 // Hourly bookings data
 // server/routes/admin.js
 
