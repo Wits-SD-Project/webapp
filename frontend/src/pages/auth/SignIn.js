@@ -13,7 +13,6 @@ import { signInWithPopup, GoogleAuthProvider } from "firebase/auth"; // Firebase
 import { auth } from "../../firebase"; // Firebase configuration
 
 export default function SignIn() {
-  const [loading, setLoading] = useState(false); // Not used here, can be removed or added to spinner logic
   const [providerLoading, setProviderLoading] = useState(null); // Tracks which provider (e.g., Google) is loading
   const navigate = useNavigate(); // For redirecting users after login
   const { setAuthUser } = useAuth(); // Auth context setter for global user state

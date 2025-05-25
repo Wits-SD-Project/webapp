@@ -5,7 +5,7 @@ import { getAuthToken } from "../../firebase";
 // Import sidebar navigation component
 import Sidebar from "../../components/ResSideBar";
 // Import date utility functions
-import { format, isFuture, isPast } from "date-fns";
+import { isFuture, isPast } from "date-fns";
 // Import animation libraries
 import { motion, AnimatePresence } from "framer-motion";
 // Import custom components
@@ -42,7 +42,7 @@ export default function ResEvents() {
             }
 
             // 2. Make API request to fetch events
-            const res = await fetch("http://localhost:8080/api/admin/events", {
+            const res = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/admin/events`, {
                 method: "GET",
                 headers: {
                     Authorization: `Bearer ${token}`,

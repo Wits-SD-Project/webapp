@@ -1,12 +1,10 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import Sidebar from "../../components/AdminSideBar.js";
 import "../../styles/adminMaintenance.css";
 import { useAuth } from "../../context/AuthContext.js";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function AdminMaintenance() {
-  const navigate = useNavigate();
   const { authUser } = useAuth();
   const username = authUser?.name || "Admin";
 

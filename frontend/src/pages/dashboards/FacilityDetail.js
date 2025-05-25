@@ -55,7 +55,6 @@ export default function FacilityDetail() {
   const [showConfirmation, setShowConfirmation] = useState(false); // Booking confirmation dialog visibility
   const [activeTab, setActiveTab] = useState(0); // Active tab in availability section
   const [loading, setLoading] = useState(true); // Loading state
-  const [searchQuery, setSearchQuery] = useState(""); // Search query (unused in current implementation)
   const [weatherLoading, setWeatherLoading] = useState(null); // Weather data loading state
   const [weather, setWeather] = useState(null); // Weather forecast data
   
@@ -79,7 +78,7 @@ export default function FacilityDetail() {
 
         // 2. Make API request
         const response = await fetch(
-          `http://localhost:8080/api/facilities/${id}`,
+          `${process.env.REACT_APP_API_BASE_URL}/api/facilities/${id}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -108,7 +107,6 @@ export default function FacilityDetail() {
     };
 
     fetchFacility();
-    console.log(facility);
   }, [id]);
 
   // Fetch weather data when facility coordinates are available
@@ -191,7 +189,7 @@ export default function FacilityDetail() {
       const formattedDate = selectedDate.toISOString().split("T")[0];
 
       const response = await fetch(
-        "http://localhost:8080/api/facilities/bookings",
+        `${process.env.REACT_APP_API_BASE_URL}/api/facilities/bookings`,
         {
           method: "POST",
           headers: {

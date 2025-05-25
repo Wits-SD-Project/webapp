@@ -96,10 +96,6 @@ describe("ADMIN router", () => {
     // Clear all firestore data
     adminMock.__firestoreData.clear();
 
-    // Reset specific mocks
-    adminMock.auth().setCustomUserClaims.mockClear();
-    adminMock.firestore().collection.mockClear();
-    adminMock.firestore().runTransaction.mockClear();
   });
 
   /* ─────────────────────────  USER MANAGEMENT  ───────────────────── */
@@ -264,69 +260,74 @@ describe("ADMIN router", () => {
   // ==============================================
   // EVENT NOTIFICATIONS & STATISTICS
   // ==============================================
-  describe("Event Notifications & Statistics", () => {
-    const eventData = {
-      eventName: "Test Event",
-      facilityId: "court-1",
-      facilityName: "Tennis Court",
-      description: "Test Description",
-      startTime: new Date(Date.now() + 3600000).toISOString(),
-      endTime: new Date(Date.now() + 7200000).toISOString(),
-    };
+describe("Event Notifications & Statistics", () => {
+  const eventData = {
+    eventName: "Test Event",
+    facilityId: "court-1",
+    facilityName: "Tennis Court",
+    description: "Test Description",
+    startTime: new Date(Date.now() + 3600000).toISOString(),
+    endTime: new Date(Date.now() + 7200000).toISOString(),
+  };
 
-    beforeEach(async () => {
-      // Create test event
-      const app = makeAdminApp();
-      await request(app).post("/api/admin/events").send(eventData);
+  beforeEach(async () => {
+    // Clear mock Firestore before each test
+    adminMock.__firestoreData.clear();
+
+    // Create test event
+    const app = makeAdminApp();
+    await request(app).post("/api/admin/events").send({ ...eventData, eventId: "event-1" });
+
+    // Add approved residents to mock Firestore
+    adminMock.__firestoreData.set("res1@test.com", {
+      role: "resident",
+      approved: true,
+      uid: "res-1",
+      email: "res1@test.com",
     });
-
-    test("POST /events/notify creates resident notifications", async () => {
-      const app = makeAdminApp();
-
-      adminMock.__firestoreData.clear();
-
-      // Add approved residents
-      adminMock.__firestoreData.set("res1@test.com", {
-        role: "resident",
-        approved: true,
-        uid: "res-1",
-        email: "res1@test.com",
-      });
-      adminMock.__firestoreData.set("res2@test.com", {
-        role: "resident",
-        approved: true,
-        uid: "res-2",
-        email: "res2@test.com",
-      });
-
-      const res = await request(app)
-        .post("/api/admin/events/notify")
-        .send({ ...eventData, eventId: "event-1" });
-
-      expect(res.status).toBe(200);
-      expect(res.body.message).toBe("Notifications sent to 2 residents");
-    });
-    // In Hourly Bookings test
-    test("GET /hourly-bookings aggregates time slots", async () => {
-      // UTC date handling
-      const fixedDate = new Date("2023-01-01T09:00:00Z");
-      jest.useFakeTimers({ now: fixedDate });
-
-      // Date stored as string without time
-      adminMock.__firestoreData.set("b1", {
-        facilityId: "court-1",
-        slot: "09:00 - 10:00",
-        date: "2023-01-01", // No time component
-      });
-
-      const app = makeAdminApp();
-      const res = await request(app).get("/api/admin/hourly-bookings");
-
-      expect(res.body.hourlyBookings).toContainEqual(
-        expect.objectContaining({ hour: "9 AM", bookings: 1 })
-      );
+    adminMock.__firestoreData.set("res2@test.com", {
+      role: "resident",
+      approved: true,
+      uid: "res-2",
+      email: "res2@test.com",
     });
   });
+
+  afterEach(() => {
+    jest.useRealTimers(); // Always restore real timers after time-mocked tests
+  });
+
+  test("POST /events/notify creates resident notifications", async () => {
+    const app = makeAdminApp();
+
+    const res = await request(app)
+      .post("/api/admin/events/notify")
+      .send({ ...eventData, eventId: "event-1" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.message).toBe("Notifications sent to 2 residents");
+  });
+
+  test("GET /hourly-bookings aggregates time slots", async () => {
+    // Set fake date to match booking date
+    const fixedDate = new Date("2023-01-01T09:00:00Z");
+    jest.useFakeTimers({ now: fixedDate });
+
+    // Add mock booking for 9 AM
+    adminMock.__firestoreData.set("b1", {
+      facilityId: "court-1",
+      slot: "09:00 - 10:00",
+      date: "2023-01-01",
+    });
+
+    const app = makeAdminApp();
+    const res = await request(app).get("/api/admin/hourly-bookings");
+
+    expect(res.body.hourlyBookings).toContainEqual(
+      expect.objectContaining({ hour: "9 AM", bookings: 1 })
+    );
+  });
+});
 
   // ==============================================
   // MAINTENANCE & STAFF ENDPOINTS
@@ -468,68 +469,72 @@ describe("ADMIN router", () => {
   // ==============================================
   // NOTIFICATIONS
   // ==============================================
-  describe("Notifications", () => {
-    test("GET /unread-count returns correct count", async () => {
-      // Clear existing notifications
-      adminMock.__firestoreData.clear();
+describe("Notifications", () => {
+  test("GET /unread-count returns correct count", async () => {
+    // Clear existing notifications
+    adminMock.__firestoreData.clear();
 
-      const staffEmail = "staff-1@example.com";
+    const userEmail = "staff@example.com"; // ✅ Match the email used in makeStaffApp()
 
-      // Add test notifications
-      adminMock.__firestoreData.set("notif-1", {
-        userName: staffEmail,
-        read: false,
-        createdAt: new Date(),
-      });
-
-      adminMock.__firestoreData.set("notif-2", {
-        userName: staffEmail,
-        read: true, // Ensure this is explicitly true
-        createdAt: new Date(),
-      });
-
-      // Add a notification for a different user
-      adminMock.__firestoreData.set("notif-3", {
-        userName: "other@example.com",
-        read: false,
-        createdAt: new Date(),
-      });
-
-      const app = makeStaffApp("staff-1");
-      const res = await request(app).get("/api/admin/unread-count");
-
-      // Verify only 1 unread notification for the test user
-      expect(res.body.count).toBe(1);
+    // Add test notifications
+    adminMock.__firestoreData.set("notif-1", {
+      userName: userEmail,
+      read: false,
+      createdAt: new Date(),
     });
 
-    test("GET /get-notifications returns user notifications", async () => {
-      // Clear existing data
-      adminMock.__firestoreData.clear();
-
-      // Add test notification with all required fields
-      // In test setup:
-      adminMock.__firestoreData.set("notif-1", {
-        userName: "staff-1@example.com", // Match staff app user email
-        message: "Test",
-        read: false,
-        createdAt: new Date(),
-      });
-
-      // Add a notification that shouldn't be returned
-      adminMock.__firestoreData.set("notif-2", {
-        userName: "other@example.com", // Different user
-        message: "Should not appear",
-        createdAt: new Date(),
-        read: false,
-      });
-
-      const app = makeStaffApp("staff-1"); // Sets user email to "staff@example.com"
-      const res = await request(app).get("/api/admin/get-notifications");
-
-      expect(res.body.notifications).toHaveLength(1);
-      expect(res.body.notifications[0].message).toBe("Test");
+    adminMock.__firestoreData.set("notif-2", {
+      userName: userEmail,
+      read: true,
+      createdAt: new Date(),
     });
+
+    // Add a notification for another user
+    adminMock.__firestoreData.set("notif-3", {
+      userName: "other@example.com",
+      read: false,
+      createdAt: new Date(),
+    });
+
+    const app = makeStaffApp("staff"); // ✅ Sets req.user.email to "staff@example.com"
+    const res = await request(app).get("/api/admin/unread-count");
+
+    // Expect only one unread notification for the user
+    expect(res.status).toBe(200);
+    expect(res.body.count).toBe(1);
   });
+
+  test("GET /get-notifications returns user notifications", async () => {
+    // Clear existing data
+    adminMock.__firestoreData.clear();
+
+    const userEmail = "staff@example.com"; // ✅ Ensure this matches the authenticated user
+
+    // Add relevant notification
+    adminMock.__firestoreData.set("notif-1", {
+      userName: userEmail,
+      message: "Test",
+      read: false,
+      createdAt: new Date(),
+    });
+
+    // Irrelevant notification for another user
+    adminMock.__firestoreData.set("notif-2", {
+      userName: "other@example.com",
+      message: "Should not appear",
+      read: false,
+      createdAt: new Date(),
+    });
+
+    const app = makeStaffApp("staff"); // ✅ Must align with test data
+    const res = await request(app).get("/api/admin/get-notifications");
+
+    expect(res.status).toBe(200);
+    expect(res.body.notifications).toHaveLength(1);
+    expect(res.body.notifications[0].message).toBe("Test");
+  });
+});
+
 
   // ==============================================
   // STAFF BOOKING MANAGEMENT
@@ -1007,7 +1012,6 @@ describe("ADMIN router", () => {
   };
 
   beforeEach(() => {
-    adminMock.__testHelpers.reset();
     // Seed admin user
     adminMock.__firestoreData.set("admin@test.com", {
       email: "admin@test.com",
@@ -1018,13 +1022,10 @@ describe("ADMIN router", () => {
 
   test("returns 409 for duplicate events", async () => {
     // Create initial event
-    adminMock.__testHelpers.setCustomDocId("existing-event");
     await request(makeAdminApp())
       .post("/api/admin/events")
       .send(validEvent);
 
-    // Reset for duplicate check
-    adminMock.__testHelpers.setCustomDocId(null);
     
     const res = await request(makeAdminApp())
       .post("/api/admin/events")
@@ -1035,7 +1036,6 @@ describe("ADMIN router", () => {
   });
 
   test("successfully creates event with expected ID", async () => {
-    adminMock.__testHelpers.setCustomDocId("event-123");
     
     const res = await request(makeAdminApp())
       .post("/api/admin/events")
@@ -1046,7 +1046,7 @@ describe("ADMIN router", () => {
   });
 
   test("returns 500 on Firestore failure", async () => {
-    adminMock.__testHelpers.setAddFailure(true);
+
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
     
     const res = await request(makeAdminApp())

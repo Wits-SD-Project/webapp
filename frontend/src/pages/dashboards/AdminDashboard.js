@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import Sidebar from "../../components/AdminSideBar.js";
 import "../../styles/staffDashboard.css";
 import "../../styles/adminDashboard.css";
-import { useAuth } from "../../context/AuthContext.js";
 import { auth } from "../../firebase";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -117,7 +116,7 @@ export default function AdminDashboard() {
 
     try {
       const token = await user.getIdToken();
-      const res = await fetch("http://localhost:8080/api/admin/maintenance-reports", {
+      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/admin/maintenance-reports`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -169,7 +168,7 @@ export default function AdminDashboard() {
 
       try {
         const token = await user.getIdToken();
-        const res = await fetch("http://localhost:8080/api/admin/maintenance-summary", {
+        const res = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/admin/maintenance-summary`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },

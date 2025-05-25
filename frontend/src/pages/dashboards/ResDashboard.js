@@ -1,18 +1,16 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../../components/ResSideBar.js";
 import "../../styles/staffDashboard.css";
 import { useAuth } from "../../context/AuthContext.js";
-import { db, auth, getAuthToken } from "../../firebase";
+import { getAuthToken } from "../../firebase";
 import { motion, AnimatePresence } from "framer-motion";
-import { collection, onSnapshot } from "firebase/firestore";
 
 export default function ResDashboard() {
   const navigate = useNavigate();
   const { authUser } = useAuth();
   const username = authUser?.name || "Resident";
   const [events, setEvents] = useState([]);
-  const prevEventCountRef = useRef(0);
   const [showNewEventBanner, setShowNewEventBanner] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 

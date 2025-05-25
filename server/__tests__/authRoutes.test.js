@@ -17,10 +17,7 @@ describe('Auth Routes', () => {
 
   beforeEach(() => {
     admin2.__firestoreData.clear();
-    // reset auth mocks
-    admin2.auth().verifyIdToken.mockClear();
-    admin2.auth().setCustomUserClaims.mockClear();
-    admin2.auth().createSessionCookie.mockClear();
+
     
   });
 
