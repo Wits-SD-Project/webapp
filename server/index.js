@@ -18,7 +18,8 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || "")
   .map((o) => o.trim())
   .filter(Boolean);
 
-console.log("CORS allow‑list:", allowedOrigins);
+app.allowedOrigins = allowedOrigins; 
+
 
 app.use(
   cors({
