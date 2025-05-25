@@ -67,8 +67,13 @@ export default function AdminDashboard() {
 
       function formatDate(timestamp) {
         try {
-          if (!timestamp || typeof timestamp._seconds !== "number") return "-";
-          const date = new Date(timestamp._seconds * 1000);
+          // Handle both Firestore Timestamp objects and ISO strings
+          const date = timestamp?.toDate
+            ? timestamp.toDate()
+            : new Date(timestamp);
+
+          if (isNaN(date.getTime())) return "-";
+
           return date.toLocaleString("en-GB", {
             year: "numeric",
             month: "2-digit",
@@ -84,12 +89,14 @@ export default function AdminDashboard() {
       const headers = ["Facility", "Description", "Status", "Created At"];
       const csvRows = [
         headers.join(","),
-        ...data.reports.map((report) => [
-          `"${(report.facilityName || "Unknown").replace(/"/g, '""')}"`,
-          `"${(report.description || "-").replace(/"/g, '""')}"`,
-          `"${(report.status || "-").replace(/"/g, '""')}"`,
-          `"${formatDate(report.createdAt)}"`,
-        ].join(","))
+        ...data.reports.map((report) =>
+          [
+            `"${(report.facilityName || "Unknown").replace(/"/g, '""')}"`,
+            `"${(report.description || "-").replace(/"/g, '""')}"`,
+            `"${(report.status || "-").replace(/"/g, '""')}"`,
+            `"${formatDate(report.createdAt)}"`,
+          ].join(",")
+        ),
       ];
 
       const csvContent = csvRows.join("\n");
@@ -116,11 +123,14 @@ export default function AdminDashboard() {
 
     try {
       const token = await user.getIdToken();
-      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/admin/maintenance-reports`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const res = await fetch(
+        `${process.env.REACT_APP_API_BASE_URL}/api/admin/maintenance-reports`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to fetch reports");
@@ -130,8 +140,13 @@ export default function AdminDashboard() {
 
       function formatDate(timestamp) {
         try {
-          if (!timestamp || typeof timestamp._seconds !== "number") return "-";
-          const date = new Date(timestamp._seconds * 1000);
+          // Handle both Firestore Timestamp objects and ISO strings
+          const date = timestamp?.toDate
+            ? timestamp.toDate()
+            : new Date(timestamp);
+
+          if (isNaN(date.getTime())) return "-";
+
           return date.toLocaleString("en-GB", {
             year: "numeric",
             month: "2-digit",
@@ -168,11 +183,14 @@ export default function AdminDashboard() {
 
       try {
         const token = await user.getIdToken();
-        const res = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/admin/maintenance-summary`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const res = await fetch(
+          `${process.env.REACT_APP_API_BASE_URL}/api/admin/maintenance-summary`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || "Failed to fetch summary");
@@ -186,40 +204,43 @@ export default function AdminDashboard() {
       }
     };
 
-
     fetchMaintenanceSummary();
 
     const fetchTopFacilities = async () => {
       const user = auth.currentUser;
       if (!user) return;
-    
+
       try {
         const token = await user.getIdToken();
-        const res = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/admin/top-4-facilities`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-    
+        const res = await fetch(
+          `${process.env.REACT_APP_API_BASE_URL}/api/admin/top-4-facilities`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
         const data = await res.json();
-        if (!res.ok) throw new Error(data.message || "Failed to fetch top facilities");
-    
+        if (!res.ok)
+          throw new Error(data.message || "Failed to fetch top facilities");
+
         setTopFacilities(data.top4Facilities);
       } catch (err) {
         console.error("Top facilities error:", err.message);
       }
     };
-    
+
     // Call this function
     fetchTopFacilities();
   }, []);
 
   const barData = {
-    labels: topFacilities.map(facility => facility.name),
+    labels: topFacilities.map((facility) => facility.name),
     datasets: [
       {
         label: "Bookings",
-        data: topFacilities.map(facility => facility.bookings),
+        data: topFacilities.map((facility) => facility.bookings),
         backgroundColor: "#00c0df",
       },
     ],
@@ -281,12 +302,28 @@ export default function AdminDashboard() {
           </div>
 
           <div className="graph-container">
-            <div className="graph-card clickable" onClick={() => navigate("/admin/reports")}>
+            <div
+              className="graph-card clickable"
+              onClick={() => navigate("/admin/reports")}
+            >
               <h3>Usage Trends of Top 4 Facilities</h3>
-              <div className="graph-placeholder" style={{ backgroundColor: "#fff", padding: 0 }}>
-                <Bar data={barData} height={200} options={{ responsive: true, plugins: { legend: { display: false } } }} />
-              </div >
-              <div className="export-buttons"> <button >View full reports</button> </div>
+              <div
+                className="graph-placeholder"
+                style={{ backgroundColor: "#fff", padding: 0 }}
+              >
+                <Bar
+                  data={barData}
+                  height={200}
+                  options={{
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                  }}
+                />
+              </div>
+              <div className="export-buttons">
+                {" "}
+                <button>View full reports</button>{" "}
+              </div>
             </div>
 
             <div className="graph-card">
@@ -297,8 +334,12 @@ export default function AdminDashboard() {
               <p>Open Issues: {maintenanceSummary.openCount}</p>
               <p>Closed Issues: {maintenanceSummary.closedCount}</p>
               <div className="export-buttons">
-                <button onClick={handleExportMaintenancePDF}>Export as PDF</button>
-                <button onClick={handleExportMaintenanceCSV}>Export as CSV</button>
+                <button onClick={handleExportMaintenancePDF}>
+                  Export as PDF
+                </button>
+                <button onClick={handleExportMaintenanceCSV}>
+                  Export as CSV
+                </button>
               </div>
             </div>
           </div>

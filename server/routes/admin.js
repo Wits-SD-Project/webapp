@@ -1121,11 +1121,11 @@ router.get("/summary-stats", authenticate, async (req, res) => {
 // POST /api/admin/maintenance-reports
 router.post("/maintenance-reports", authenticate, async (req, res) => {
   try {
-    const { facilityId, facilityName, description, facilityStaff } = req.body;
+    const { facilityId, facilityName, description,creator } = req.body;
 
     const user = req.user;
 
-    if (!facilityId || !facilityName || !description) {
+    if (!facilityId || !facilityName || !description || !creator) {
       return res
         .status(400)
         .json({ success: false, message: "Missing fields" });
@@ -1141,7 +1141,7 @@ router.post("/maintenance-reports", authenticate, async (req, res) => {
         status: "opened",
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         resolvedAt: null,
-        facilityStaff: facilityStaff || "",
+        facilityStaff: creator,
         userId: user.uid,
         username: user.email,
       });
@@ -1157,7 +1157,6 @@ router.get("/get-notifications", authenticate, async (req, res) => {
   try {
     const user = req.user;
 
-    // Get notifications for the current user
     const notificationsSnapshot = await admin
       .firestore()
       .collection("notifications")
@@ -1167,19 +1166,27 @@ router.get("/get-notifications", authenticate, async (req, res) => {
 
     const notifications = notificationsSnapshot.docs.map((doc) => {
       const data = doc.data();
+      
+      // Convert Firestore Timestamp to ISO string
+      const convertTimestamp = (timestamp) => {
+        if (timestamp && typeof timestamp.toDate === 'function') {
+          return timestamp.toDate().toISOString();
+        }
+        return timestamp; // Return as-is if already ISO string
+      };
+
       return {
         id: doc.id,
         ...data,
+        createdAt: convertTimestamp(data.createdAt),
       };
     });
 
-    res.status(200).json({ success: true, notifications });
+    res.json({ notifications });
+    
   } catch (error) {
     console.error("Error fetching notifications:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to load notifications",
-    });
+    res.status(500).json({ error: "Failed to fetch notifications" });
   }
 });
 
