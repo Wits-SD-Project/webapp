@@ -3,20 +3,19 @@
 /* ---------------------------------------------------------- */
 /*  Jest helper – make expect(...).toBeFalse() available      */
 /* ---------------------------------------------------------- */
-if (typeof expect !== 'undefined' && typeof expect.toBeFalse !== 'function') {
+if (typeof expect !== "undefined" && typeof expect.toBeFalse !== "function") {
   expect.extend({
     toBeFalse(received) {
       const pass = received === false;
       return {
         pass,
         message: () =>
-          `expected ${received} ${pass ? 'not ' : ''}to be strictly false`,
+          `expected ${received} ${pass ? "not " : ""}to be strictly false`,
       };
     },
   });
 }
 /* ---------------------------------------------------------- */
-
 
 const firestoreData = global.__FIRESTORE_DATA__ || new Map();
 if (!global.__FIRESTORE_DATA__) global.__FIRESTORE_DATA__ = firestoreData;
@@ -24,7 +23,11 @@ if (!global.__FIRESTORE_DATA__) global.__FIRESTORE_DATA__ = firestoreData;
 const authMethods = {
   verifyIdToken: jest.fn((token) => {
     if (token === "valid-token") {
-      return Promise.resolve({ uid: "12345", email: "test@example.com", name: "Test User" });
+      return Promise.resolve({
+        uid: "12345",
+        email: "test@example.com",
+        name: "Test User",
+      });
     }
     const err = new Error("Invalid token");
     err.code = "auth/argument-error";
@@ -39,10 +42,10 @@ function makeDocRef(id) {
     id,
     get: jest.fn(() => {
       const data = firestoreData.get(id);
-      return Promise.resolve({ 
-        exists: !!data, 
+      return Promise.resolve({
+        exists: !!data,
         data: () => data,
-        ref: { id } 
+        ref: { id },
       });
     }),
     set: jest.fn((data) => {
@@ -57,7 +60,7 @@ function makeDocRef(id) {
     delete: jest.fn(() => {
       firestoreData.delete(id);
       return Promise.resolve();
-    })
+    }),
   };
 }
 
@@ -71,34 +74,87 @@ function makeCollection(collName) {
       return Promise.resolve(makeDocRef(id));
     }),
 
-    where: function(field, op, value) {
-      let matching = Array.from(firestoreData.entries())
-        .filter(([, data]) => data?.[field] === value)
-        .map(([id, data]) => ({
-          id,
-          data: () => data,
-          ref: makeDocRef(id)
-        }));
+    // In __mocks__/firebase.js - Modify the where function
+    // In __mocks__/firebase.js - Modify the where function
+    where: function (field, op, value) {
+      // Initialize query object with conditions array if it doesn't exist
+      if (!this.conditions) this.conditions = [];
+      this.conditions.push({ field, op, value });
+
+      const self = this;
 
       const query = {
-        where: (...args) => query, // allow chaining
-        orderBy: (...args) => query,
+        where: (...args) => {
+          self.conditions.push({ field: args[0], op: args[1], value: args[2] });
+          return query;
+        },
+        orderBy: () => query,
         limit: (n) => ({
-          get: jest.fn(() =>
-            Promise.resolve({
+          get: jest.fn(() => {
+            const matching = Array.from(firestoreData.entries())
+              .filter(([, data]) => {
+                return self.conditions.every(({ field, op, value }) => {
+                  const fieldValue = data?.[field];
+                  if (fieldValue === undefined) return false;
+
+                  switch (op) {
+                    case "==":
+                      return fieldValue === value;
+                    case ">=":
+                      return fieldValue >= value;
+                    case "<=":
+                      return fieldValue <= value;
+                    default:
+                      return false;
+                  }
+                });
+              })
+              .map(([id, data]) => ({
+                id,
+                data: () => data,
+                ref: makeDocRef(id),
+              }));
+
+            return Promise.resolve({
               docs: matching.slice(0, n),
               empty: matching.length === 0,
+              size: matching.slice(0, n).length,
               forEach: (fn) => matching.slice(0, n).forEach(fn),
-            })
-          ),
+            });
+          }),
         }),
-        get: jest.fn(() =>
-          Promise.resolve({
+        get: jest.fn(() => {
+          const matching = Array.from(firestoreData.entries())
+            .filter(([, data]) => {
+              return self.conditions.every(({ field, op, value }) => {
+                const fieldValue = data?.[field];
+                if (fieldValue === undefined) return false;
+
+                switch (op) {
+                  case "==":
+                    return fieldValue === value;
+                  case ">=":
+                    return fieldValue >= value;
+                  case "<=":
+                    return fieldValue <= value;
+                  default:
+                    return false;
+                }
+              });
+            })
+            .map(([id, data]) => ({
+              id,
+              data: () => data,
+              ref: makeDocRef(id),
+            }));
+
+          return Promise.resolve({
             docs: matching,
             empty: matching.length === 0,
+            size: matching.length,
             forEach: (fn) => matching.forEach(fn),
-          })
-        ),
+          });
+        }),
       };
       return query;
     },
@@ -123,6 +179,7 @@ function makeCollection(collName) {
           Promise.resolve({
             docs,
             empty: docs.length === 0,
+            size: docs.length,
             forEach: (fn) => docs.forEach(fn),
           })
         ),
@@ -132,6 +189,7 @@ function makeCollection(collName) {
             Promise.resolve({
               docs: docs.slice(0, n),
               empty: docs.length === 0,
+              size: docs.slice(0, n).length,
               forEach: (fn) => docs.slice(0, n).forEach(fn),
             })
           ),
@@ -162,7 +220,7 @@ async function runTransaction(updateFunction) {
           const docs = query._getMatching();
           return {
             empty: docs.length === 0,
-            docs
+            docs,
           };
         }
 
@@ -172,13 +230,12 @@ async function runTransaction(updateFunction) {
       },
       create: (ref, data) => {
         firestoreData.set(ref.id, data);
-      }
+      },
     });
   } catch (error) {
     throw error;
   }
 }
-
 
 function batch() {
   const ops = [];
@@ -208,7 +265,7 @@ function firestore() {
 
 firestore.FieldValue = {
   serverTimestamp: jest.fn(() => new Date()),
-  arrayUnion: jest.fn((...elements) => elements)
+  arrayUnion: jest.fn((...elements) => elements),
 };
 
 module.exports = {

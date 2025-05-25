@@ -95,7 +95,6 @@ describe("ADMIN router", () => {
   afterEach(() => {
     // Clear all firestore data
     adminMock.__firestoreData.clear();
-
   });
 
   /* ─────────────────────────  USER MANAGEMENT  ───────────────────── */
@@ -260,74 +259,87 @@ describe("ADMIN router", () => {
   // ==============================================
   // EVENT NOTIFICATIONS & STATISTICS
   // ==============================================
-describe("Event Notifications & Statistics", () => {
-  const eventData = {
-    eventName: "Test Event",
-    facilityId: "court-1",
-    facilityName: "Tennis Court",
-    description: "Test Description",
-    startTime: new Date(Date.now() + 3600000).toISOString(),
-    endTime: new Date(Date.now() + 7200000).toISOString(),
-  };
-
-  beforeEach(async () => {
-    // Clear mock Firestore before each test
-    adminMock.__firestoreData.clear();
-
-    // Create test event
-    const app = makeAdminApp();
-    await request(app).post("/api/admin/events").send({ ...eventData, eventId: "event-1" });
-
-    // Add approved residents to mock Firestore
-    adminMock.__firestoreData.set("res1@test.com", {
-      role: "resident",
-      approved: true,
-      uid: "res-1",
-      email: "res1@test.com",
-    });
-    adminMock.__firestoreData.set("res2@test.com", {
-      role: "resident",
-      approved: true,
-      uid: "res-2",
-      email: "res2@test.com",
-    });
-  });
-
-  afterEach(() => {
-    jest.useRealTimers(); // Always restore real timers after time-mocked tests
-  });
-
-  test("POST /events/notify creates resident notifications", async () => {
-    const app = makeAdminApp();
-
-    const res = await request(app)
-      .post("/api/admin/events/notify")
-      .send({ ...eventData, eventId: "event-1" });
-
-    expect(res.status).toBe(200);
-    expect(res.body.message).toBe("Notifications sent to 2 residents");
-  });
-
-  test("GET /hourly-bookings aggregates time slots", async () => {
-    // Set fake date to match booking date
-    const fixedDate = new Date("2023-01-01T09:00:00Z");
-    jest.useFakeTimers({ now: fixedDate });
-
-    // Add mock booking for 9 AM
-    adminMock.__firestoreData.set("b1", {
+  describe("Event Notifications & Statistics", () => {
+    const eventData = {
+      eventName: "Test Event",
       facilityId: "court-1",
-      slot: "09:00 - 10:00",
-      date: "2023-01-01",
+      facilityName: "Tennis Court",
+      description: "Test Description",
+      startTime: new Date(Date.now() + 3600000).toISOString(),
+      endTime: new Date(Date.now() + 7200000).toISOString(),
+    };
+
+    beforeEach(async () => {
+      // Clear mock Firestore before each test
+      adminMock.__firestoreData.clear();
+
+      // Create test event
+      const app = makeAdminApp();
+      await request(app)
+        .post("/api/admin/events")
+        .send({ ...eventData, eventId: "event-1" });
+
+      // Add approved residents to mock Firestore
+      adminMock.__firestoreData.set("res1@test.com", {
+        role: "resident",
+        approved: true,
+        uid: "res-1",
+        email: "res1@test.com",
+      });
+      adminMock.__firestoreData.set("res2@test.com", {
+        role: "resident",
+        approved: true,
+        uid: "res-2",
+        email: "res2@test.com",
+      });
     });
 
-    const app = makeAdminApp();
-    const res = await request(app).get("/api/admin/hourly-bookings");
+    afterEach(() => {
+      jest.useRealTimers(); // Always restore real timers after time-mocked tests
+    });
 
-    expect(res.body.hourlyBookings).toContainEqual(
-      expect.objectContaining({ hour: "9 AM", bookings: 1 })
-    );
+    test("POST /events/notify creates resident notifications", async () => {
+      const app = makeAdminApp();
+
+      const res = await request(app)
+        .post("/api/admin/events/notify")
+        .send({ ...eventData, eventId: "event-1" });
+
+      expect(res.status).toBe(200);
+      expect(res.body.message).toBe("Notifications sent to 2 residents");
+    });
+
+    test("GET /hourly-bookings aggregates time slots", async () => {
+      // Set fixed date and create test data
+      const fixedDate = new Date("2023-01-01T09:00:00Z");
+      jest.useFakeTimers({ now: fixedDate });
+
+      // Add mock booking with proper date format
+      adminMock.__firestoreData.set("b1", {
+        facilityId: "court-1",
+        slot: "09:00 - 10:00",
+        date: "2023-01-01", // Must match YYYY-MM-DD format
+        status: "approved", // Add required fields from your schema
+      });
+
+      // Add facility mapping
+      adminMock.__firestoreData.set("court-1", {
+        name: "Tennis Court",
+        type: "sports",
+      });
+
+      const app = makeAdminApp();
+      const res = await request(app).get("/api/admin/hourly-bookings");
+
+      expect(res.body.hourlyBookings).toContainEqual(
+        expect.objectContaining({
+          hour: "9 AM",
+          bookings: 1,
+          facility: "All",
+        })
+      );
+    });
   });
-});
 
   // ==============================================
   // MAINTENANCE & STAFF ENDPOINTS
@@ -469,72 +481,69 @@ describe("Event Notifications & Statistics", () => {
   // ==============================================
   // NOTIFICATIONS
   // ==============================================
-describe("Notifications", () => {
-  test("GET /unread-count returns correct count", async () => {
-    // Clear existing notifications
-    adminMock.__firestoreData.clear();
+  describe("Notifications", () => {
+    test("GET /unread-count returns correct count", async () => {
+      // Clear existing notifications
+      adminMock.__firestoreData.clear();
 
-    const userEmail = "staff@example.com"; // ✅ Match the email used in makeStaffApp()
+      const userEmail = "staff@example.com";
 
-    // Add test notifications
-    adminMock.__firestoreData.set("notif-1", {
-      userName: userEmail,
-      read: false,
-      createdAt: new Date(),
+      // Add test notifications
+      adminMock.__firestoreData.set("notif-1", {
+        userName: userEmail, // Match query field name
+        read: false, // Correct field name
+        createdAt: new Date(),
+      });
+
+      adminMock.__firestoreData.set("notif-2", {
+        userName: userEmail,
+        read: true, // Should be excluded
+        createdAt: new Date(),
+      });
+
+      // Notification for different user
+      adminMock.__firestoreData.set("notif-3", {
+        userName: "other@example.com",
+        read: false, // Should be excluded
+        createdAt: new Date(),
+      });
+
+      const app = makeStaffApp("staff");
+      const res = await request(app).get("/api/admin/unread-count");
+
+      expect(res.status).toBe(200);
+      expect(res.body.count).toBe(1); // Now correctly filters by both conditions
     });
+    test("GET /get-notifications returns user notifications", async () => {
+      // Clear existing data
+      adminMock.__firestoreData.clear();
 
-    adminMock.__firestoreData.set("notif-2", {
-      userName: userEmail,
-      read: true,
-      createdAt: new Date(),
+      const userEmail = "staff@example.com"; // ✅ Ensure this matches the authenticated user
+
+      // Add relevant notification
+      adminMock.__firestoreData.set("notif-1", {
+        userName: userEmail,
+        message: "Test",
+        read: false,
+        createdAt: new Date(),
+      });
+
+      // Irrelevant notification for another user
+      adminMock.__firestoreData.set("notif-2", {
+        userName: "other@example.com",
+        message: "Should not appear",
+        read: false,
+        createdAt: new Date(),
+      });
+
+      const app = makeStaffApp("staff"); // ✅ Must align with test data
+      const res = await request(app).get("/api/admin/get-notifications");
+
+      expect(res.status).toBe(200);
+      expect(res.body.notifications).toHaveLength(1);
+      expect(res.body.notifications[0].message).toBe("Test");
     });
-
-    // Add a notification for another user
-    adminMock.__firestoreData.set("notif-3", {
-      userName: "other@example.com",
-      read: false,
-      createdAt: new Date(),
-    });
-
-    const app = makeStaffApp("staff"); // ✅ Sets req.user.email to "staff@example.com"
-    const res = await request(app).get("/api/admin/unread-count");
-
-    // Expect only one unread notification for the user
-    expect(res.status).toBe(200);
-    expect(res.body.count).toBe(1);
   });
-
-  test("GET /get-notifications returns user notifications", async () => {
-    // Clear existing data
-    adminMock.__firestoreData.clear();
-
-    const userEmail = "staff@example.com"; // ✅ Ensure this matches the authenticated user
-
-    // Add relevant notification
-    adminMock.__firestoreData.set("notif-1", {
-      userName: userEmail,
-      message: "Test",
-      read: false,
-      createdAt: new Date(),
-    });
-
-    // Irrelevant notification for another user
-    adminMock.__firestoreData.set("notif-2", {
-      userName: "other@example.com",
-      message: "Should not appear",
-      read: false,
-      createdAt: new Date(),
-    });
-
-    const app = makeStaffApp("staff"); // ✅ Must align with test data
-    const res = await request(app).get("/api/admin/get-notifications");
-
-    expect(res.status).toBe(200);
-    expect(res.body.notifications).toHaveLength(1);
-    expect(res.body.notifications[0].message).toBe("Test");
-  });
-});
-
 
   // ==============================================
   // STAFF BOOKING MANAGEMENT
@@ -1002,63 +1011,58 @@ describe("Notifications", () => {
     });
   });
   describe("POST /events", () => {
-  const validEvent = {
-    eventName: "Test Event",
-    facilityName: "Test Facility",
-    facilityId: "facility-1",
-    description: "Test Description",
-    startTime: new Date(Date.now() + 3600000).toISOString(),
-    endTime: new Date(Date.now() + 7200000).toISOString()
-  };
+    const validEvent = {
+      eventName: "Test Event",
+      facilityName: "Test Facility",
+      facilityId: "facility-1",
+      description: "Test Description",
+      startTime: new Date(Date.now() + 3600000).toISOString(),
+      endTime: new Date(Date.now() + 7200000).toISOString(),
+    };
 
-  beforeEach(() => {
-    // Seed admin user
-    adminMock.__firestoreData.set("admin@test.com", {
-      email: "admin@test.com",
-      role: "admin",
-      uid: "admin-uid"
+    beforeEach(() => {
+      // Seed admin user
+      adminMock.__firestoreData.set("admin@test.com", {
+        email: "admin@test.com",
+        role: "admin",
+        uid: "admin-uid",
+      });
+    });
+
+    test("returns 409 for duplicate events", async () => {
+      // Create initial event
+      await request(makeAdminApp()).post("/api/admin/events").send(validEvent);
+
+      const res = await request(makeAdminApp())
+        .post("/api/admin/events")
+        .send(validEvent);
+
+      expect(res.status).toBe(409);
+      expect(res.body.message).toMatch("Duplicate event");
+    });
+
+    test("successfully creates event with expected ID", async () => {
+      const res = await request(makeAdminApp())
+        .post("/api/admin/events")
+        .send({ ...validEvent, posterImage: "test.jpg" });
+
+      expect(res.status).toBe(201);
+      expect(res.body.event.id).toBe("event-123");
+    });
+
+    test("returns 500 on Firestore failure", async () => {
+      const consoleSpy = jest.spyOn(console, "error").mockImplementation();
+
+      const res = await request(makeAdminApp())
+        .post("/api/admin/events")
+        .send(validEvent);
+
+      expect(res.status).toBe(500);
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "Error creating event:",
+        expect.any(Error)
+      );
+      consoleSpy.mockRestore();
     });
   });
-
-  test("returns 409 for duplicate events", async () => {
-    // Create initial event
-    await request(makeAdminApp())
-      .post("/api/admin/events")
-      .send(validEvent);
-
-    
-    const res = await request(makeAdminApp())
-      .post("/api/admin/events")
-      .send(validEvent);
-
-    expect(res.status).toBe(409);
-    expect(res.body.message).toMatch("Duplicate event");
-  });
-
-  test("successfully creates event with expected ID", async () => {
-    
-    const res = await request(makeAdminApp())
-      .post("/api/admin/events")
-      .send({ ...validEvent, posterImage: "test.jpg" });
-
-    expect(res.status).toBe(201);
-    expect(res.body.event.id).toBe("event-123");
-  });
-
-  test("returns 500 on Firestore failure", async () => {
-
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-    
-    const res = await request(makeAdminApp())
-      .post("/api/admin/events")
-      .send(validEvent);
-
-    expect(res.status).toBe(500);
-    expect(consoleSpy).toHaveBeenCalledWith(
-      "Error creating event:",
-      expect.any(Error)
-    );
-    consoleSpy.mockRestore();
-  });
-});
 });
