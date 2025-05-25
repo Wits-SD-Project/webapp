@@ -4,31 +4,113 @@ const { admin } = require("../firebase"); // Changed to import admin
 const authenticate = require("../authenticate");
 
 router.post('/toggle-approval', async (req, res) => {
+  const { email, action } = req.body; // Added 'action' parameter
+  
+  // Validate input
+  if (!email || typeof email !== 'string' || !email.includes('@')) {
+    return res.status(400).json({ 
+      success: false,
+      message: 'Invalid email address provided.' 
+    });
+  }
 
-  const { email } = req.body;
-  if (!email || email === 'admin@gmail.com')
-    return res.status(400).json({ message: 'Invalid email.' });
+  // Prevent modifying admin account
+  if (email === 'admin@gmail.com') {
+    return res.status(403).json({ 
+      success: false,
+      message: 'Admin account cannot be modified.' 
+    });
+  }
+
+  // Validate action type
+  const validActions = ['approve', 'reject', 'revoke'];
+  if (action && !validActions.includes(action)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid action specified. Must be approve, reject, or revoke.'
+    });
+  }
 
   try {
-    const ref  = admin.firestore().collection('users').doc(email);
-    const snap = await ref.get();
-    if (!snap.exists) return res.status(404).json({ message: 'User not found.' });
-
-    const next = !snap.data().approved;
-    await ref.update({ approved: next });
-
-    const uid = snap.data().uid;
-    if (uid) {
-      await admin.auth().setCustomUserClaims(uid, {
-        accepted: snap.data().accepted || false,
-        approved: next,
+    const userRef = admin.firestore().collection('users').doc(email);
+    const userDoc = await userRef.get();
+    
+    if (!userDoc.exists) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'User not found in database.' 
       });
     }
 
-    res.status(200).json({ approved: next });
+    const userData = userDoc.data();
+    let updateData = {
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+    let authClaims = {
+      role: userData.role || 'user'
+    };
+
+    // Determine action
+    if (action === 'revoke') {
+      // Revoke access (set accepted to false)
+      updateData.accepted = false;
+      authClaims.accepted = false;
+      authClaims.approved = userData.approved; // Maintain approval status
+      
+    } else {
+      // Handle approve/reject (toggle approval status)
+      const newApprovalStatus = action === 'approve' ? true : 
+                              action === 'reject' ? false : 
+                              !userData.approved;
+      
+      updateData.approved = newApprovalStatus;
+      authClaims.approved = newApprovalStatus;
+      
+      // If approving, automatically accept
+      if (newApprovalStatus) {
+        updateData.accepted = true;
+        authClaims.accepted = true;
+      } else {
+        // If rejecting, maintain current accepted status
+        authClaims.accepted = userData.accepted || false;
+      }
+    }
+
+    // Update Firestore
+    await userRef.update(updateData);
+
+    // Update Auth claims if UID exists
+    if (userData.uid) {
+      await admin.auth().setCustomUserClaims(userData.uid, authClaims);
+    }
+
+    // Determine response message based on action
+    let message;
+    if (action === 'approve') {
+      message = 'User approved and access granted successfully.';
+    } else if (action === 'reject') {
+      message = 'User rejected successfully.';
+    } else if (action === 'revoke') {
+      message = 'User access revoked successfully.';
+    } else {
+      message = `User ${updateData.approved ? 'approved' : 'rejected'} successfully.`;
+    }
+
+    // Success response
+    res.status(200).json({ 
+      success: true,
+      approved: updateData.approved,
+      accepted: updateData.accepted !== undefined ? updateData.accepted : userData.accepted,
+      message: message
+    });
+
   } catch (err) {
-    console.error('toggle-approval error:', err);
-    res.status(500).json({ message: 'Failed to update approval status.' });
+    console.error('Toggle approval error:', err);
+    res.status(500).json({ 
+      success: false,
+      message: 'Internal server error while updating user status.',
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   }
 });
 
@@ -718,6 +800,37 @@ router.get('/unread-count',authenticate, async (req, res) => {
   }
 });
 
+// fetch top 4 facilities for Admin Dashboard bar graph
+router.get('/top-4-facilities', authenticate, async (req, res) => {
+  try {
+    const facilitiesSnapshot = await admin.firestore()
+      .collection('facilities-test')
+      .get();
+
+    const bookingCounts = await Promise.all(
+      facilitiesSnapshot.docs.map(async doc => {
+        const bookings = await admin.firestore()
+          .collection('bookings')
+          .where('facilityId', '==', doc.id)
+          .get();
+        return {
+          name: doc.data().name,
+          bookings: bookings.size
+        };
+      })
+    );
+
+    const top4Facilities = bookingCounts
+      .sort((a, b) => b.bookings - a.bookings)
+      .slice(0, 4); // Get only top 4
+
+    res.json({ top4Facilities });
+  } catch (error) {
+    console.error('Error fetching top 4 facilities:', error);
+    res.status(500).json({ error: 'Failed to fetch top 4 facilities' });
+  }
+});
+
 // Hourly bookings data
 // server/routes/admin.js
 
@@ -729,45 +842,69 @@ router.get('/hourly-bookings', authenticate, async (req, res) => {
 
     const bookingsSnapshot = await admin.firestore()
       .collection('bookings')
-      // Assuming you've also fixed Issue 1 (using 'date' field and correct comparison)
-      // For example, if 'date' is "YYYY-MM-DD":
       .where('date', '>=', sevenDaysAgo.toISOString().split('T')[0])
       .get();
 
+    // Get all facilities for mapping
+    const facilitiesSnapshot = await admin.firestore()
+      .collection('facilities-test')
+      .get();
+    
+    const facilityMap = {};
+    facilitiesSnapshot.forEach(doc => {
+      facilityMap[doc.id] = doc.data().name;
+    });
+
     const hourlyCounts = Array(12).fill(0).map((_, i) => {
       const hour = i + 6; // From 6 AM to 5 PM
-      return { hour: `${hour} ${hour < 12 ? 'AM' : 'PM'}`, bookings: 0 };
+      return { 
+        hour: `${hour} ${hour < 12 ? 'AM' : 'PM'}`, 
+        bookings: 0,
+        facility: 'All' // Default for aggregated data
+      };
+    });
+
+    // Create facility-specific hourly data
+    const facilityHourlyData = {};
+    Object.values(facilityMap).forEach(facilityName => {
+      facilityHourlyData[facilityName] = Array(12).fill(0).map((_, i) => {
+        const hour = i + 6;
+        return { 
+          hour: `${hour} ${hour < 12 ? 'AM' : 'PM'}`, 
+          bookings: 0,
+          facility: facilityName
+        };
+      });
     });
 
     bookingsSnapshot.forEach(doc => {
       const booking = doc.data();
-      if (booking.date && booking.slot) { // Ensure necessary fields exist
+      if (booking.date && booking.slot && booking.facilityId) {
         try {
-          const slotStartTime = booking.slot.split(' - ')[0]; // Get "09:00" from "09:00 - 10:00"
-          // Construct a full ISO-like string that new Date() can parse reliably
+          const slotStartTime = booking.slot.split(' - ')[0];
           const bookingDateTimeString = `${booking.date}T${slotStartTime}:00`;
           const bookingDateObject = new Date(bookingDateTimeString);
 
-          if (!isNaN(bookingDateObject.getTime())) { // Check if the date is valid
-            const hour = bookingDateObject.getHours(); // This will now be the correct hour
-
-            // Your existing logic to map to displayHour and hourLabel
-            const displayHour = hour === 0 ? 12 : (hour > 12 ? hour - 12 : hour); // Handle midnight as 12 AM
-            const period = hour < 12 || hour === 24 ? 'AM' : 'PM'; // Adjust period for midnight/noon if needed
-            // Ensure consistent hour formatting in hourLabel, especially for single-digit hours if not padded
-            // The hourlyCounts array uses non-padded hours like "6 AM", "7 AM" etc.
+          if (!isNaN(bookingDateObject.getTime())) {
+            const hour = bookingDateObject.getHours();
+            const displayHour = hour === 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+            const period = hour < 12 || hour === 24 ? 'AM' : 'PM';
             const hourLabel = `${displayHour} ${period}`;
 
+            // Update aggregated data
             const hourIndex = hourlyCounts.findIndex(h => h.hour === hourLabel);
             if (hourIndex !== -1) {
               hourlyCounts[hourIndex].bookings++;
-            } else {
-              // This might happen if a booking hour is outside your 6 AM - 5 PM window
-              // Or if the hourLabel formatting here doesn't exactly match what's in hourlyCounts
-              console.warn(`Could not find hourIndex for hourLabel: ${hourLabel} from booking hour: ${hour}`);
             }
-          } else {
-            console.warn(`Could not parse date for booking ID ${doc.id}: ${bookingDateTimeString}`);
+
+            // Update facility-specific data
+            const facilityName = facilityMap[booking.facilityId];
+            if (facilityName && facilityHourlyData[facilityName]) {
+              const facilityHourIndex = facilityHourlyData[facilityName].findIndex(h => h.hour === hourLabel);
+              if (facilityHourIndex !== -1) {
+                facilityHourlyData[facilityName][facilityHourIndex].bookings++;
+              }
+            }
           }
         } catch (e) {
           console.warn(`Error processing slot for booking ID ${doc.id}: ${booking.slot}`, e);
@@ -775,12 +912,19 @@ router.get('/hourly-bookings', authenticate, async (req, res) => {
       }
     });
 
-    res.json({ hourlyBookings: hourlyCounts });
+    // Combine all data
+    let allHourlyData = [...hourlyCounts];
+    Object.values(facilityHourlyData).forEach(facilityData => {
+      allHourlyData = allHourlyData.concat(facilityData);
+    });
+
+    res.json({ hourlyBookings: allHourlyData });
   } catch (error) {
     console.error('Error fetching hourly bookings:', error);
     res.status(500).json({ error: 'Failed to fetch hourly bookings' });
   }
 });
+
 // ------------------------------
 // [2] Top Facilities
 // ------------------------------
