@@ -134,9 +134,9 @@ export default function Reports() {
   const [selectedFacility, setSelectedFacility] = useState("All");
 
   // 2. ADD FILTERING LOGIC (add this before the return statement)
-  const filteredHourlyBookings = selectedFacility === "All" 
-  ? hourlyBookings 
-  : hourlyBookings.filter(booking => booking.facility === selectedFacility);
+  const filteredHourlyBookings = hourlyBookings.filter(booking => 
+    booking.facility === selectedFacility
+  );
 
 
   useEffect(() => {

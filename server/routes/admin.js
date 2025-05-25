@@ -811,45 +811,69 @@ router.get('/hourly-bookings', authenticate, async (req, res) => {
 
     const bookingsSnapshot = await admin.firestore()
       .collection('bookings')
-      // Assuming you've also fixed Issue 1 (using 'date' field and correct comparison)
-      // For example, if 'date' is "YYYY-MM-DD":
       .where('date', '>=', sevenDaysAgo.toISOString().split('T')[0])
       .get();
 
+    // Get all facilities for mapping
+    const facilitiesSnapshot = await admin.firestore()
+      .collection('facilities-test')
+      .get();
+    
+    const facilityMap = {};
+    facilitiesSnapshot.forEach(doc => {
+      facilityMap[doc.id] = doc.data().name;
+    });
+
     const hourlyCounts = Array(12).fill(0).map((_, i) => {
       const hour = i + 6; // From 6 AM to 5 PM
-      return { hour: `${hour} ${hour < 12 ? 'AM' : 'PM'}`, bookings: 0 };
+      return { 
+        hour: `${hour} ${hour < 12 ? 'AM' : 'PM'}`, 
+        bookings: 0,
+        facility: 'All' // Default for aggregated data
+      };
+    });
+
+    // Create facility-specific hourly data
+    const facilityHourlyData = {};
+    Object.values(facilityMap).forEach(facilityName => {
+      facilityHourlyData[facilityName] = Array(12).fill(0).map((_, i) => {
+        const hour = i + 6;
+        return { 
+          hour: `${hour} ${hour < 12 ? 'AM' : 'PM'}`, 
+          bookings: 0,
+          facility: facilityName
+        };
+      });
     });
 
     bookingsSnapshot.forEach(doc => {
       const booking = doc.data();
-      if (booking.date && booking.slot) { // Ensure necessary fields exist
+      if (booking.date && booking.slot && booking.facilityId) {
         try {
-          const slotStartTime = booking.slot.split(' - ')[0]; // Get "09:00" from "09:00 - 10:00"
-          // Construct a full ISO-like string that new Date() can parse reliably
+          const slotStartTime = booking.slot.split(' - ')[0];
           const bookingDateTimeString = `${booking.date}T${slotStartTime}:00`;
           const bookingDateObject = new Date(bookingDateTimeString);
 
-          if (!isNaN(bookingDateObject.getTime())) { // Check if the date is valid
-            const hour = bookingDateObject.getHours(); // This will now be the correct hour
-
-            // Your existing logic to map to displayHour and hourLabel
-            const displayHour = hour === 0 ? 12 : (hour > 12 ? hour - 12 : hour); // Handle midnight as 12 AM
-            const period = hour < 12 || hour === 24 ? 'AM' : 'PM'; // Adjust period for midnight/noon if needed
-            // Ensure consistent hour formatting in hourLabel, especially for single-digit hours if not padded
-            // The hourlyCounts array uses non-padded hours like "6 AM", "7 AM" etc.
+          if (!isNaN(bookingDateObject.getTime())) {
+            const hour = bookingDateObject.getHours();
+            const displayHour = hour === 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+            const period = hour < 12 || hour === 24 ? 'AM' : 'PM';
             const hourLabel = `${displayHour} ${period}`;
 
+            // Update aggregated data
             const hourIndex = hourlyCounts.findIndex(h => h.hour === hourLabel);
             if (hourIndex !== -1) {
               hourlyCounts[hourIndex].bookings++;
-            } else {
-              // This might happen if a booking hour is outside your 6 AM - 5 PM window
-              // Or if the hourLabel formatting here doesn't exactly match what's in hourlyCounts
-              console.warn(`Could not find hourIndex for hourLabel: ${hourLabel} from booking hour: ${hour}`);
             }
-          } else {
-            console.warn(`Could not parse date for booking ID ${doc.id}: ${bookingDateTimeString}`);
+
+            // Update facility-specific data
+            const facilityName = facilityMap[booking.facilityId];
+            if (facilityName && facilityHourlyData[facilityName]) {
+              const facilityHourIndex = facilityHourlyData[facilityName].findIndex(h => h.hour === hourLabel);
+              if (facilityHourIndex !== -1) {
+                facilityHourlyData[facilityName][facilityHourIndex].bookings++;
+              }
+            }
           }
         } catch (e) {
           console.warn(`Error processing slot for booking ID ${doc.id}: ${booking.slot}`, e);
@@ -857,12 +881,19 @@ router.get('/hourly-bookings', authenticate, async (req, res) => {
       }
     });
 
-    res.json({ hourlyBookings: hourlyCounts });
+    // Combine all data
+    let allHourlyData = [...hourlyCounts];
+    Object.values(facilityHourlyData).forEach(facilityData => {
+      allHourlyData = allHourlyData.concat(facilityData);
+    });
+
+    res.json({ hourlyBookings: allHourlyData });
   } catch (error) {
     console.error('Error fetching hourly bookings:', error);
     res.status(500).json({ error: 'Failed to fetch hourly bookings' });
   }
 });
+
 // ------------------------------
 // [2] Top Facilities
 // ------------------------------
